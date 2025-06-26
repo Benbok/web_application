@@ -1,0 +1,36 @@
+<!-- main/templates/main/patients/list.html -->
+{% extends "patients/base.html" %}
+{% block title %}Список пациентов{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>📋 Список пациентов</h3>
+    <a href="{% url 'patient_create' %}" class="btn btn-success">➕ Добавить пациента</a>
+</div>
+
+<table class="table table-dark table-striped align-middle shadow-sm rounded overflow-hidden">
+    <thead class="table-secondary">
+        <tr>
+            <th>ФИО</th>
+            <th>Дата рождения</th>
+            <th>Действия</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for patient in patients %}
+        <tr>
+            <td>{{ patient.full_name }}</td>
+            <td>{{ patient.date_of_birth|date:"d.m.Y" }}</td>
+            <td>
+                <a href="{% url 'patient_detail' patient.pk %}" class="btn btn-sm btn-info me-1">Подробнее</a>
+                {% comment %} <a href="{% url 'patient_update' patient.pk %}" class="btn btn-sm btn-warning me-1">Редактировать</a> {% endcomment %}
+                {% comment %} <a href="{% url 'patient_delete' patient.pk %}" class="btn btn-sm btn-danger">Удалить</a> {% endcomment %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="3" class="text-center">Нет пациентов</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

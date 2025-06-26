@@ -1,0 +1,12 @@
+<!-- main/templates/main/patients/detail.html -->
+{% extends "patients/base.html" %}
+{% block title %}{{ patient.full_name }}{% endblock %}
+{% block content %}
+<h2 class="mb-4">📁 {{ patient.full_name }}</h2>
+<ul class="list-group mb-4">
+    <li class="list-group-item bg-dark text-light"><strong>Дата рождения:</strong> {{ patient.date_of_birth|date:"d.m.Y" }}</li>
+</ul>
+<a href="{% url 'patient_update' patient.pk %}" class="btn btn-warning me-2">Редактировать</a>
+<a href="{% url 'patient_delete' patient.pk %}" class="btn btn-danger">Удалить</a>
+<a href="{% url 'patient_list' %}" class="btn btn-secondary">Назад к списку</a>
+{% endblock %}
