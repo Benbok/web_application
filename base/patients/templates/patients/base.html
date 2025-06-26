@@ -1,89 +1,237 @@
 {% load static %}
 
-<!-- templates/base.html -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Личный кабинет врача{% endblock %}</title>
-
+    <title>{% block title %}МедКарт | Личный кабинет врача{% endblock %}</title>
+    
     <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"  rel="stylesheet">
-
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Animate.css -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    
     <!-- Собственный CSS -->
     <link rel="stylesheet" href="{% static 'patients/css/style.css' %}">
+    
+    <!-- Favicon -->
+    {% comment %} <link rel="icon" href="{% static 'patients/img/favicon.ico' %}"> {% endcomment %}
 </head>
-<body class="bg-dark text-light">
-
-    <div class="d-flex vh-100">
-
-        <!-- Sidebar -->
-        <div class="d-flex flex-column p-3 bg-secondary text-white sidebar" style="width: 250px;">
-            <h4 class="mb-4">🏥 Кабинет врача</h4>
-            <ul class="nav nav-pills flex-column mb-auto">
-                <li class="nav-item">
-                    <a href="/" class="nav-link text-white {% block active_dashboard %}{% endblock %}" aria-current="page">
-                        📋 Главная
-                    </a>
-                </li>
-                <li>
-                    <a href="{% url 'patient_list' %}" class="nav-link text-white {% block active_patients %}{% endblock %}">
-                        👥 Пациенты
-                    </a>
-                </li>
-                <li>
-                    <a href="#" class="nav-link text-white">
-                        📅 Записи
-                    </a>
-                </li>
-                <li>
-                    <a href="#" class="nav-link text-white">
-                        📄 Отчеты
-                    </a>
-                </li>
-            </ul>
-            <hr>
-            <div class="dropdown">
-                <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
-                    <strong>👨‍⚕️ Доктор Иванов</strong>
-                </a>
-                <ul class="dropdown-menu dropdown-menu-dark text-small shadow">
-                    <li><a class="dropdown-item" href="#">Профиль</a></li>
-                    <li><a class="dropdown-item" href="#">Настройки</a></li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="#">Выйти</a></li>
-                </ul>
+<body class="app-body">
+    <!-- Preloader -->
+    <div class="preloader">
+        <div class="preloader-spinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
             </div>
         </div>
+    </div>
 
-        <!-- patients Content -->
-        <div class="flex-grow-1 d-flex flex-column">
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="app-sidebar">
+            <div class="sidebar-header">
+                <div class="logo-container">
+                    <i class="fas fa-heartbeat logo-icon"></i>
+                    <h4 class="logo-text">МедКарт</h4>
+                </div>
+                <button class="sidebar-toggle d-lg-none">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="sidebar-menu">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a href="/" class="nav-link {% block active_dashboard %}{% endblock %}">
+                            <i class="fas fa-home nav-icon"></i>
+                            <span class="nav-text">Главная</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'patient_list' %}" class="nav-link {% block active_patients %}{% endblock %}">
+                            <i class="fas fa-user-injured nav-icon"></i>
+                            <span class="nav-text">Пациенты</span>
+                            <span class="badge bg-primary rounded-pill ms-auto">14</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="fas fa-calendar-check nav-icon"></i>
+                            <span class="nav-text">Записи</span>
+                            <span class="badge bg-danger rounded-pill ms-auto">3</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="fas fa-file-medical nav-icon"></i>
+                            <span class="nav-text">Отчеты</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="fas fa-prescription nav-icon"></i>
+                            <span class="nav-text">Рецепты</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="fas fa-chart-line nav-icon"></i>
+                            <span class="nav-text">Аналитика</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="user-avatar">
+                        {% comment %} <img src="{% static 'patients/img/doctor-avatar.png' %}" alt="Доктор Иванов"> {% endcomment %}
+                    </div>
+                    <div class="user-info">
+                        <div class="user-name">Доктор Иванов</div>
+                        <div class="user-role">Кардиолог</div>
+                    </div>
+                    <div class="user-actions">
+                        <a href="#" class="btn btn-sm btn-icon" data-bs-toggle="dropdown">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Профиль</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Настройки</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-sign-out-alt me-2"></i>Выйти</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="app-main">
             <!-- Header -->
-            <header class="bg-dark border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">{% block page_title %}Главная{% endblock %}</h5>
-                <div>
-                    <button class="btn btn-sm btn-outline-light me-2">🔔</button>
-                    <button class="btn btn-sm btn-outline-light">⚙️</button>
+            <header class="app-header">
+                <div class="header-left">
+                    <button class="sidebar-toggle d-none d-lg-block">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h5 class="page-title animate__animated animate__fadeIn">{% block page_title %}Главная{% endblock %}</h5>
+                </div>
+                
+                <div class="header-right">
+                    <div class="search-box">
+                        <input type="text" placeholder="Поиск пациентов, записей...">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    
+                    <div class="header-actions">
+                        <div class="notification-dropdown dropdown">
+                            <button class="btn btn-icon" data-bs-toggle="dropdown">
+                                <i class="fas fa-bell"></i>
+                                <span class="badge bg-danger">5</span>
+                            </button>
+                            <div class="dropdown-menu dropdown-menu-end notification-dropdown-menu">
+                                <div class="notification-header">
+                                    <h6>Уведомления</h6>
+                                    <a href="#" class="mark-all-read">Отметить все как прочитанные</a>
+                                </div>
+                                <div class="notification-list">
+                                    <a href="#" class="notification-item unread">
+                                        <div class="notification-icon bg-primary">
+                                            <i class="fas fa-calendar-check"></i>
+                                        </div>
+                                        <div class="notification-content">
+                                            <div class="notification-text">Новая запись на завтра</div>
+                                            <div class="notification-time">10 мин назад</div>
+                                        </div>
+                                    </a>
+                                    <a href="#" class="notification-item">
+                                        <div class="notification-icon bg-warning">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                        </div>
+                                        <div class="notification-content">
+                                            <div class="notification-text">Пациент Петров отменил прием</div>
+                                            <div class="notification-time">2 часа назад</div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="notification-footer">
+                                    <a href="#" class="view-all">Показать все уведомления</a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="user-dropdown dropdown">
+                            <button class="btn btn-icon" data-bs-toggle="dropdown">
+                                <div class="user-avatar-sm">
+                                    {% comment %} <img src="{% static 'patients/img/doctor-avatar.png' %}" alt="Доктор Иванов"> {% endcomment %}
+                                </div>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Профиль</a></li>
+                                <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Настройки</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="#"><i class="fas fa-sign-out-alt me-2"></i>Выйти</a></li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
             </header>
 
             <!-- Page Content -->
-            <patients class="flex-grow-1 p-4 overflow-auto">
+            <div class="app-content animate__animated animate__fadeIn">
                 {% block content %}
                 <!-- Здесь будет основной контент страниц -->
                 {% endblock %}
-            </patients>
+            </div>
 
             <!-- Footer -->
-            <footer class="bg-dark text-center py-3 border-top text-muted">
-                <small>© 2025 — Личный кабинет врача</small>
+            <footer class="app-footer">
+                <div class="footer-left">
+                    <small>© 2025 МедКарт — Медицинская информационная система</small>
+                </div>
+                <div class="footer-right">
+                    <small>Версия 2.1.4</small>
+                </div>
             </footer>
-        </div>
+        </main>
     </div>
 
     <!-- Bootstrap JS + Popper -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script> 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- GSAP для анимаций -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
+    
+    <!-- Custom JS -->
     <script src="{% static 'patients/js/script.js' %}"></script>
+    
+    <script>
+        // Инициализация анимаций и функционала
+        document.addEventListener('DOMContentLoaded', function() {
+            // Скрываем прелоадер
+            setTimeout(function() {
+                document.querySelector('.preloader').classList.add('loaded');
+                document.querySelector('.app-container').classList.add('loaded');
+            }, 500);
+            
+           
+            
+            // Переключение сайдбара
+            document.querySelectorAll('.sidebar-toggle').forEach(function(toggle) {
+                toggle.addEventListener('click', function() {
+                    document.querySelector('.app-container').classList.toggle('sidebar-collapsed');
+                });
+            });
+        });
+    </script>
 </body>
 </html>
