@@ -1,4 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
+from django.core.paginator import Paginator
+from django.db.models import Q
 from .models import Patient
 from .forms import PatientForm
 
@@ -6,8 +8,27 @@ def home(request):
     return render(request, 'patients/home.html')
 
 def patient_list(request):
+    query = request.GET.get('q')
     patients = Patient.objects.all()
-    return render(request, 'patients/list.html', {'patients': patients})
+    if query:
+        words = [word.capitalize() for word in query.strip().split()]
+        for word in words:
+            patients = patients.filter(
+                Q(family__icontains=word) |
+                Q(given__icontains=word) |
+                Q(middle__icontains=word)
+            )
+    
+    paginator = Paginator(patients, 10)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+    
+    return render(request, 'patients/list.html', {
+        'patients': page_obj.object_list,
+        'page_obj': page_obj,
+        'paginator': paginator,
+        'is_paginated': page_obj.has_other_pages(),
+    })
 
 def patient_detail(request, pk):
     patient = get_object_or_404(Patient, pk=pk)
@@ -29,7 +50,7 @@ def patient_update(request, pk):
         form = PatientForm(request.POST, instance=patient)
         if form.is_valid():
             form.save()
-            return redirect('patient_list')
+            return redirect('patient_detail', pk=patient.pk)
     else:
         form = PatientForm(instance=patient)
     return render(request, 'patients/form.html', {'form': form, 'title': 'Редактировать пациента', 'patient': patient})
