@@ -3,92 +3,104 @@
 {% block page_title %}Информация о пациенте{% endblock %}
 
 {% block content %}
-<div class="card">
+<!-- История обращений / поступлений -->
+{% include "encounters/encounter_list.html" with encounters=encounters %}
+
+<div class="card mt-4">
     <div class="card-body">
         <h4 class="card-title mb-4"><i class="fas fa-user-injured me-2"></i>{{ patient.last_name }} {{ patient.first_name }}{% if patient.middle_name %} {{ patient.middle_name }}{% endif %}</h4>
-        
-        <!-- Личные данные -->
-        <h5 class="mt-3 mb-2">Личные данные</h5>
-        <ul class="list-group list-group-flush mb-3">
-            <li class="list-group-item"><strong>Фамилия:</strong> {{ patient.last_name }}</li>
-            <li class="list-group-item"><strong>Имя:</strong> {{ patient.first_name }}</li>
-            {% if patient.middle_name %}
-            <li class="list-group-item"><strong>Отчество:</strong> {{ patient.middle_name }}</li>
-            {% endif %}
-            <li class="list-group-item"><strong>Дата рождения:</strong> {{ patient.birth_date|date:"d.m.Y" }}</li>
-            <li class="list-group-item"><strong>Пол:</strong> {{ patient.get_gender_display }}</li>
-        </ul>
-
-        <!-- Контактная информация -->
-        <h5 class="mt-3 mb-2">Контактная информация</h5>
-        <ul class="list-group list-group-flush mb-3">
-            {% if patient.phone %}
-            <li class="list-group-item"><strong>Телефон:</strong> {{ patient.phone }}</li>
-            {% endif %}
-            {% if patient.email %}
-            <li class="list-group-item"><strong>Email:</strong> {{ patient.email }}</li>
-            {% endif %}
-        </ul>
-
-        <!-- Адреса -->
-        <h5 class="mt-3 mb-2">Адреса</h5>
-        <ul class="list-group list-group-flush mb-3">
-            {% if patient.registration_address %}
-            <li class="list-group-item"><strong>Адрес регистрации:</strong> {{ patient.registration_address }}</li>
-            {% endif %}
-            {% if patient.residential_address %}
-            <li class="list-group-item"><strong>Адрес проживания:</strong> {{ patient.residential_address }}</li>
-            {% endif %}
-        </ul>
-
-        <!-- Паспортные данные -->
-        <h5 class="mt-3 mb-2">Паспортные данные</h5>
-        <ul class="list-group list-group-flush mb-3">
-            {% if patient.passport_series %}
-            <li class="list-group-item"><strong>Серия паспорта:</strong> {{ patient.passport_series }}</li>
-            {% endif %}
-            {% if patient.passport_number %}
-            <li class="list-group-item"><strong>Номер паспорта:</strong> {{ patient.passport_number }}</li>
-            {% endif %}
-            {% if patient.passport_issued_by %}
-            <li class="list-group-item"><strong>Кем выдан:</strong> {{ patient.passport_issued_by }}</li>
-            {% endif %}
-            {% if patient.passport_issued_date %}
-            <li class="list-group-item"><strong>Дата выдачи:</strong> {{ patient.passport_issued_date|date:"d.m.Y" }}</li>
-            {% endif %}
-            {% if patient.passport_department_code %}
-            <li class="list-group-item"><strong>Код подразделения:</strong> {{ patient.passport_department_code }}</li>
-            {% endif %}
-        </ul>
-
-        <!-- Идентификация -->
-        <h5 class="mt-3 mb-2">Идентификация</h5>
-        <ul class="list-group list-group-flush mb-3">
-            {% if patient.snils %}
-            <li class="list-group-item"><strong>СНИЛС:</strong> {{ patient.snils }}</li>
-            {% endif %}
-            {% if patient.insurance_policy_number %}
-            <li class="list-group-item"><strong>Полис ОМС/ДМС:</strong> {{ patient.insurance_policy_number }}</li>
-            {% endif %}
-            {% if patient.insurance_company %}
-            <li class="list-group-item"><strong>Страховая компания:</strong> {{ patient.insurance_company }}</li>
-            {% endif %}
-        </ul>
-
-        <!-- Представитель -->
-        <h5 class="mt-3 mb-2">Представитель</h5>
-        <ul class="list-group list-group-flush mb-3">
-            {% if patient.legal_representative_full_name %}
-            <li class="list-group-item"><strong>ФИО представителя:</strong> {{ patient.legal_representative_full_name }}</li>
-            {% endif %}
-            {% if patient.legal_representative_relation %}
-            <li class="list-group-item"><strong>Степень родства:</strong> {{ patient.legal_representative_relation }}</li>
-            {% endif %}
-            {% if patient.legal_representative_contacts %}
-            <li class="list-group-item"><strong>Контакты представителя:</strong> {{ patient.legal_representative_contacts }}</li>
-            {% endif %}
-        </ul>
-
+        <div class="row">
+            <div class="col-md-3">
+                <div class="nav flex-column nav-pills me-3" id="patientTab" role="tablist" aria-orientation="vertical">
+                    <button class="nav-link active" id="tab-personal" data-bs-toggle="pill" data-bs-target="#personal" type="button" role="tab">Личные данные</button>
+                    <button class="nav-link" id="tab-passport" data-bs-toggle="pill" data-bs-target="#passport" type="button" role="tab">Паспортные данные</button>
+                    <button class="nav-link" id="tab-id" data-bs-toggle="pill" data-bs-target="#idinfo" type="button" role="tab">Идентификация</button>
+                    <button class="nav-link" id="tab-contacts" data-bs-toggle="pill" data-bs-target="#contacts" type="button" role="tab">Контакты и адреса</button>
+                    <button class="nav-link" id="tab-representative" data-bs-toggle="pill" data-bs-target="#representative" type="button" role="tab">Представитель</button>
+                </div>
+            </div>
+            <div class="col-md-9">
+                <div class="tab-content" id="patientTabContent">
+                    <!-- Личные данные -->
+                    <div class="tab-pane fade show active" id="personal" role="tabpanel">
+                        <ul class="list-group list-group-flush mb-3">
+                            <li class="list-group-item"><strong>Фамилия:</strong> {{ patient.last_name }}</li>
+                            <li class="list-group-item"><strong>Имя:</strong> {{ patient.first_name }}</li>
+                            {% if patient.middle_name %}
+                            <li class="list-group-item"><strong>Отчество:</strong> {{ patient.middle_name }}</li>
+                            {% endif %}
+                            <li class="list-group-item"><strong>Дата рождения:</strong> {{ patient.birth_date|date:"d.m.Y" }}</li>
+                            <li class="list-group-item"><strong>Пол:</strong> {{ patient.get_gender_display }}</li>
+                        </ul>
+                    </div>
+                    <!-- Паспортные данные -->
+                    <div class="tab-pane fade" id="passport" role="tabpanel">
+                        <ul class="list-group list-group-flush mb-3">
+                            {% if patient.passport_series %}
+                            <li class="list-group-item"><strong>Серия паспорта:</strong> {{ patient.passport_series }}</li>
+                            {% endif %}
+                            {% if patient.passport_number %}
+                            <li class="list-group-item"><strong>Номер паспорта:</strong> {{ patient.passport_number }}</li>
+                            {% endif %}
+                            {% if patient.passport_issued_by %}
+                            <li class="list-group-item"><strong>Кем выдан:</strong> {{ patient.passport_issued_by }}</li>
+                            {% endif %}
+                            {% if patient.passport_issued_date %}
+                            <li class="list-group-item"><strong>Дата выдачи:</strong> {{ patient.passport_issued_date|date:"d.m.Y" }}</li>
+                            {% endif %}
+                            {% if patient.passport_department_code %}
+                            <li class="list-group-item"><strong>Код подразделения:</strong> {{ patient.passport_department_code }}</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    <!-- Идентификация -->
+                    <div class="tab-pane fade" id="idinfo" role="tabpanel">
+                        <ul class="list-group list-group-flush mb-3">
+                            {% if patient.snils %}
+                            <li class="list-group-item"><strong>СНИЛС:</strong> {{ patient.snils }}</li>
+                            {% endif %}
+                            {% if patient.insurance_policy_number %}
+                            <li class="list-group-item"><strong>Полис ОМС/ДМС:</strong> {{ patient.insurance_policy_number }}</li>
+                            {% endif %}
+                            {% if patient.insurance_company %}
+                            <li class="list-group-item"><strong>Страховая компания:</strong> {{ patient.insurance_company }}</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    <!-- Контакты и адреса -->
+                    <div class="tab-pane fade" id="contacts" role="tabpanel">
+                        <ul class="list-group list-group-flush mb-3">
+                            {% if patient.phone %}
+                            <li class="list-group-item"><strong>Телефон:</strong> {{ patient.phone }}</li>
+                            {% endif %}
+                            {% if patient.email %}
+                            <li class="list-group-item"><strong>Email:</strong> {{ patient.email }}</li>
+                            {% endif %}
+                            {% if patient.registration_address %}
+                            <li class="list-group-item"><strong>Адрес регистрации:</strong> {{ patient.registration_address }}</li>
+                            {% endif %}
+                            {% if patient.residential_address %}
+                            <li class="list-group-item"><strong>Адрес проживания:</strong> {{ patient.residential_address }}</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    <!-- Представитель -->
+                    <div class="tab-pane fade" id="representative" role="tabpanel">
+                        <ul class="list-group list-group-flush mb-3">
+                            {% if patient.legal_representative_full_name %}
+                            <li class="list-group-item"><strong>ФИО представителя:</strong> {{ patient.legal_representative_full_name }}</li>
+                            {% endif %}
+                            {% if patient.legal_representative_relation %}
+                            <li class="list-group-item"><strong>Степень родства:</strong> {{ patient.legal_representative_relation }}</li>
+                            {% endif %}
+                            {% if patient.legal_representative_contacts %}
+                            <li class="list-group-item"><strong>Контакты представителя:</strong> {{ patient.legal_representative_contacts }}</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="d-flex gap-2 mt-4">
             <a href="{% url 'patient_update' patient.pk %}" class="btn btn-outline-primary">
                 <i class="fas fa-edit me-1"></i> Редактировать

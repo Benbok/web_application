@@ -1,8 +1,9 @@
-from django.shortcuts import render, get_object_or_404, redirect
+from django.shortcuts import render, get_object_or_404, redirect, redirect
 from django.core.paginator import Paginator
 from django.db.models import Q
 from .models import Patient
 from .forms import PatientForm
+from encounters.models import Encounter
 
 def home(request):
     return render(request, 'patients/home.html')
@@ -32,7 +33,11 @@ def patient_list(request):
 
 def patient_detail(request, pk):
     patient = get_object_or_404(Patient, pk=pk)
-    return render(request, 'patients/detail.html', {'patient': patient})
+    encounters = Encounter.objects.filter(patient=patient)
+    return render(request, 'patients/detail.html', {
+        'patient': patient,
+        'encounters': encounters,
+    })
 
 def patient_create(request):
     if request.method == "POST":

@@ -1,0 +1,15 @@
+{% extends "patients/base.html" %}
+{% block title %}Удалить документ{% endblock %}
+{% block content %}
+<div class="card mt-4">
+    <div class="card-body">
+        <h4 class="card-title mb-4">Удалить документ?</h4>
+        <p>Вы уверены, что хотите удалить документ "{{ document.title }}"?</p>
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Удалить</button>
+            <a href="{% url 'documents:document_detail' document.pk %}" class="btn btn-secondary">Отмена</a>
+        </form>
+    </div>
+</div>
+{% endblock %}
