@@ -26,5 +26,5 @@ class ClinicalDocumentForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if user:
             self.fields['template_choice'].queryset = DocumentTemplate.objects.filter(
-            Q(is_global=True) | Q(author=user),
+            Q(is_global=True) | Q(author=user)
         )

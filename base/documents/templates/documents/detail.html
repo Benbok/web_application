@@ -17,7 +17,7 @@
             <a href="{% url 'documents:document_delete' document.pk %}" class="btn btn-outline-danger">
                 <i class="fas fa-trash-alt me-1"></i> Удалить
             </a>
-            <a href="{% url 'encounters:encounter_detail' document.encounter.pk %}" class="btn btn-outline-secondary ms-auto">
+            <a href="{% url 'encounters:encounter_detail' document.content_object.pk %}" class="btn btn-outline-secondary ms-auto">
                 <i class="fas fa-arrow-left me-1"></i> К обращению
             </a>
         </div>

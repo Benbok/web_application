@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
-from encounters.models import Encounter
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 
 class DocumentTemplate(models.Model):
     DOCUMENT_TYPE_CHOICES = [
@@ -39,7 +40,14 @@ class DocumentTemplate(models.Model):
 class ClinicalDocument(models.Model):
     DOCUMENT_TYPE_CHOICES = DocumentTemplate.DOCUMENT_TYPE_CHOICES
 
-    encounter = models.ForeignKey(Encounter, on_delete=models.CASCADE, related_name="documents")
+    # Поля для связи с другими моделями через GenericForeignKey
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE) 
+    # Поле для хранения ID объекта, к которому относится документ
+    object_id = models.PositiveIntegerField()
+    # GenericForeignKey для связи с любым объектом
+    content_object = GenericForeignKey('content_type', 'object_id')
+    
+    
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     document_type = models.CharField("Тип документа", max_length=30, choices=DOCUMENT_TYPE_CHOICES)
     title = models.CharField("Заголовок", max_length=255)

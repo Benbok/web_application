@@ -1,77 +1,81 @@
-from django.shortcuts import render, get_object_or_404, redirect
+from django.db import models
+from django.urls import reverse, reverse_lazy
+from django.views.generic import DetailView, CreateView, UpdateView, DeleteView
+from django.shortcuts import get_object_or_404
 from .models import Encounter
 from patients.models import Patient
 from .forms import EncounterForm
-from documents.models import ClinicalDocument
-from documents.forms import ClinicalDocumentForm
 
+class EncounterDetailView(DetailView):
+    model = Encounter
+    template_name = 'encounters/detail.html'
+    context_object_name = 'encounter'
 
-def encounter_detail(request, pk):
-    encounter = get_object_or_404(Encounter, pk=pk)
-    documents = ClinicalDocument.objects.filter(encounter=encounter)
-    if request.method == 'POST':
-        document_form = ClinicalDocumentForm(request.POST, request.FILES, user=request.user)
-        if document_form.is_valid():
-            doc = document_form.save(commit=False)
-            doc.encounter = encounter
-            doc.author = request.user
-            doc.save()
-            return redirect('encounters:encounter_detail', pk=encounter.pk)
-    else:
-        document_form = ClinicalDocumentForm(user=request.user)
-    # Порядковый номер обращения
-    encounters = encounter.patient.encounters.order_by('date_start', 'pk')
-    encounter_number = list(encounters).index(encounter) + 1
-    return render(request, 'encounters/detail.html', {
-        'encounter': encounter,
-        'encounter_number': encounter_number,
-        'documents': documents,
-        'document_form': document_form,
-    })
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        encounter = self.get_object()
+        
+        context['documents'] = encounter.documents.all()
+        context['encounter_number'] = Encounter.objects.filter(
+            patient_id=encounter.patient_id,
+            date_start__lt=encounter.date_start
+        ).count() + 1
+        return context
 
-def encounter_create(request, pk):
-    patient = get_object_or_404(Patient, pk=pk)
-    if request.method == 'POST':
-        form = EncounterForm(request.POST)
-        if form.is_valid():
-            encounter = form.save(commit=False)
-            encounter.patient = patient
-            encounter.doctor = request.user
-            encounter.save()
-            return redirect('encounters:encounter_detail', pk=encounter.pk)
-    else:
-        form = EncounterForm()
-    return render(request, 'encounters/form.html', {
-        'form': form,
-        'title': 'Новое обращение',
-        'patient': patient,
-    })
+class EncounterCreateView(CreateView):
+    model = Encounter
+    form_class = EncounterForm
+    template_name = 'encounters/form.html'
 
-def encounter_update(request, pk):
-    encounter = get_object_or_404(Encounter, pk=pk)
-    patient = encounter.patient
-    if request.method == 'POST':
-        form = EncounterForm(request.POST, instance=encounter)
-        if form.is_valid():
-            form.save()
-            return redirect('encounters:encounter_detail', pk=encounter.pk)
-    else:
-        form = EncounterForm(instance=encounter)
-    return render(request, 'encounters/form.html', {
-        'form': form,
-        'title': 'Редактировать обращение',
-        'patient': patient,
-    })
+    def setup(self, request, *args, **kwargs):
+        """Получаем пациента до основной логики."""
+        super().setup(request, *args, **kwargs)
+        self.patient = get_object_or_404(Patient, pk=self.kwargs['patient_pk'])
 
-def encounter_delete(request, pk):
-    encounter = get_object_or_404(Encounter, pk=pk)
-    encounters = encounter.patient.encounters.order_by('date_start', 'pk')
-    encounter_number = list(encounters).index(encounter) + 1
-    patient_pk = encounter.patient.pk 
-    if request.method == 'POST':
-        encounter.delete()
-        return redirect('patient_detail', patient_pk)
-    return render(request, 'encounters/confirm_delete.html', {
-        'encounter': encounter,
-        'encounter_number': encounter_number,
-    })
+    def form_valid(self, form):
+        """Добавляем пациента и врача перед сохранением."""
+        form.instance.patient = self.patient
+        form.instance.doctor = self.request.user
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        """Добавляем в контекст пациента и заголовок."""
+        context = super().get_context_data(**kwargs)
+        context['patient'] = self.patient
+        context['title'] = 'Новое обращение'
+        return context
+    
+    def get_success_url(self):
+        """Редирект после успешного создания."""
+        return reverse('encounters:encounter_detail', kwargs={'pk': self.object.pk})
+
+class EncounterUpdateView(UpdateView):
+    model = Encounter
+    form_class = EncounterForm
+    template_name = 'encounters/form.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['patient'] = self.object.patient
+        context['title'] = 'Редактировать обращение'
+        return context
+
+    def get_success_url(self):
+        return reverse('encounters:encounter_detail', kwargs={'pk': self.object.pk})
+
+class EncounterDeleteView(DeleteView):
+    model = Encounter
+    template_name = 'encounters/confirm_delete.html'
+
+    def get_success_url(self):
+        return reverse_lazy('patients:patient_detail', kwargs={'pk': self.object.patient.pk})
+
+    def get_context_data(self, **kwargs):
+        """Добавляем номер обращения для страницы подтверждения."""
+        context = super().get_context_data(**kwargs)
+        encounter = self.get_object()
+        context['encounter_number'] = Encounter.objects.filter(
+            patient_id=encounter.patient_id,
+            date_start__lt=encounter.date_start
+        ).count() + 1
+        return context

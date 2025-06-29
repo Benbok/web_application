@@ -1,6 +1,8 @@
 from django.db import models
 from django.conf import settings
 from patients.models import Patient
+from django.contrib.contenttypes.fields import GenericRelation
+from documents.models import ClinicalDocument
 
 class Encounter(models.Model):
     ENCOUNTER_TYPE_CHOICES = [
@@ -8,12 +10,14 @@ class Encounter(models.Model):
         ('admission', 'Поступление'),
     ]
 
+    documents = GenericRelation(ClinicalDocument)
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="encounters")
     doctor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     type = models.CharField("Тип случая", max_length=20, choices=ENCOUNTER_TYPE_CHOICES)
     date_start = models.DateTimeField("Дата начала")
     date_end = models.DateTimeField("Дата завершения", null=True, blank=True)
     is_active = models.BooleanField("Активен", default=True)
+
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

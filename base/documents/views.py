@@ -1,56 +1,97 @@
-from django.shortcuts import render, get_object_or_404, redirect
-from .models import ClinicalDocument, DocumentTemplate
-from .forms import ClinicalDocumentForm
+from django.shortcuts import get_object_or_404, redirect
 from django.http import JsonResponse
+from django.views.generic import DetailView, CreateView, UpdateView, DeleteView
+from .models import ClinicalDocument, DocumentTemplate
+from django.contrib.contenttypes.models import ContentType
+from .forms import ClinicalDocumentForm
+from encounters.models import Encounter
+from django.urls import reverse
 
-def document_detail(request, pk):
-    document = get_object_or_404(ClinicalDocument, pk=pk)
-    return render(request, 'documents/detail.html', {'document': document})
 
-def document_create(request, encounter_pk):
-    from encounters.models import Encounter
-    encounter = get_object_or_404(Encounter, pk=encounter_pk)
-    if request.method == 'POST':
-        form = ClinicalDocumentForm(request.POST, request.FILES)
-        if form.is_valid():
-            doc = form.save(commit=False)
-            doc.encounter = encounter
-            doc.author = request.user
-            doc.save()
-            return redirect('documents:document_detail', doc.pk)
-    else:
-        form = ClinicalDocumentForm()
-    return render(request, 'documents/form.html', {'form': form, 'encounter': encounter, 'title': 'Новый документ'})
 
-def document_update(request, pk):
-    document = get_object_or_404(ClinicalDocument, pk=pk)
-    encounter = document.encounter
-    if request.method == 'POST':
-        form = ClinicalDocumentForm(request.POST, request.FILES, instance=document, user=request.user)
-        if form.is_valid():
-            form.save()
-            return redirect('documents:document_detail', document.pk)
-    else:
-        form = ClinicalDocumentForm(instance=document, user=request.user)
-    return render(request, 'documents/form.html', {
-        'form': form, 
-        'document': document, 
-        'encounter': encounter,
-        'title': 'Редактировать документ'})
+class DocumentDetailView(DetailView):
+    model = ClinicalDocument
+    template_name = 'documents/detail.html'
+    context_object_name = 'document'
 
-def document_delete(request, pk):
-    document = get_object_or_404(ClinicalDocument, pk=pk)
-    encounter_pk = document.encounter.pk
-    if request.method == 'POST':
-        document.delete()
-        return redirect('encounters:encounter_detail', encounter_pk)
-    return render(request, 'documents/confirm_delete.html', {'document': document})
+
+class DocumentCreateView(CreateView):
+    model = ClinicalDocument
+    form_class = ClinicalDocumentForm
+    template_name = 'documents/form.html'
+
+    def setup(self, request, *args, **kwargs):
+        """Получаем объект encounter до выполнения остальной логики."""
+        super().setup(request, *args, **kwargs)
+        # Получаем тип контента (модель) по ее имени
+        model_name = self.kwargs['model_name']
+        # Например, URL может быть /add/<str:app_label>/<str:model_name>/<int:object_id>/
+        content_type = get_object_or_404(ContentType, model=model_name)
+        # Находим сам родительский объект (конкретный Encounter или Department)
+        self.parent_object = get_object_or_404(content_type.model_class(), pk=self.kwargs['object_id'])
+
+    def get_form_kwargs(self):
+        """Передаем request.user в форму для фильтрации шаблонов."""
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
+    def form_valid(self, form):
+        """Добавляем автора и случай (encounter) перед сохранением."""
+        form.instance.author = self.request.user
+        form.instance.content_object = self.parent_object
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        """Добавляем в контекст шаблона заголовок и случай."""
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Новый документ'
+        context['parent_object'] = self.parent_object
+        return context
+    
+    def get_success_url(self):
+        """Редирект на страницу созданного документа."""
+        return reverse('documents:document_detail', kwargs={'pk': self.object.pk})
+
+
+
+class DocumentUpdateView(UpdateView):
+    model = ClinicalDocument
+    form_class = ClinicalDocumentForm
+    template_name = 'documents/form.html'
+    context_object_name = 'document'
+
+    def get_form_kwargs(self):
+        """Точно так же передаем user в форму."""
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        """Добавляем в контекст заголовок."""
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Редактировать документ'
+        context['parent_object'] = self.object.content_object
+        return context
+
+    def get_success_url(self):
+        return reverse('documents:document_detail', kwargs={'pk': self.object.pk})
+
+
+
+class DocumentDeleteView(DeleteView):
+    model = ClinicalDocument
+    template_name = 'documents/confirm_delete.html'
+    context_object_name = 'document'
+    
+    def get_success_url(self):
+        """Редирект на страницу случая, к которому принадлежал документ."""
+        return reverse('encounters:encounter_detail', kwargs={'pk': self.object.content_object.pk})
+
 
 def template_data(request, pk):
-    template = DocumentTemplate.objects.filter(pk=pk).first()
-    if template:
-        return JsonResponse({
-            'title': template.name,
-            'content': template.default_content,
-        })
-    return JsonResponse({}, status=404)
+    template = get_object_or_404(DocumentTemplate, pk=pk)
+    return JsonResponse({
+        'title': template.name,
+        'content': template.default_content,
+    })
