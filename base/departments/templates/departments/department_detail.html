@@ -1,5 +1,12 @@
-{% extends "patients/base.html" %} {% block title %}Отделение: {{
-department.name }}{% endblock %} {% block page_title %}Информация об отделении{% endblock %} {% block content %}
+{% extends "patients/base.html" %}
+{% block title %}
+Отделение: {{ department.name }}
+{% endblock %} 
+{% block page_title %}
+Информация об отделении
+{% endblock %}
+
+{% block content %}
 <div class="container mt-4">
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h3 class="mb-0">{{ department.name }}</h3>
@@ -50,7 +57,8 @@ department.name }}{% endblock %} {% block page_title %}Информация об
                 </a>
                 <br />
                 <small class="text-muted"
-                  >Поступил: {{ patient_status.admission_date|date:'d.m.Y H:i' }}</small
+                  >Поступил: {{ patient_status.admission_date|date:'d.m.Y H:i'
+                  }}</small
                 >
               </div>
               <form
@@ -90,8 +98,8 @@ department.name }}{% endblock %} {% block page_title %}Информация об
                 </a>
                 <br />
                 <small class="text-muted">
-                    Принят: {{ patient_status.acceptance_date|date:'d.m.Y H:i'}}</small
-                >
+                  Принят: {{ patient_status.acceptance_date|date:'d.m.YH:i'}}
+                  </small>
               </div>
               <div class="d-flex gap-2">
                 <a
@@ -116,15 +124,9 @@ department.name }}{% endblock %} {% block page_title %}Информация об
   <ul class="messages list-unstyled mt-3">
     {% for message in messages %}
     <li
-      {%
-      if
-      message.tags
-      %}
+      {% if message.tags %}
       class="alert alert-{{ message.tags }} m-0 mb-2"
-      {%
-      endif
-      %}
-    >
+      {% endif %}>
       {{ message }}
     </li>
     {% endfor %}

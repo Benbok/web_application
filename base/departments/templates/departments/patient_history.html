@@ -1,56 +1,280 @@
-{% extends "patients/base.html" %}
-{% block title %}История пациента: {{ patient_status.patient.full_name }}{% endblock %}
-{% block page_title %}История пациента в отделении{% endblock %}
-
+{% extends 'patients/base.html' %} 
+{% block title %}{{ title }}{% endblock %} 
+{% block page_title %}{{ title }}{% endblock %}
 {% block content %}
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="mb-0">
-            {{ patient_status.patient.full_name }}
-            <br>
-            <small class="text-muted">{{ patient_status.department.name }} (Статус: {{ patient_status.get_status_display }})</small>
-        </h3>
+        <h3 class="mb-0">{{ title }}</h3>
         <a href="{% url 'departments:department_detail' patient_status.department.pk %}" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left me-1"></i> К отделению
         </a>
     </div>
 
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card h-100">
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title mb-3">Основные сведения о размещении</h5>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item">
+                    <strong>Пациент:</strong>
+                    <a href="{% url 'patient_detail' patient_status.patient.pk %}">{{ patient_status.patient.full_name }}</a>
+                </li>
+                <li class="list-group-item">
+                    <strong>Отделение:</strong> {{ patient_status.department.name }}
+                </li>
+                <li class="list-group-item">
+                    <strong>Дата поступления:</strong> {{ patient_status.admission_date|date:'d.m.Y H:i'}}
+                </li>
+                <li class="list-group-item">
+                    <strong>Дата выписки:</strong>
+                    {% if patient_status.discharge_date %} {{ patient_status.discharge_date|date:'d.m.Y H:i' }} 
+                    {% else %} <span class="text-muted">—</span> {% endif %}
+                </li>
+                <li class="list-group-item">
+                    <strong>Статус:</strong> {{ patient_status.get_status_display }}
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5 class="card-title mb-3">Фильтр документов</h5>
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    {{ clinical_documents_filter_form.start_date.label_tag }}
+                    {{ clinical_documents_filter_form.start_date }}
+                </div>
+                <div class="col-md-3">
+                    {{ clinical_documents_filter_form.end_date.label_tag }}
+                    {{ clinical_documents_filter_form.end_date }}
+                </div>
+                <div class="col-md-3">
+                    {{ clinical_documents_filter_form.author.label_tag }}
+                    {{ clinical_documents_filter_form.author }}
+                </div>
+                <div class="col-md-3">
+                    {{ clinical_documents_filter_form.search_query.label_tag }}
+                    {{ clinical_documents_filter_form.search_query }}
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">Применить фильтр</button>
+                    <a href="{% url 'departments:patient_history' patient_status.pk %}" class="btn btn-secondary">Сбросить</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs flex-row mt-4" id="documentTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="daily-notes-tab" data-bs-toggle="tab" data-bs-target="#daily-notes" type="button" role="tab" aria-controls="daily-notes" aria-selected="true">
+                Дневниковые записи
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="inspections-tab" data-bs-toggle="tab" data-bs-target="#inspections" type="button" role="tab" aria-controls="inspections" aria-selected="false">
+                Осмотры
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="other-tab" data-bs-toggle="tab" data-bs-target="#other" type="button" role="tab" aria-controls="other" aria-selected="false">
+                Другое (будущие вкладки)
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content mt-3" id="documentTabsContent">
+        <div class="tab-pane fade show active" id="daily-notes" role="tabpanel" aria-labelledby="daily-notes-tab">
+            <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">Добавить запись в дневник</h5>
-                    <a href="{% url 'documents:document_create' model_name='patientdepartmentstatus' object_id=patient_status.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-primary mt-2">
-                        <i class="fas fa-plus me-1"></i> Добавить запись
-                    </a>
+                    <h5 class="card-title mb-3">Дневниковые записи</h5>
+                    {% if daily_notes_page_obj %}
+                    <div class="accordion" id="dailyNotesAccordion">
+                        {% for doc in daily_notes_page_obj %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="dailyNoteHeading{{ doc.pk }}">
+                                <button
+                                    class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#dailyNoteCollapse{{ doc.pk }}"
+                                    aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
+                                    aria-controls="dailyNoteCollapse{{ doc.pk }}"
+                                >
+                                    <strong>{{ doc.created_at|date:'d.m.Y H:i' }}</strong> — {{ doc.author.get_full_name|default:doc.author.username }}
+                                    {% if doc.title %}
+                                        <span class="ms-auto text-muted small">{{ doc.title|truncatechars:50 }}</span>
+                                    {% endif %}
+                                </button>
+                            </h2>
+                            <div
+                                id="dailyNoteCollapse{{ doc.pk }}"
+                                class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+                                aria-labelledby="dailyNoteHeading{{ doc.pk }}"
+                                data-bs-parent="#dailyNotesAccordion"
+                            >
+                                <div class="accordion-body">
+                                    <strong>Тип:</strong> {{ doc.get_document_type_display }}<br>
+                                    {% if doc.title %}<strong>Заголовок:</strong> {{ doc.title }}<br>{% endif %}
+                                    <strong>Содержание:</strong><br>{{ doc.content|linebreaks }}
+                                    <div class="mt-3 d-flex justify-content-end gap-2">
+                                        <a href="{% url 'documents:document_update' doc.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit me-1"></i> Редактировать
+                                        </a>
+                                        <a href="{% url 'documents:document_detail' doc.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-info">
+                                            <i class="fas fa-info-circle me-1"></i> Детали
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <nav aria-label="Навигация по дневникам" class="mt-3">
+                        <ul class="pagination justify-content-center">
+                            {% if daily_notes_page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?daily_notes_page={{ daily_notes_page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'daily_notes_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                        Предыдущая
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">Предыдущая</span></li>
+                            {% endif %}
+
+                            {% for i in daily_notes_page_obj.paginator.page_range %}
+                                {% if daily_notes_page_obj.number == i %}
+                                    <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                                {% else %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?daily_notes_page={{ i }}{% for key, value in request.GET.items %}{% if key != 'daily_notes_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                            {{ i }}
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if daily_notes_page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?daily_notes_page={{ daily_notes_page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'daily_notes_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                        Следующая
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">Следующая</span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+
+                    {% else %}
+                    <p class="text-muted">Нет дневниковых записей для отображения по заданным фильтрам.</p>
+                    {% endif %}
                 </div>
             </div>
         </div>
-        
-        
 
-
-    <h4 class="mt-5 mb-3">Дневниковые записи и осмотры</h4>
-    {% if clinical_documents %}
-        <div class="list-group mb-4">
-            {% for doc in clinical_documents %}
-                <div class="list-group-item">
-                    <div class="d-flex w-100 justify-content-between">
-                        <h6 class="mb-1">{{ doc.get_document_type_display }} — {{ doc.title }}</h6>
-                        <small class="text-muted">{{ doc.created_at|date:'d.m.Y H:i' }}</small>
+        <div class="tab-pane fade" id="inspections" role="tabpanel" aria-labelledby="inspections-tab">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Осмотры</h5>
+                    {% if inspections_page_obj %}
+                    <div class="accordion" id="inspectionsAccordion">
+                        {% for doc in inspections_page_obj %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="inspectionHeading{{ doc.pk }}">
+                                <button
+                                    class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#inspectionCollapse{{ doc.pk }}"
+                                    aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
+                                    aria-controls="inspectionCollapse{{ doc.pk }}"
+                                >
+                                    <strong>{{ doc.created_at|date:'d.m.Y H:i' }}</strong> — {{ doc.author.get_full_name|default:doc.author.username }}
+                                    {% if doc.title %}
+                                        <span class="ms-auto text-muted small">{{ doc.title|truncatechars:50 }}</span>
+                                    {% endif %}
+                                </button>
+                            </h2>
+                            <div
+                                id="inspectionCollapse{{ doc.pk }}"
+                                class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+                                aria-labelledby="inspectionHeading{{ doc.pk }}"
+                                data-bs-parent="#inspectionsAccordion"
+                            >
+                                <div class="accordion-body">
+                                    <strong>Тип:</strong> {{ doc.get_document_type_display }}<br>
+                                    {% if doc.title %}<strong>Заголовок:</strong> {{ doc.title }}<br>{% endif %}
+                                    <strong>Содержание:</strong><br>{{ doc.content|linebreaks }}
+                                    <div class="mt-3 d-flex justify-content-end gap-2">
+                                        <a href="{% url 'documents:document_update' doc.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit me-1"></i> Редактировать
+                                        </a>
+                                        <a href="{% url 'documents:document_detail' doc.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-info">
+                                            <i class="fas fa-info-circle me-1"></i> Детали
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
                     </div>
-                    <p class="mb-1">{{ doc.content|linebreaksbr }}</p>
-                    <small class="text-muted">Автор: {{ doc.author.get_full_name|default:doc.author.username }}</small>
-                    <a href="{% url 'documents:document_detail' pk=doc.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-info float-end">
-                        <i class="fas fa-eye me-1"></i> Просмотр
-                    </a>
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <p class="text-muted">Дневниковые записи отсутствуют.</p>
-    {% endif %}
+                    
+                    <nav aria-label="Навигация по осмотрам" class="mt-3">
+                        <ul class="pagination justify-content-center">
+                            {% if inspections_page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?inspections_page={{ inspections_page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'inspections_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                        Предыдущая
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">Предыдущая</span></li>
+                            {% endif %}
 
-    
+                            {% for i in inspections_page_obj.paginator.page_range %}
+                                {% if inspections_page_obj.number == i %}
+                                    <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                                {% else %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?inspections_page={{ i }}{% for key, value in request.GET.items %}{% if key != 'inspections_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                            {{ i }}
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if inspections_page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?inspections_page={{ inspections_page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'inspections_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                        Следующая
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">Следующая</span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+
+                    {% else %}
+                    <p class="text-muted">Нет осмотров для отображения по заданным фильтрам.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="other" role="tabpanel" aria-labelledby="other-tab">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Другие данные</h5>
+                    <p class="text-muted">Здесь будут располагаться другие типы записей или информации.</p>
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <a href="{% url 'documents:document_create' model_name='patientdepartmentstatus' object_id=patient_status.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-primary mt-3">
+        <i class="fas fa-plus me-1"></i> Добавить документ
+    </a>
 </div>
 {% endblock %}

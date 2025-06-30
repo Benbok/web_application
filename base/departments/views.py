@@ -1,20 +1,22 @@
 # departments/views.py
+from django.db.models import Q
 from django.views.generic import ListView, DetailView, View, CreateView
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.contenttypes.models import ContentType
+from django.core.paginator import Paginator
 
 from .models import Department, PatientDepartmentStatus # Убедитесь, что PatientDepartmentStatus импортирован
 from documents.models import ClinicalDocument
-
+from documents.forms import ClinicalDocumentFilterForm
 
 class DepartmentListView(ListView):
     model = Department
     template_name = 'departments/department_list.html'
     context_object_name = 'departments'
-
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = "Отделения"
@@ -72,19 +74,50 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         patient_status = self.get_object()
 
-        # Получаем ContentType для PatientDepartmentStatus
         patient_status_content_type = ContentType.objects.get_for_model(PatientDepartmentStatus)
 
-        # Теперь получаем ClinicalDocument, связанные с этим PatientDepartmentStatus
-        context['clinical_documents'] = ClinicalDocument.objects.filter(
+        # Обработка фильтров из GET-запроса
+        filter_form = ClinicalDocumentFilterForm(self.request.GET)
+        
+        # Общий QuerySet для документов этого PatientDepartmentStatus
+        base_documents_queryset = ClinicalDocument.objects.filter(
             content_type=patient_status_content_type,
             object_id=patient_status.pk
-        ).order_by('-created_at') # Сортируем по дате создания, чтобы самые новые были сверху
+        ).order_by('-created_at')
 
-        # context['assignments'] = patient_status.assignments.all()
-        # context['examinations'] = patient_status.medical_examinations.all()
+        # Применяем фильтры к обоим QuerySet'ам
+        filtered_documents_queryset = base_documents_queryset
+        if filter_form.is_valid():
+            start_date = filter_form.cleaned_data.get('start_date')
+            end_date = filter_form.cleaned_data.get('end_date')
+            author = filter_form.cleaned_data.get('author')
+            search_query = filter_form.cleaned_data.get('search_query')
+
+            if start_date:
+                filtered_documents_queryset = filtered_documents_queryset.filter(created_at__date__gte=start_date)
+            if end_date:
+                # Включаем весь конечный день
+                filtered_documents_queryset = filtered_documents_queryset.filter(created_at__date__lte=end_date)
+            if author:
+                filtered_documents_queryset = filtered_documents_queryset.filter(author=author)
+            if search_query:
+                filtered_documents_queryset = filtered_documents_queryset.filter(
+                    Q(title__icontains=search_query) | 
+                    Q(content__icontains=search_query)
+                )
+
+        # Отдельные QuerySet'ы для дневников и осмотров
+        daily_notes_queryset = filtered_documents_queryset
+
+        # Пагинация для дневников
+        daily_notes_paginator = Paginator(daily_notes_queryset, 10)
+        daily_notes_page_number = self.request.GET.get('daily_notes_page')
+        daily_notes_page_obj = daily_notes_paginator.get_page(daily_notes_page_number)
+
+
+        context['clinical_documents_filter_form'] = filter_form
+        context['daily_notes_page_obj'] = daily_notes_page_obj
         
-
         context['title'] = f"История пациента: {patient_status.patient.full_name} в {patient_status.department.name}"
         return context
 

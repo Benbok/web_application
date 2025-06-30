@@ -3,6 +3,9 @@ from django.db import models
 from patients.models import Patient 
 from django.conf import settings 
 from django.utils import timezone
+from django.contrib.contenttypes.fields import GenericRelation
+
+from documents.models import ClinicalDocument
 
 class Department(models.Model):
     name = models.CharField("Наименование отделения", max_length=255)
@@ -29,6 +32,7 @@ class PatientDepartmentStatus(models.Model):
         ('transfer_cancelled', 'Перевод отменен'),
     ]
 
+    documents = GenericRelation(ClinicalDocument)
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='department_statuses', verbose_name="Пациент")
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='patients_in_department', verbose_name="Отделение")
     status = models.CharField("Статус в отделении", max_length=20, choices=STATUS_CHOICES, default='pending')
