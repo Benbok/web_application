@@ -1,0 +1,35 @@
+{% extends "patients/base.html" %}
+{% block title %}Список отделений{% endblock %}
+{% block page_title %}Отделения{% endblock %} {# Обновляем заголовок страницы #}
+
+{% block content %}
+<div class="container mt-4">
+    <h3 class="mb-4">Список отделений</h3>
+    {% if departments %}
+        <div class="row">
+            {% for department in departments %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title mb-2">{{ department.name }}</h5>
+                            {% if department.number %}
+                                <p class="card-text text-muted mb-1"><strong>Номер:</strong> {{ department.number }}</p>
+                            {% endif %}
+                            {% if department.description %}
+                                <p class="card-text text-muted small flex-grow-1">{{ department.description|truncatechars:100 }}</p>
+                            {% endif %}
+                            <div class="mt-auto">
+                                <a href="{% url 'departments:department_detail' department.pk %}" class="btn btn-sm btn-outline-primary">
+                                    Подробнее <i class="fas fa-arrow-right ms-1"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-muted">Нет отделений для отображения.</p>
+    {% endif %}
+</div>
+{% endblock %}

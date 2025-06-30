@@ -11,7 +11,7 @@
             <table class="table table-bordered mt-3">
                 <thead>
                     <tr>
-                        <th>Тип</th>
+                        <th>Обращение</th>
                         <th>Дата начала</th>
                         <th>Дата завершения</th>
                         <th>Статус</th>
@@ -21,7 +21,12 @@
                 <tbody>
                     {% for encounter in encounters %}
                         <tr>
-                            <td>{{ encounter.get_type_display }}</td>
+
+                            {% if encounter.is_active %}
+                                <td>Случай не завершен</td>
+                            {% else %}
+                                <td>{{ encounter.get_outcome_display }}</td>
+                            {% endif %}
                             <td>{{ encounter.date_start|date:"d.m.Y H:i" }}</td>
                             <td>{{ encounter.date_end|date:"d.m.Y H:i" }}</td>
                             <td>

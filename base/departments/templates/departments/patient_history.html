@@ -1,0 +1,56 @@
+{% extends "patients/base.html" %}
+{% block title %}История пациента: {{ patient_status.patient.full_name }}{% endblock %}
+{% block page_title %}История пациента в отделении{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="mb-0">
+            {{ patient_status.patient.full_name }}
+            <br>
+            <small class="text-muted">{{ patient_status.department.name }} (Статус: {{ patient_status.get_status_display }})</small>
+        </h3>
+        <a href="{% url 'departments:department_detail' patient_status.department.pk %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> К отделению
+        </a>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Добавить запись в дневник</h5>
+                    <a href="{% url 'documents:document_create' model_name='patientdepartmentstatus' object_id=patient_status.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-primary mt-2">
+                        <i class="fas fa-plus me-1"></i> Добавить запись
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        
+
+
+    <h4 class="mt-5 mb-3">Дневниковые записи и осмотры</h4>
+    {% if clinical_documents %}
+        <div class="list-group mb-4">
+            {% for doc in clinical_documents %}
+                <div class="list-group-item">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1">{{ doc.get_document_type_display }} — {{ doc.title }}</h6>
+                        <small class="text-muted">{{ doc.created_at|date:'d.m.Y H:i' }}</small>
+                    </div>
+                    <p class="mb-1">{{ doc.content|linebreaksbr }}</p>
+                    <small class="text-muted">Автор: {{ doc.author.get_full_name|default:doc.author.username }}</small>
+                    <a href="{% url 'documents:document_detail' pk=doc.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-info float-end">
+                        <i class="fas fa-eye me-1"></i> Просмотр
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-muted">Дневниковые записи отсутствуют.</p>
+    {% endif %}
+
+    
+</div>
+{% endblock %}

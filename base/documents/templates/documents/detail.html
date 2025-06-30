@@ -1,26 +1,46 @@
-{% extends "patients/base.html" %}
-{% block title %}Документ: {{ document.title }}{% endblock %}
+{% extends "patients/base.html" %} 
+{% block title %}
+Документ: {{ document.title }}
+{% endblock %} 
+
 {% block content %}
 <div class="card mt-4">
-    <div class="card-body">
-        <h4 class="card-title mb-4">{{ document.title }}</h4>
-        <ul class="list-group list-group-flush mb-3">
-            <li class="list-group-item"><strong>Тип:</strong> {{ document.get_document_type_display }}</li>
-            <li class="list-group-item"><strong>Дата создания:</strong> {{ document.created_at|date:"d.m.Y H:i" }}</li>
-            <li class="list-group-item"><strong>Автор:</strong> {{ document.author }}</li>
-            <li class="list-group-item"><strong>Содержание:</strong><br>{{ document.content|linebreaks }}</li>
-        </ul>
-        <div class="d-flex gap-2 mt-3">
-            <a href="{% url 'documents:document_update' document.pk %}" class="btn btn-outline-primary">
-                <i class="fas fa-edit me-1"></i> Редактировать
-            </a>
-            <a href="{% url 'documents:document_delete' document.pk %}" class="btn btn-outline-danger">
-                <i class="fas fa-trash-alt me-1"></i> Удалить
-            </a>
-            <a href="{% url 'encounters:encounter_detail' document.content_object.pk %}" class="btn btn-outline-secondary ms-auto">
-                <i class="fas fa-arrow-left me-1"></i> К обращению
-            </a>
-        </div>
+  <div class="card-body">
+    <h4 class="card-title mb-4">{{ document.title }}</h4>
+    <ul class="list-group list-group-flush mb-3">
+      <li class="list-group-item">
+        <strong>Тип:</strong> {{ document.get_document_type_display }}
+      </li>
+      <li class="list-group-item">
+        <strong>Дата создания:</strong> {{ document.created_at|date:"d.m.Y H:i" }}
+      </li>
+      <li class="list-group-item">
+        <strong>Автор:</strong> {{ document.author }}
+      </li>
+      <li class="list-group-item">
+        <strong>Содержание:</strong><br />{{ document.content|linebreaks }}
+      </li>
+    </ul>
+    <div class="d-flex gap-2 mt-3">
+      <a
+        href="{% url 'documents:document_update' document.pk %}?next={{ next_url|urlencode }}"
+        class="btn btn-outline-primary"
+      >
+        <i class="fas fa-edit me-1"></i> Редактировать
+      </a>
+      <a
+        href="{% url 'documents:document_delete' document.pk %}?next={{ next_url|urlencode }}"
+        class="btn btn-outline-danger"
+      >
+        <i class="fas fa-trash-alt me-1"></i> Удалить
+      </a>
+      <a
+        href="{{ request.GET.next|default:default_back_url }}"
+        class="btn btn-outline-secondary ms-auto"
+      >
+        <i class="fas fa-arrow-left me-1"></i> Назад
+      </a>
     </div>
+  </div>
 </div>
 {% endblock %}

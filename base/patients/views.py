@@ -33,7 +33,7 @@ def patient_list(request):
 
 def patient_detail(request, pk):
     patient = get_object_or_404(Patient, pk=pk)
-    encounters = Encounter.objects.filter(patient=patient)
+    encounters = Encounter.objects.filter(patient=patient).order_by('-is_active', '-date_start')
     return render(request, 'patients/detail.html', {
         'patient': patient,
         'encounters': encounters,

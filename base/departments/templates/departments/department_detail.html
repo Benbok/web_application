@@ -1,0 +1,134 @@
+{% extends "patients/base.html" %} {% block title %}Отделение: {{
+department.name }}{% endblock %} {% block page_title %}Информация об отделении{% endblock %} {% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="mb-0">{{ department.name }}</h3>
+    <a
+      href="{% url 'departments:department_list' %}"
+      class="btn btn-outline-secondary"
+    >
+      <i class="fas fa-arrow-left me-1"></i> К списку отделений
+    </a>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title mb-3">Основные сведения</h5>
+      <ul class="list-group list-group-flush">
+        <li class="list-group-item">
+          <strong>Название:</strong> {{ department.name }}
+        </li>
+        {% if department.number %}
+        <li class="list-group-item">
+          <strong>Номер:</strong> {{ department.number }}
+        </li>
+        {% endif %} {% if department.description %}
+        <li class="list-group-item">
+          <strong>Описание:</strong> {{ department.description }}
+        </li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-lg-6">
+      <div class="card mb-4">
+        <div class="card-body">
+          <h5 class="card-title mb-3">
+            Пациенты, ожидающие принятия ({{ pending_patients|length }})
+          </h5>
+          {% if pending_patients %}
+          <ul class="list-group list-group-flush">
+            {% for patient_status in pending_patients %}
+            <li
+              class="list-group-item d-flex justify-content-between align-items-center"
+            >
+              <div>
+                <a href="{% url 'patient_detail' patient_status.patient.pk %}">
+                  {{ patient_status.patient.full_name }}
+                </a>
+                <br />
+                <small class="text-muted"
+                  >Поступил: {{ patient_status.admission_date|date:'d.m.Y H:i' }}</small
+                >
+              </div>
+              <form
+                action="{% url 'departments:patient_status_accept' department_pk=department.pk pk=patient_status.pk %}"
+                method="post"
+              >
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-success">
+                  Принять
+                </button>
+              </form>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-muted">Нет пациентов, ожидающих принятия.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card mb-4">
+        <div class="card-body">
+          <h5 class="card-title mb-3">
+            Пациенты в отделении ({{ accepted_patients|length }})
+          </h5>
+          {% if accepted_patients %}
+          <ul class="list-group list-group-flush">
+            {% for patient_status in accepted_patients %}
+            <li
+              class="list-group-item d-flex justify-content-between align-items-center"
+            >
+              <div>
+                <a href="{% url 'patient_detail' patient_status.patient.pk %}">
+                  {{ patient_status.patient.full_name }}
+                </a>
+                <br />
+                <small class="text-muted">
+                    Принят: {{ patient_status.acceptance_date|date:'d.m.Y H:i'}}</small
+                >
+              </div>
+              <div class="d-flex gap-2">
+                <a
+                  href="{% url 'departments:patient_history' patient_status.pk %}"
+                  class="btn btn-sm btn-outline-info"
+                >
+                  <i class="fas fa-user me-1"></i> Карточка пациента
+                </a>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+
+          {% else %}
+          <p class="text-muted">Нет принятых пациентов в этом отделении.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% if messages %}
+  <ul class="messages list-unstyled mt-3">
+    {% for message in messages %}
+    <li
+      {%
+      if
+      message.tags
+      %}
+      class="alert alert-{{ message.tags }} m-0 mb-2"
+      {%
+      endif
+      %}
+    >
+      {{ message }}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endblock %}

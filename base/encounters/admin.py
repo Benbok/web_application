@@ -3,8 +3,8 @@ from .models import Encounter
 
 @admin.register(Encounter)
 class EncounterAdmin(admin.ModelAdmin):
-    list_display = ('patient', 'doctor', 'type', 'date_start', 'date_end', 'is_active')
-    list_filter = ('type', 'is_active', 'doctor')
+    list_display = ('patient', 'doctor', 'date_start', 'date_end', 'is_active')
+    list_filter = ('is_active', 'doctor')
     search_fields = ('patient__family', 'patient__given', 'patient__middle')
     date_hierarchy = 'date_start'
     ordering = ('-date_start',)

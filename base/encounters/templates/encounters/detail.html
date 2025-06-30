@@ -1,75 +1,141 @@
-{% extends 'patients/base.html' %}
-{% block title %}
-  Обращение №{{ encounter.pk }}
-{% endblock %}
-{% block page_title %}
-  Информация об обращении
-{% endblock %}
+{% extends 'patients/base.html' %} {# Убедитесь, что это правильный базовый шаблон #}
+{% load static %} {# Для статических файлов, если используете #}
+
+{% block title %}Детали обращения №{{ encounter_number }}{% endblock %} {# Обновлен заголовок #}
+{% block page_title %} Информация об обращении {% endblock %}
 
 {% block content %}
-  <div class="card mt-4">
-    <div class="card-body">
-      <h4 class="card-title mb-4">Обращение №{{ encounter_number }}</h4>
-      <ul class="list-group list-group-flush mb-3">
-        <li class="list-group-item">
-          <strong>Пациент:</strong>
-          <a href="{% url 'patient_detail' encounter.patient.pk %}">{{ encounter.patient.full_name }}</a>
-        </li>
-        <li class="list-group-item">
-          <strong>Тип обращения:</strong> {{ encounter.get_type_display }}
-        </li>
-        <li class="list-group-item">
-          <strong>Дата начала:</strong> {{ encounter.date_start|date:'d.m.Y H:i' }}
-        </li>
-        <li class="list-group-item">
-          <strong>Дата завершения:</strong>
-          {% if encounter.date_end %}
-            {{ encounter.date_end|date:'d.m.Y H:i' }}
-          {% else %}
-            <span class="text-muted">—</span>
-          {% endif %}
-        </li>
-        <li class="list-group-item">
-          <strong>Статус:</strong>
-          {% if encounter.is_active %}
-            <span class="badge bg-success">Активен</span>
-          {% else %}
-            <span class="badge bg-secondary">Завершён</span>
-          {% endif %}
-        </li>
-        <li class="list-group-item">
-          <strong>Врач:</strong> {{ encounter.doctor }}
-        </li>
-      </ul>
-      <div class="d-flex gap-2 mt-3">
-        <a href="{% url 'encounters:encounter_update' encounter.pk %}" class="btn btn-outline-primary"><i class="fas fa-edit me-1"></i> Редактировать</a>
-        <a href="{% url 'encounters:encounter_delete' encounter.pk %}" class="btn btn-outline-danger"><i class="fas fa-trash-alt me-1"></i> Удалить</a>
-        <a href="{% url 'patient_detail' encounter.patient.pk %}" class="btn btn-outline-secondary ms-auto"><i class="fas fa-arrow-left me-1"></i> К пациенту</a>
-      </div>
-    </div>
-  </div>
-
-  <div class="card mt-4">
-    <div class="card-body">
-      <h5 class="card-title mb-3">Прикреплённые документы</h5>
-      {% if documents %}
-        <ul class="list-group list-group-flush mb-3">
-          {% for doc in documents %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-              <span>
-                <strong>{{ doc.get_document_type_display }}</strong> — {{ doc.title }}
-                <br />
-                <small class="text-muted">{{ doc.created_at|date:'d.m.Y H:i' }}</small>
-              </span>
-              <a href="{% url 'documents:document_detail' doc.pk %}" class="btn btn-sm btn-outline-primary">Открыть</a>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="text-muted">Нет прикреплённых документов.</p>
+<div class="card mt-4">
+ <div class="card-body position-relative">
+    {% if not encounter.is_active %}
+      <form action="{% url 'encounters:encounter_reopen' pk=encounter.pk %}" method="post" style="position: absolute; top: 0.5rem; right: 0.5rem;">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-success btn-sm rounded-circle" title="Вернуть в активное состояние"
+                onclick="return confirm('Вы уверены, что хотите вернуть случай в активное состояние?');">
+          <i class="fas fa-unlock"></i>
+        </button>
+      </form>
+    {% endif %}
+    <h4 class="card-title mb-4">Обращение №{{ encounter_number }}</h4>
+    <ul class="list-group list-group-flush mb-3">
+      <li class="list-group-item">
+        <strong>Пациент:</strong>
+        <a href="{% url 'patient_detail' encounter.patient.pk %}" {# Обновлен URL #}
+          >{{ encounter.patient.full_name }}</a
+        >
+      </li>
+      <li class="list-group-item">
+        <strong>Случай:</strong>
+        {% if encounter.outcome %}
+            {{ encounter.get_outcome_display }}
+        {% else %}
+            <span class="text-muted">Не указан</span>
+        {% endif %}
+      </li>
+      <li class="list-group-item">
+        <strong>Дата начала:</strong>
+        {{ encounter.date_start|date:'d.m.Y H:i'}}
+      </li>
+      <li class="list-group-item">
+        <strong>Дата завершения:</strong>
+        {% if encounter.date_end %} {{ encounter.date_end|date:'d.m.Y H:i' }} 
+        {% else %}
+        <span class="text-muted">—</span>
+        {% endif %}
+      </li>
+      {% if encounter.outcome == 'transferred' and encounter.transfer_to_department %} {# Добавлено отображение отделения #}
+      <li class="list-group-item">
+        <strong>Переведен в отделение:</strong> {{ encounter.transfer_to_department.name }}
+      </li>
       {% endif %}
-      <!-- Форма добавления документа -->
-      <a href="{% url 'documents:document_create' model_name='encounter' object_id=encounter.pk %}" class="btn btn-success mt-3"><i class="fas fa-plus me-1"></i> Добавить новый документ</a>
+      <li class="list-group-item">
+        <strong>Статус:</strong>
+        {% if encounter.is_active %}
+        <span class="badge bg-success">Активен</span>
+        {% else %}
+        <span class="badge bg-secondary">Завершён</span>
+        {% endif %}
+      </li>
+      <li class="list-group-item">
+        <strong>Врач:</strong> {{ encounter.doctor }}
+      </li>
+    </ul>
+    <div class="d-flex gap-2 mt-3">
+      <a
+        href="{% url 'encounters:encounter_update' encounter.pk %}"
+        class="btn btn-outline-primary"
+      >
+        <i class="fas fa-edit me-1"></i> Редактировать
+      </a>
+      <a
+        href="{% url 'encounters:encounter_delete' encounter.pk %}"
+        class="btn btn-outline-danger"
+      >
+        <i class="fas fa-trash-alt me-1"></i> Удалить
+      </a>
+      {% if encounter.is_active %}
+      <a
+        href="{% url 'encounters:encounter_close' encounter.pk %}"
+        class="btn btn-outline-warning"
+      >
+        <i class="fas fa-lock me-1"></i> Закрыть случай
+      </a>
+      
+      {% endif %}
+      <a
+        href="{% url 'patient_detail' encounter.patient.pk %}" 
+        class="btn btn-outline-secondary ms-auto"
+      >
+        <i class="fas fa-arrow-left me-1"></i> К пациенту
+      </a>
     </div>
   </div>
+</div>
+
+<div class="card mt-4">
+  <div class="card-body">
+    <h5 class="card-title mb-3">Прикреплённые документы</h5>
+    {% if documents %}
+    <ul class="list-group list-group-flush mb-3">
+      {% for doc in documents %}
+      <li
+        class="list-group-item d-flex justify-content-between align-items-center"
+      >
+        <span>
+          <strong>{{ doc.get_document_type_display }}</strong> — {{ doc.title }}
+          <br />
+          <small class="text-muted"
+            >{{ doc.created_at|date:'d.m.Y H:i' }}</small
+          >
+        </span>
+        <a
+          href="{% url 'documents:document_detail' doc.pk %}?next={{ request.get_full_path|urlencode }}"
+          class="btn btn-sm btn-outline-primary"
+          >Открыть</a
+        >
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-muted">Нет прикреплённых документов.</p>
+    {% endif %}
+    <a
+      href="{% url 'documents:document_create' model_name='encounter' object_id=encounter.pk %}?next={{ request.get_full_path|urlencode }}"
+      class="btn btn-success mt-3"
+      ><i class="fas fa-plus me-1"></i> Добавить новый документ</a
+    >
+  </div>
+</div>
+
+{# Добавлен блок для вывода сообщений Django #}
+{% if messages %}
+<ul class="messages">
+  {% for message in messages %}
+  <li {% if message.tags %} class="{{ message.tags }}" {% endif %}>
+    {{ message }}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+
 {% endblock %}

@@ -1,0 +1,33 @@
+{% extends 'patients/base.html' %} {# Или ваш базовый шаблон #}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+    <p>Вы завершаете случай обращения №{{ encounter_number }} для пациента: {{ encounter.patient.full_name }}</p>
+
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Завершить</button>
+        <a href="{% url 'encounters:encounter_detail' pk=encounter.pk %}" class="btn btn-secondary">Отмена</a>
+    </form>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const outcomeSelect = document.getElementById('id_outcome');
+            const transferDepartmentField = document.getElementById('id_transfer_to_department').closest('.mb-3') || document.getElementById('id_transfer_to_department').parentElement; // Адаптируйте селектор под ваш CSS
+
+            function toggleTransferDepartmentField() {
+                if (outcomeSelect.value === 'transferred') {
+                    transferDepartmentField.style.display = 'block';
+                } else {
+                    transferDepartmentField.style.display = 'none';
+                }
+            }
+
+            outcomeSelect.addEventListener('change', toggleTransferDepartmentField);
+            toggleTransferDepartmentField(); // Вызвать при загрузке страницы для начального состояния
+        });
+    </script>
+{% endblock %}
