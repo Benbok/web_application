@@ -1,0 +1,19 @@
+{% extends 'patients/base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="card mt-4">
+    <div class="card-body">
+        <h4 class="card-title mb-4">{{ title }}</h4>
+        <p>Вы уверены, что хотите удалить назначение лечения <strong>"{{ assignment.treatment_name }}"</strong>
+            от <strong>{{ assignment.assignment_date|date:"d.m.Y H:i" }}</strong>
+            для пациента <strong>{{ assignment.patient.full_name }}</strong>?</p>
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Удалить</button>
+            <a href="{{ next_url }}" class="btn btn-secondary ms-2">Отмена</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -72,9 +72,6 @@ class EncounterDeleteView(DeleteView):
     model = Encounter
     template_name = 'encounters/confirm_delete.html'
 
-    def get_success_url(self):
-        return reverse_lazy('patient_detail', kwargs={'pk': self.object.patient.pk})
-
     def get_context_data(self, **kwargs):
         """Добавляем номер обращения для страницы подтверждения."""
         context = super().get_context_data(**kwargs)
@@ -85,6 +82,8 @@ class EncounterDeleteView(DeleteView):
         ).count() + 1
         return context
     
+    def get_success_url(self):
+        return reverse_lazy('patient_detail', kwargs={'pk': self.object.patient.pk})
     
 class EncounterCloseView(UpdateView):
     model = Encounter

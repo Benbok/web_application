@@ -11,6 +11,7 @@ from django.core.paginator import Paginator
 from .models import Department, PatientDepartmentStatus # Убедитесь, что PatientDepartmentStatus импортирован
 from documents.models import ClinicalDocument
 from documents.forms import ClinicalDocumentFilterForm
+from treatment_assignments.models import TreatmentAssignment
 
 class DepartmentListView(ListView):
     model = Department
@@ -74,6 +75,10 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         patient_status = self.get_object()
 
+        assignments = TreatmentAssignment.objects.filter(
+        content_type=ContentType.objects.get_for_model(PatientDepartmentStatus),
+        object_id=patient_status.pk
+    ).order_by('-created_at')
         patient_status_content_type = ContentType.objects.get_for_model(PatientDepartmentStatus)
 
         # Обработка фильтров из GET-запроса
@@ -117,7 +122,9 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
 
         context['clinical_documents_filter_form'] = filter_form
         context['daily_notes_page_obj'] = daily_notes_page_obj
-        
+        assignments_paginator = Paginator(assignments, 10)
+        assignments_page_number = self.request.GET.get('assignments_page')
+        context['assignments_page_obj'] = assignments_paginator.get_page(assignments_page_number)
         context['title'] = f"История пациента: {patient_status.patient.full_name} в {patient_status.department.name}"
         return context
 

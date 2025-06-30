@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'encounters',
     'documents',
     'departments',
+    'treatment_assignments',
 ]
 
 MIDDLEWARE = [

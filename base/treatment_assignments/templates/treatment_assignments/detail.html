@@ -1,0 +1,60 @@
+{% extends 'patients/base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="card mt-4">
+    <div class="card-body">
+        <h4 class="card-title mb-4">{{ title }}</h4>
+        <ul class="list-group list-group-flush mb-3">
+            <li class="list-group-item">
+                <strong>Пациент:</strong>
+                <a href="{% url 'patient_detail' assignment.patient.pk %}">{{ assignment.patient.full_name }}</a>
+            </li>
+            <li class="list-group-item">
+                <strong>Назначивший врач:</strong> {{ assignment.assigning_doctor.get_full_name|default:assignment.assigning_doctor.username }}
+            </li>
+            <li class="list-group-item">
+                <strong>Дата и время назначения:</strong> {{ assignment.assignment_date|date:"d.m.Y H:i" }}
+            </li>
+            <li class="list-group-item">
+                <strong>Название лечения:</strong> {{ assignment.treatment_name }}
+            </li>
+            {% if assignment.dosage %}
+                <li class="list-group-item">
+                    <strong>Дозировка:</strong> {{ assignment.dosage }}
+                </li>
+            {% endif %}
+            {% if assignment.frequency %}
+                <li class="list-group-item">
+                    <strong>Частота:</strong> {{ assignment.frequency }}
+                </li>
+            {% endif %}
+            {% if assignment.duration %}
+                <li class="list-group-item">
+                    <strong>Длительность:</strong> {{ assignment.duration }}
+                </li>
+            {% endif %}
+            {% if assignment.notes %}
+                <li class="list-group-item">
+                    <strong>Примечания:</strong><br>{{ assignment.notes|linebreaksbr }}
+                </li>
+            {% endif %}
+            <li class="list-group-item">
+                <strong>Статус:</strong> {{ assignment.get_status_display }}
+            </li>
+        </ul>
+        <div class="d-flex gap-2 mt-3">
+            <a href="{% url 'treatment_assignments:assignment_update' assignment.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-outline-primary">
+                <i class="fas fa-edit me-1"></i> Редактировать
+            </a>
+            <a href="{% url 'treatment_assignments:assignment_delete' assignment.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-outline-danger">
+                <i class="fas fa-trash-alt me-1"></i> Удалить
+            </a>
+            <a href="{{ next_url }}" class="btn btn-secondary ms-auto">
+                <i class="fas fa-arrow-left me-1"></i> Назад
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
