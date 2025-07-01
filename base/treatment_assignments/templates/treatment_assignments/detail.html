@@ -43,6 +43,12 @@
             <li class="list-group-item">
                 <strong>Статус:</strong> {{ assignment.get_status_display }}
             </li>
+            {% if assignment != 'active' or assignment != 'paused' %}
+            <li class="list-group-item">
+                <strong>Дата  и время завершения:</strong> {{ assignment.end_date|date:"d.mm.Y H:i" }}
+            </li>
+            {% endif %}
+        
         </ul>
         <div class="d-flex gap-2 mt-3">
             <a href="{% url 'treatment_assignments:assignment_update' assignment.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-outline-primary">

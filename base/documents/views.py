@@ -6,8 +6,6 @@ from django.urls import reverse, reverse_lazy
 
 from .models import ClinicalDocument, DocumentTemplate
 from .forms import ClinicalDocumentForm
-from encounters.models import Encounter
-from departments.models import Department
 
 
 DEFAULT_DOCUMENT_LIST_URL = reverse_lazy('documents:document_list')
@@ -29,11 +27,12 @@ def get_dynamic_back_url(obj_or_parent_obj):
         content_type = ContentType.objects.get_for_model(parent_obj)
         
         if content_type.model == 'encounter':
-            # Если родительский объект - Обращение, возвращаемся на его детальную страницу
             return reverse('encounters:encounter_detail', kwargs={'pk': parent_obj.pk})
         elif content_type.model == 'patientdepartmentstatus':
             return reverse('departments:department_detail', kwargs={'pk': parent_obj.pk})
-        # Добавьте другие условия для других типов родительских объектов, если применимо
+        elif content_type.model == 'treatmentassignment':
+            return reverse('treatment_assignments:assignment_detail', kwargs={'pk': parent_obj.pk})
+    
     return DEFAULT_DOCUMENT_LIST_URL
 
 class DocumentDetailView(DetailView):

@@ -40,6 +40,9 @@ class TreatmentAssignment(models.Model):
     duration = models.CharField("Длительность", max_length=100, blank=True, null=True)
     notes = models.TextField("Примечания", blank=True, null=True)
 
+    start_date = models.DateTimeField("Дата начала", null=False, blank=False)
+    end_date = models.DateTimeField("Дата завершения", null=True, blank=True)
+    
     STATUS_CHOICES = [
         ('active', 'Активно'),
         ('completed', 'Завершено'),
@@ -67,3 +70,11 @@ class TreatmentAssignment(models.Model):
     def get_absolute_url(self):
         from django.urls import reverse
         return reverse('treatment_assignments:assignment_detail', kwargs={'pk': self.pk})
+
+    def save(self, *args, **kwargs):
+        if self.status == 'completed' and self.end_date is None:
+            from django.utils import timezone
+            self.end_date = timezone.now()
+        elif self.status != 'completed':
+            self.end_date = None
+        super().save(*args, **kwargs)

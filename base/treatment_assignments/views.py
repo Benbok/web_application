@@ -24,8 +24,6 @@ def get_treatment_assignment_back_url(obj_or_parent_obj):
         content_type = ContentType.objects.get_for_model(parent_obj)
         if content_type.model == 'patientdepartmentstatus':
             return reverse('departments:patient_history', kwargs={'pk': parent_obj.pk})
-        elif content_type.model == 'patient':
-            return reverse('patients:patient_detail', kwargs={'pk': parent_obj.pk})
         # Добавьте другие условия для других типов родительских объектов
     return reverse_lazy('treatment_assignments:assignment_list')
 
@@ -88,10 +86,7 @@ class TreatmentAssignmentCreateView(LoginRequiredMixin, CreateView):
         return context
 
     def get_success_url(self):
-        next_url = self.request.GET.get('next')
-        if next_url:
-            return next_url
-        return get_treatment_assignment_back_url(self.object)
+        return reverse('treatment_assignments:assignment_detail', kwargs={'pk': self.object.pk})
 
 
 class TreatmentAssignmentUpdateView(LoginRequiredMixin, UpdateView):
@@ -112,10 +107,7 @@ class TreatmentAssignmentUpdateView(LoginRequiredMixin, UpdateView):
         return context
 
     def get_success_url(self):
-        next_url = self.request.GET.get('next')
-        if next_url:
-            return next_url
-        return reverse('treatment_assignments:assignment_detail', kwargs={'pk': self.object.pk})
+       return reverse('treatment_assignments:assignment_detail', kwargs={'pk': self.object.pk})
 
 class TreatmentAssignmentDeleteView(LoginRequiredMixin, DeleteView):
     model = TreatmentAssignment
@@ -129,9 +121,6 @@ class TreatmentAssignmentDeleteView(LoginRequiredMixin, DeleteView):
         return context
     
     def get_success_url(self):
-        next_url = self.request.GET.get('next')
-        if next_url:
-            return next_url
         return reverse('departments:department_list') 
 
 

@@ -15,7 +15,7 @@ class TreatmentAssignmentForm(forms.ModelForm):
         fields = [
             'patient', 'assigning_doctor', 
             'treatment_name', 'dosage', 'frequency', 'duration',
-            'notes', 'status'
+            'notes', 'status', 'start_date',
         ]
         widgets = {
             'patient': forms.HiddenInput(),
@@ -27,6 +27,7 @@ class TreatmentAssignmentForm(forms.ModelForm):
             'duration': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Например, 7 дней'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Дополнительные примечания'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
+            'start_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
         }
         labels = {
             'patient': 'Пациент',
