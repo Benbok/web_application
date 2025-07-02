@@ -1,38 +1,321 @@
+
 {% extends "patients/base.html" %}
+{% load widget_tweaks %}
+
 {% block title %}{{ title }}{% endblock %}
+
 {% block content %}
 <div class="card mt-4">
-    <div class="card-body" style="max-width: 600px;">
+    <div class="card-body" style="max-width: 800px;">
         <h4 class="card-title mb-4">{{ title }}</h4>
         <form method="post" enctype="multipart/form-data" novalidate>
             {% csrf_token %}
-            {{ form.as_p }}
-            <button type="submit" class="btn btn-primary">Сохранить</button>
-            <a href="{{ request.GET.next|default:default_back_url }}" class="btn btn-secondary">Отмена</a>
+
+            {# Группа: Основная информация о документе (ClinicalDocument) #}
+            <fieldset class="mb-4 p-3 border rounded">
+                <legend class="float-none w-auto px-2 fs-5">Основная информация о документе</legend>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.document_category.id_for_label }}" class="form-label">{{ form.document_category.label }}</label>
+                        {{ form.document_category|add_class:"form-select" }}
+                        {% if form.document_category.help_text %}
+                            <div class="form-text">{{ form.document_category.help_text }}</div>
+                        {% endif %}
+                        {% for error in form.document_category.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.datetime_document.id_for_label }}" class="form-label">{{ form.datetime_document.label }}</label>
+                        {{ form.datetime_document|add_class:"form-control"|attr:"type:datetime-local" }}
+                        {% if form.datetime_document.help_text %}
+                            <div class="form-text">{{ form.datetime_document.help_text }}</div>
+                        {% endif %}
+                        {% for error in form.datetime_document.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="{{ form.template.id_for_label }}" class="form-label">{{ form.template.label }}</label>
+                    {{ form.template|add_class:"form-select" }}
+                    {% if form.template.help_text %}
+                        <div class="form-text">{{ form.template.help_text }}</div>
+                    {% endif %}
+                    {% for error in form.template.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            </fieldset>
+
+            {# Скрытые поля основной формы (ClinicalDocument), которые не должны отображаться #}
+            {% for field in form.hidden_fields %}
+                {{ field }}
+            {% endfor %}
+
+            {# Неполя формы (например, глобальные ошибки) #}
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger mt-3">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            {# Форма дневника наблюдения новорожденного (условное отображение) #}
+            {% if show_neonatal_note_form and neonatal_note_form %}
+                <div id="neonatal-note-fields" style="display: none;">
+                    <hr class="mb-4">
+                    <h5 class="mb-4 text-center">Дневник наблюдения новорожденного</h5>
+
+                    {# Группа: Общие данные #}
+                    <fieldset class="mb-4 p-3 border rounded">
+                        <legend class="float-none w-auto px-2 fs-5">Общие данные</legend>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ neonatal_note_form.age_in_days.id_for_label }}" class="form-label">{{ neonatal_note_form.age_in_days.label }}</label>
+                                {{ neonatal_note_form.age_in_days|add_class:"form-control"|attr:"type:number" }}
+                                {% for error in neonatal_note_form.age_in_days.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ neonatal_note_form.pkv.id_for_label }}" class="form-label">{{ neonatal_note_form.pkv.label }}</label>
+                                {{ neonatal_note_form.pkv|add_class:"form-control" }}
+                                {% for error in neonatal_note_form.pkv.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    {# Группа: Витальные показатели #}
+                    <fieldset class="mb-4 p-3 border rounded">
+                        <legend class="float-none w-auto px-2 fs-5">Витальные показатели</legend>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ neonatal_note_form.temperature.id_for_label }}" class="form-label">{{ neonatal_note_form.temperature.label }}</label>
+                                {{ neonatal_note_form.temperature|add_class:"form-control"|attr:"type:number"|attr:"step:0.1" }}
+                                {% for error in neonatal_note_form.temperature.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ neonatal_note_form.respiratory_rate.id_for_label }}" class="form-label">{{ neonatal_note_form.respiratory_rate.label }}</label>
+                                {{ neonatal_note_form.respiratory_rate|add_class:"form-control"|attr:"type:number" }}
+                                {% for error in neonatal_note_form.respiratory_rate.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ neonatal_note_form.heart_rate.id_for_label }}" class="form-label">{{ neonatal_note_form.heart_rate.label }}</label>
+                                {{ neonatal_note_form.heart_rate|add_class:"form-control"|attr:"type:number" }}
+                                {% for error in neonatal_note_form.heart_rate.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ neonatal_note_form.blood_pressure_systolic.id_for_label }}" class="form-label">{{ neonatal_note_form.blood_pressure_systolic.label }}</label>
+                                {{ neonatal_note_form.blood_pressure_systolic|add_class:"form-control"|attr:"type:number" }}
+                                {% for error in neonatal_note_form.blood_pressure_systolic.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ neonatal_note_form.blood_pressure_diastolic.id_for_label }}" class="form-label">{{ neonatal_note_form.blood_pressure_diastolic.label }}</label>
+                                {{ neonatal_note_form.blood_pressure_diastolic|add_class:"form-control"|attr:"type:number" }}
+                                {% for error in neonatal_note_form.blood_pressure_diastolic.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ neonatal_note_form.blood_pressure_mean.id_for_label }}" class="form-label">{{ neonatal_note_form.blood_pressure_mean.label }}</label>
+                                {{ neonatal_note_form.blood_pressure_mean|add_class:"form-control"|attr:"type:number" }}
+                                {% for error in neonatal_note_form.blood_pressure_mean.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ neonatal_note_form.saturation.id_for_label }}" class="form-label">{{ neonatal_note_form.saturation.label }}</label>
+                                {{ neonatal_note_form.saturation|add_class:"form-control"|attr:"type:number"|attr:"step:0.1" }}
+                                {% for error in neonatal_note_form.saturation.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    {# Группа: Респираторная терапия #}
+                    <fieldset class="mb-4 p-3 border rounded">
+                        <legend class="float-none w-auto px-2 fs-5">Респираторная терапия</legend>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ neonatal_note_form.respiratory_therapy_type.id_for_label }}" class="form-label">{{ neonatal_note_form.respiratory_therapy_type.label }}</label>
+                                {{ neonatal_note_form.respiratory_therapy_type|add_class:"form-select" }}
+                                {% for error in neonatal_note_form.respiratory_therapy_type.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ neonatal_note_form.ventilator_device.id_for_label }}" class="form-label">{{ neonatal_note_form.ventilator_device.label }}</label>
+                                {{ neonatal_note_form.ventilator_device|add_class:"form-control" }}
+                                {% for error in neonatal_note_form.ventilator_device.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ neonatal_note_form.ventilation_mode.id_for_label }}" class="form-label">{{ neonatal_note_form.ventilation_mode.label }}</label>
+                                {{ neonatal_note_form.ventilation_mode|add_class:"form-control" }}
+                                {% for error in neonatal_note_form.ventilation_mode.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ neonatal_note_form.respiratory_parameters.id_for_label }}" class="form-label">{{ neonatal_note_form.respiratory_parameters.label }}</label>
+                                {{ neonatal_note_form.respiratory_parameters|add_class:"form-control"|attr:"rows:3" }}
+                                {% for error in neonatal_note_form.respiratory_parameters.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    {# Группа: Оценка состояния и динамика #}
+                    <fieldset class="mb-4 p-3 border rounded">
+                        <legend class="float-none w-auto px-2 fs-5">Оценка состояния и динамика</legend>
+                        <div class="mb-3">
+                            <label for="{{ neonatal_note_form.severity_assessment.id_for_label }}" class="form-label">{{ neonatal_note_form.severity_assessment.label }}</label>
+                            {{ neonatal_note_form.severity_assessment|add_class:"form-control"|attr:"rows:5" }}
+                            {% for error in neonatal_note_form.severity_assessment.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ neonatal_note_form.content.id_for_label }}" class="form-label">{{ neonatal_note_form.content.label }}</label>
+                            {{ neonatal_note_form.content|add_class:"form-control"|attr:"rows:10" }}
+                            {% for error in neonatal_note_form.content.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </fieldset>
+
+                    {# Группа: Заключение и план #}
+                    <fieldset class="mb-4 p-3 border rounded">
+                        <legend class="float-none w-auto px-2 fs-5">Заключение и план</legend>
+                        <div class="mb-3">
+                            <label for="{{ neonatal_note_form.conclusion.id_for_label }}" class="form-label">{{ neonatal_note_form.conclusion.label }}</label>
+                            {{ neonatal_note_form.conclusion|add_class:"form-control"|attr:"rows:5" }}
+                            {% for error in neonatal_note_form.conclusion.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ neonatal_note_form.management_plan.id_for_label }}" class="form-label">{{ neonatal_note_form.management_plan.label }}</label>
+                            {{ neonatal_note_form.management_plan|add_class:"form-control"|attr:"rows:5" }}
+                            {% for error in neonatal_note_form.management_plan.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </fieldset>
+
+                    {# Скрытые поля формы neonatal_note_form #}
+                    {% for field in neonatal_note_form.hidden_fields %}
+                        {{ field }}
+                    {% endfor %}
+
+                    {% if neonatal_note_form.non_field_errors %}
+                        <div class="alert alert-danger mt-3">
+                            {{ neonatal_note_form.non_field_errors }}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            <button type="submit" class="btn btn-primary mt-3">Сохранить</button>
+            <a href="{{ request.GET.next|default:default_back_url }}" class="btn btn-secondary mt-3 ms-2">Отмена</a>
         </form>
     </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const templateSelect = document.getElementById('id_template_choice');
+    const templateSelect = document.getElementById('id_template'); // Обновлен ID на 'id_template'
+    const documentCategorySelect = document.getElementById('id_document_category');
+    const datetimeDocumentInput = document.getElementById('id_datetime_document'); // Новое поле
+    const neonatalNoteFields = document.getElementById('neonatal-note-fields');
+    const dailyNoteCategoryId = '{{ daily_note_category_id|default:"" }}'; // ID категории "Дневник наблюдения новорожденного"
+    const showNeonatalFeatureGlobally = {{ show_neonatal_note_form|yesno:'true,false' }};
+
+    /**
+     * Обновляет видимость полей дневника новорожденного.
+     * Поля показываются, если функция разрешена глобально И
+     * текущая выбранная категория документа соответствует категории дневника новорожденного.
+     */
+    function updateNeonatalNoteVisibility() {
+        if (!neonatalNoteFields) return; // Если блок не существует, ничего не делаем
+
+        // Если глобальный флаг из Django не разрешает показ функционала, скрываем всегда
+        if (!showNeonatalFeatureGlobally) {
+            neonatalNoteFields.style.display = 'none';
+            return;
+        }
+
+        // Если глобальный флаг разрешает, то показываем/скрываем в зависимости от выбранной категории
+        if (documentCategorySelect && documentCategorySelect.value === dailyNoteCategoryId) {
+            neonatalNoteFields.style.display = 'block';
+        } else {
+            neonatalNoteFields.style.display = 'none';
+        }
+    }
+
+    // #1: Вызываем функцию при загрузке страницы, чтобы установить начальное состояние
+    updateNeonatalNoteVisibility();
+
+    // #2: Прикрепляем слушатель события 'change' к селектору категории документа
+    if (documentCategorySelect) {
+        documentCategorySelect.addEventListener('change', updateNeonatalNoteVisibility);
+    }
+
+    // Логика загрузки данных из шаблона
     if (templateSelect) {
         templateSelect.addEventListener('change', function() {
             const templateId = this.value;
             if (templateId) {
                 fetch(`/documents/template-data/${templateId}/`)
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
                     .then(data => {
-                        if (data.title !== undefined) {
-                            document.getElementById('id_title').value = data.title;
+                        // Обновляем datetime_document, если есть в данных шаблона
+                        if (datetimeDocumentInput && data.datetime_document !== undefined) {
+                            // Django DateTimeField часто возвращает ISO формат, который datetime-local понимает
+                            datetimeDocumentInput.value = data.datetime_document;
                         }
-                        if (data.content !== undefined) {
-                            document.getElementById('id_content').value = data.content;
+                        // Обновляем document_category, если есть в данных шаблона
+                        if (documentCategorySelect && data.document_category_id !== undefined) {
+                            documentCategorySelect.value = data.document_category_id;
+                            // Важно: вызываем функцию обновления видимости после изменения категории через шаблон
+                            updateNeonatalNoteVisibility();
                         }
-                    });
+                        // Для полей NeonatalDailyNote (если они есть в data и форма активна)
+                        // Это более общая логика, чем просто title/content
+                        if (neonatalNoteFields && data.neonatal_fields) {
+                            for (const fieldName in data.neonatal_fields) {
+                                const fieldElement = document.getElementById(`id_${fieldName}`);
+                                if (fieldElement && data.neonatal_fields[fieldName] !== undefined) {
+                                    fieldElement.value = data.neonatal_fields[fieldName];
+                                }
+                            }
+                        }
+                    })
+                    .catch(error => console.error('Error loading template data:', error));
             }
         });
     }
 });
 </script>
+
 {% endblock %}

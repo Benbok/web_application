@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'documents',
     'departments',
     'treatment_assignments',
+    'widget_tweaks',
 ]
 
 MIDDLEWARE = [

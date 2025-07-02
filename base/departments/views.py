@@ -10,7 +10,7 @@ from django.core.paginator import Paginator
 
 from .models import Department, PatientDepartmentStatus 
 from documents.models import ClinicalDocument
-from documents.forms import ClinicalDocumentFilterForm
+from documents.forms import ClinicalDocumentFilterForm, ClinicalDocumentForm
 from treatment_assignments.models import TreatmentAssignment
 
 class DepartmentListView(ListView):
@@ -71,32 +71,19 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
     template_name = 'departments/patient_history.html'
     context_object_name = 'patient_status'
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        patient_status = self.get_object()
-
-        assignments = TreatmentAssignment.objects.filter(
-            content_type=ContentType.objects.get_for_model(PatientDepartmentStatus),
-            object_id=patient_status.pk
-            ).order_by('-created_at')
-        
-        patient_status_content_type = ContentType.objects.get_for_model(PatientDepartmentStatus)
-
-        # Обработка фильтров из GET-запроса
-        filter_form = ClinicalDocumentFilterForm(self.request.GET)
-        
-        # Общий QuerySet для документов
+    def get_filtered_documents_and_assignments(self, patient_status, filter_form):
+        """
+        Вспомогательный метод для фильтрации документов и назначений по форме.
+        """
+        content_type = ContentType.objects.get_for_model(PatientDepartmentStatus)
         documents = ClinicalDocument.objects.filter(
-            content_type=patient_status_content_type,
+            content_type=content_type,
             object_id=patient_status.pk
-        ).order_by('-created_at')
-
+        )
         assignments = TreatmentAssignment.objects.filter(
-            content_type=patient_status_content_type,
+            content_type=content_type,
             object_id=patient_status.pk
-        ).order_by('-created_at')
-
-        # Применяем фильтры к обоим QuerySet'ам
+        )
         if filter_form.is_valid():
             start_date = filter_form.cleaned_data.get('start_date')
             end_date = filter_form.cleaned_data.get('end_date')
@@ -111,7 +98,9 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
                 assignments = assignments.filter(created_at__date__lte=end_date)
             if author:
                 documents = documents.filter(author=author)
-                assignments = assignments.filter(author=author)
+                # assignments: фильтрация по author только если поле есть
+                if hasattr(TreatmentAssignment, 'author'):
+                    assignments = assignments.filter(author=author)
             if search_query:
                 documents = documents.filter(
                     Q(title__icontains=search_query) | Q(content__icontains=search_query)
@@ -119,82 +108,31 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
                 assignments = assignments.filter(
                     Q(title__icontains=search_query) | Q(content__icontains=search_query)
                 )
+        return documents.order_by('-created_at'), assignments.order_by('-created_at')
 
-        # Сортировка
-        documents = documents.order_by('-created_at')
-        assignments = assignments.order_by('-created_at')
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        patient_status = self.get_object()
+
+        # Обработка фильтров из GET-запроса
+        filter_form = ClinicalDocumentFilterForm(self.request.GET)
+        # Получаем отфильтрованные документы и назначения
+        documents, assignments = self.get_filtered_documents_and_assignments(patient_status, filter_form)
 
         # Пагинация (раздельная)
-        daily_notes_paginator = Paginator(documents, 10)
-        daily_notes_page_number = self.request.GET.get('daily_notes_page')
-        daily_notes_page_obj = daily_notes_paginator.get_page(daily_notes_page_number)
+        documents_paginator = Paginator(documents, 10)
+        documents_page_number = self.request.GET.get('daily_notes_page')
+        documents_page_obj = documents_paginator.get_page(documents_page_number)
 
         assignments_paginator = Paginator(assignments, 10)
         assignments_page_number = self.request.GET.get('assignments_page')
         assignments_page_obj = assignments_paginator.get_page(assignments_page_number)
 
         context['clinical_documents_filter_form'] = filter_form
-        context['daily_notes_page_obj'] = daily_notes_page_obj
+        context['daily_notes_page_obj'] = documents_page_obj
         context['assignments_page_obj'] = assignments_page_obj
         context['title'] = f"История пациента: {patient_status.patient.full_name} в {patient_status.department.name}"
         return context
-
-class DocumentCreateView(LoginRequiredMixin, CreateView):
-    model = ClinicalDocument
-    # form_class = ClinicalDocumentForm # Ваша форма для ClinicalDocument
-    fields = ['document_type', 'title', 'content', 'template'] # Пример полей, если нет отдельной формы
-
-    template_name = 'documents/document_form.html' # Шаблон для создания документа
-
-    def get_initial(self):
-        initial = super().get_initial()
-        model_name = self.kwargs.get('model_name')
-        object_id = self.kwargs.get('object_id')
-
-        if model_name and object_id:
-            try:
-                # Попытка получить объект ContentType
-                content_type = ContentType.objects.get(app_label='departments', model=model_name) # Предполагаем app_label 'departments' для patientdepartmentstatus
-                # Если нужен доступ к самому объекту, то:
-                # related_object = content_type.get_object_for_this_type(pk=object_id)
-                # initial['related_object'] = related_object # Если это нужно для формы
-            except ContentType.DoesNotExist:
-                pass # Обработать ошибку, если model_name не найден
-        return initial
-
-    def form_valid(self, form):
-        model_name = self.kwargs.get('model_name')
-        object_id = self.kwargs.get('object_id')
-
-        if model_name and object_id:
-            content_type = ContentType.objects.get(app_label='departments', model=model_name) # Или другой app_label
-            form.instance.content_type = content_type
-            form.instance.object_id = object_id
-
-        form.instance.author = self.request.user # Устанавливаем текущего пользователя как автора
-
-        # Если есть поле 'template' и оно заполнено, можно использовать его default_content
-        # if form.instance.template and not form.cleaned_data.get('content'):
-        #     form.instance.content = form.instance.template.default_content
-
-        return super().form_valid(form)
-
-    def get_success_url(self):
-        # После создания документа, лучше вернуться на страницу истории пациента
-        model_name = self.kwargs.get('model_name')
-        object_id = self.kwargs.get('object_id')
-        if model_name == 'patientdepartmentstatus':
-            return reverse('departments:patient_history', kwargs={'pk': object_id})
-        # Иначе, редирект на другую страницу, например, список документов или детали самого документа
-        return reverse('documents:document_detail', kwargs={'pk': self.object.pk})
-
-class DocumentDetailView(DetailView):
-    model = ClinicalDocument
-    template_name = 'documents/document_detail.html' # Шаблон для просмотра документа
-    context_object_name = 'document'
-
-
-
 
 
 class PatientDepartmentDischargeView(LoginRequiredMixin, View):
