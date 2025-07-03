@@ -14,137 +14,107 @@
         {% csrf_token %}
 
         <div class="row g-3">
-          {% comment %} Hidden fields {% endcomment %}
+          {% comment %} Скрытые поля, общие для всех {% endcomment %}
           {{ form.patient }}
 
-          {# Row 1: Дата начала и Препарат #}
-          <div class="col-12 col-md-6 mb-3">
-            <label for="{{ form.start_date.id_for_label }}" class="form-label fw-medium">
-              {{ form.start_date.label }}
-              {% if form.start_date.field.required %}<span class="text-danger">*</span>{% endif %}
-            </label>
-            {{ form.start_date|add_class:"form-control" }}
-            {% for error in form.start_date.errors %}
-              <div class="invalid-feedback d-block">{{ error }}</div>
-            {% endfor %}
-          </div>
-          <div class="col-12 col-md-6 mb-3">
-            <label for="{{ form.medication.id_for_label }}" class="form-label fw-medium">
-              {{ form.medication.label }}
-              {% if form.medication.field.required %}<span class="text-danger">*</span>{% endif %}
-            </label>
-            {{ form.medication }}
-            {% for error in form.medication.errors %}
-              <div class="invalid-feedback d-block">{{ error }}</div>
-            {% endfor %}
-          </div>
+          {# --- УНИВЕРСАЛЬНЫЙ БЛОК ДЛЯ ОТОБРАЖЕНИЯ ПОЛЕЙ --- #}
 
-          {# Row 2: Вес пациента, Дозировка на кг и Расчетная дозировка #}
-          <div class="col-12 col-md-4 mb-3">
-            <label for="{{ form.patient_weight.id_for_label }}" class="form-label fw-medium">
-              {{ form.patient_weight.label }}
-              {% if form.patient_weight.field.required %}<span class="text-danger">*</span>{% endif %}
-            </label>
-            {{ form.patient_weight|add_class:"form-control" }}
-            {% for error in form.patient_weight.errors %}
-              <div class="invalid-feedback d-block">{{ error }}</div>
-            {% endfor %}
-          </div>
-          <div class="col-12 col-md-4 mb-3">
-            <label for="{{ form.dosage_per_kg.id_for_label }}" class="form-label fw-medium">
-              {{ form.dosage_per_kg.label }}
-              {% if form.dosage_per_kg.field.required %}<span class="text-danger">*</span>{% endif %}
-            </label>
-            {{ form.dosage_per_kg|add_class:"form-control" }}
-            {% for error in form.dosage_per_kg.errors %}
-              <div class="invalid-feedback d-block">{{ error }}</div>
-            {% endfor %}
-          </div>
-          <div class="col-12 col-md-4 mb-3">
-            <label for="{{ form.calculated_dosage.id_for_label }}" class="form-label fw-medium">
-              {{ form.calculated_dosage.label }}
-              {% if form.calculated_dosage.field.required %}<span class="text-danger">*</span>{% endif %}
-            </label>
-            {{ form.calculated_dosage|add_class:"form-control" }}
-            {% for error in form.calculated_dosage.errors %}
-              <div class="invalid-feedback d-block">{{ error }}</div>
-            {% endfor %}
-          </div>
+          {% if assignment_type == 'medication' %}
+            {# --- Поля только для НАЗНАЧЕНИЯ ПРЕПАРАТОВ --- #}
+            <div class="col-12 col-md-6 mb-3">
+              <label for="{{ form.start_date.id_for_label }}" class="form-label fw-medium">{{ form.start_date.label }}{% if form.start_date.field.required %}<span class="text-danger">*</span>{% endif %}</label>
+              {{ form.start_date|add_class:"form-control" }}
+              {% for error in form.start_date.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-12 col-md-6 mb-3">
+              <label for="{{ form.medication.id_for_label }}" class="form-label fw-medium">{{ form.medication.label }}{% if form.medication.field.required %}<span class="text-danger">*</span>{% endif %}</label>
+              {{ form.medication }}
+              {% for error in form.medication.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-12 col-md-4 mb-3">
+              <label for="{{ form.patient_weight.id_for_label }}" class="form-label fw-medium">{{ form.patient_weight.label }}{% if form.patient_weight.field.required %}<span class="text-danger">*</span>{% endif %}</label>
+              {{ form.patient_weight|add_class:"form-control" }}
+              {% for error in form.patient_weight.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-12 col-md-4 mb-3">
+              <label for="{{ form.dosage_per_kg.id_for_label }}" class="form-label fw-medium">{{ form.dosage_per_kg.label }}{% if form.dosage_per_kg.field.required %}<span class="text-danger">*</span>{% endif %}</label>
+              {{ form.dosage_per_kg|add_class:"form-control" }}
+              {% for error in form.dosage_per_kg.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-12 col-md-4 mb-3">
+              <label for="{{ form.calculated_dosage.id_for_label }}" class="form-label fw-medium">{{ form.calculated_dosage.label }}{% if form.calculated_dosage.field.required %}<span class="text-danger">*</span>{% endif %}</label>
+              {{ form.calculated_dosage|add_class:"form-control" }}
+              {% for error in form.calculated_dosage.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-12 col-md-4 mb-3">
+              <label for="{{ form.frequency.id_for_label }}" class="form-label fw-medium">{{ form.frequency.label }}{% if form.frequency.field.required %}<span class="text-danger">*</span>{% endif %}</label>
+              {{ form.frequency|add_class:"form-control" }}
+              {% for error in form.frequency.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-12 col-md-4 mb-3">
+              <label for="{{ form.duration.id_for_label }}" class="form-label fw-medium">{{ form.duration.label }}{% if form.duration.field.required %}<span class="text-danger">*</span>{% endif %}</label>
+              {{ form.duration|add_class:"form-control" }}
+              {% for error in form.duration.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-12 col-md-4 mb-3">
+              <label for="{{ form.route.id_for_label }}" class="form-label fw-medium">{{ form.route.label }}{% if form.route.field.required %}<span class="text-danger">*</span>{% endif %}</label>
+              {{ form.route|add_class:"form-control" }}
+              {% for error in form.route.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            </div>
+          {% else %}
+            {# --- Поля для ВСЕХ ОСТАЛЬНЫХ назначений (General, Lab, Instrumental) --- #}
+            <div class="col-12 col-md-6 mb-3">
+              <label for="{{ form.start_date.id_for_label }}" class="form-label fw-medium">{{ form.start_date.label }}{% if form.start_date.field.required %}<span class="text-danger">*</span>{% endif %}</label>
+              {{ form.start_date|add_class:"form-control" }}
+              {% for error in form.start_date.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-12 col-md-6 mb-3">
+                {% if assignment_type == 'general' %}
+                    <label for="{{ form.general_treatment.id_for_label }}" class="form-label fw-medium">{{ form.general_treatment.label }}{% if form.general_treatment.field.required %}<span class="text-danger">*</span>{% endif %}</label>
+                    {{ form.general_treatment }}
+                    {% for error in form.general_treatment.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                {% elif assignment_type == 'lab' %}
+                    <label for="{{ form.lab_test.id_for_label }}" class="form-label fw-medium">{{ form.lab_test.label }}{% if form.lab_test.field.required %}<span class="text-danger">*</span>{% endif %}</label>
+                    {{ form.lab_test }}
+                    {% for error in form.lab_test.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                {% elif assignment_type == 'instrumental' %}
+                    <label for="{{ form.instrumental_procedure.id_for_label }}" class="form-label fw-medium">{{ form.instrumental_procedure.label }}{% if form.instrumental_procedure.field.required %}<span class="text-danger">*</span>{% endif %}</label>
+                    {{ form.instrumental_procedure }}
+                    {% for error in form.instrumental_procedure.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                {% endif %}
+            </div>
+             <div class="col-12 col-md-6 mb-3">
+                <label for="{{ form.end_date.id_for_label }}" class="form-label fw-medium">{{ form.end_date.label }}{% if form.end_date.field.required %}<span class="text-danger">*</span>{% endif %}</label>
+                {{ form.end_date|add_class:"form-control" }}
+                {% for error in form.end_date.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            </div>
+          {% endif %}
 
-          {# Row 3: Частота, Длительность, Путь введения #}
-          <div class="col-12 col-md-4 mb-3">
-            <label for="{{ form.frequency.id_for_label }}" class="form-label fw-medium">
-              {{ form.frequency.label }}
-              {% if form.frequency.field.required %}<span class="text-danger">*</span>{% endif %}
-            </label>
-            {{ form.frequency|add_class:"form-control" }}
-            {% for error in form.frequency.errors %}
-              <div class="invalid-feedback d-block">{{ error }}</div>
-            {% endfor %}
-          </div>
-          <div class="col-12 col-md-4 mb-3">
-            <label for="{{ form.duration.id_for_label }}" class="form-label fw-medium">
-              {{ form.duration.label }}
-              {% if form.duration.field.required %}<span class="text-danger">*</span>{% endif %}
-            </label>
-            {{ form.duration|add_class:"form-control" }}
-            {% for error in form.duration.errors %}
-              <div class="invalid-feedback d-block">{{ error }}</div>
-            {% endfor %}
-          </div>
-          <div class="col-12 col-md-4 mb-3">
-            <label for="{{ form.route.id_for_label }}" class="form-label fw-medium">
-              {{ form.route.label }}
-              {% if form.route.field.required %}<span class="text-danger">*</span>{% endif %}
-            </label>
-            {{ form.route|add_class:"form-control" }}
-            {% for error in form.route.errors %}
-              <div class="invalid-feedback d-block">{{ error }}</div>
-            {% endfor %}
-          </div>
-
-          {# Row 4: Статус и Примечания #}
+          {# --- ОБЩИЕ ПОЛЯ, которые есть во ВСЕХ формах --- #}
           <div class="col-12 col-md-6 mb-3">
-            <label for="{{ form.status.id_for_label }}" class="form-label fw-medium">
-              {{ form.status.label }}
-              {% if form.status.field.required %}<span class="text-danger">*</span>{% endif %}
-            </label>
+            <label for="{{ form.status.id_for_label }}" class="form-label fw-medium">{{ form.status.label }}{% if form.status.field.required %}<span class="text-danger">*</span>{% endif %}</label>
             {{ form.status|add_class:"form-select" }}
-            {% for error in form.status.errors %}
-              <div class="invalid-feedback d-block">{{ error }}</div>
-            {% endfor %}
+            {% for error in form.status.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
           </div>
-          <div class="col-12 col-md-6 mb-3">
-            <label for="{{ form.notes.id_for_label }}" class="form-label fw-medium">
-              {{ form.notes.label }}
-              {% if form.notes.field.required %}<span class="text-danger">*</span>{% endif %}
-            </label>
+          <div class="col-12 mb-3">
+            <label for="{{ form.notes.id_for_label }}" class="form-label fw-medium">{{ form.notes.label }}{% if form.notes.field.required %}<span class="text-danger">*</span>{% endif %}</label>
             {{ form.notes|add_class:"form-control"|attr:"rows:3" }}
-            {% for error in form.notes.errors %}
-              <div class="invalid-feedback d-block">{{ error }}</div>
-            {% endfor %}
+            {% for error in form.notes.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
           </div>
-
-          {# Row 5: Назначивший врач #}
           <div class="col-12 col-md-6 mb-3">
-            <label for="{{ form.assigning_doctor.id_for_label }}" class="form-label fw-medium">
-              {{ form.assigning_doctor.label }}
-              {% if form.assigning_doctor.field.required %}<span class="text-danger">*</span>{% endif %}
-            </label>
+            <label for="{{ form.assigning_doctor.id_for_label }}" class="form-label fw-medium">{{ form.assigning_doctor.label }}{% if form.assigning_doctor.field.required %}<span class="text-danger">*</span>{% endif %}</label>
             {{ form.assigning_doctor|add_class:"form-select" }}
-            {% for error in form.assigning_doctor.errors %}
-              <div class="invalid-feedback d-block">{{ error }}</div>
-            {% endfor %}
+            {% for error in form.assigning_doctor.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
           </div>
         </div>
 
         {% if form.non_field_errors %}
-          <div class="alert alert-danger">
+          <div class="alert alert-danger mt-3">
             {{ form.non_field_errors }}
           </div>
         {% endif %}
 
-        <div>
+        <div class="mt-4">
           <div class="d-flex justify-content-between">
             <a href="{{ next_url }}" class="btn btn-outline-secondary">
               <i class="bi bi-arrow-left me-1"></i> Отмена
@@ -162,93 +132,62 @@
 {{ form.media }}
 
 <script>
+  // Этот JavaScript код будет работать ТОЛЬКО для формы назначения препаратов
+  // и не будет мешать другим формам.
   $(document).ready(function() {
-    const medicationSelect = $('#id_medication');
-    const patientWeightInput = $('#id_patient_weight');
-    const dosagePerKgInput = $('#id_dosage_per_kg');
-    const frequencyInput = $('#id_frequency');
-    const durationInput = $('#id_duration');
-    const routeInput = $('#id_route');
-    const calculatedDosageInput = $('#id_calculated_dosage');
+    if ('{{ assignment_type }}' === 'medication') {
+        const medicationSelect = $('#id_medication');
+        const patientWeightInput = $('#id_patient_weight');
+        const dosagePerKgInput = $('#id_dosage_per_kg');
+        const frequencyInput = $('#id_frequency');
+        const durationInput = $('#id_duration');
+        const routeInput = $('#id_route');
+        const calculatedDosageInput = $('#id_calculated_dosage');
+        const defaultDosagePerKgUnitDisplay = $('#id_default_dosage_per_kg_unit_display');
 
-    const defaultDosagePerKgUnitDisplay = $('#id_default_dosage_per_kg_unit_display');
+        let currentMedicationData = null;
 
-    let currentMedicationData = null; // Для хранения данных о текущем препарате
+        function calculateDosage() {
+          const patientWeight = parseFloat(patientWeightInput.val());
+          const dosagePerKg = parseFloat(dosagePerKgInput.val());
+          let calculatedDosageValue = '';
 
-    // Функция для расчета и обновления calculatedDosageInput
-    function calculateDosage() {
-      const patientWeight = parseFloat(patientWeightInput.val());
-      const dosagePerKg = parseFloat(dosagePerKgInput.val());
-      let calculatedDosageValue = '';
-
-      if (dosagePerKg && patientWeight) {
-        const calculated = dosagePerKg * patientWeight;
-        calculatedDosageValue = `${calculated.toFixed(2)} ${currentMedicationData ? (currentMedicationData.default_dosage_per_kg_unit || '') : ''}`;
-      } else if (currentMedicationData && currentMedicationData.default_dosage) {
-        calculatedDosageValue = currentMedicationData.default_dosage;
-      }
-      calculatedDosageInput.val(calculatedDosageValue);
-    }
-
-    // Функция для получения данных о препарате и предварительного заполнения полей
-    function fetchAndApplyMedicationData() {
-      const medicationId = medicationSelect.val();
-
-      if (medicationId) {
-        $.ajax({
-          url: `/pharmacy/api/medications/${medicationId}/`,
-          method: 'GET',
-          success: function(data) {
-            currentMedicationData = data; // Сохраняем данные
-
-            // Предварительно заполняем dosage_per_kg ТОЛЬКО если оно пустое
-            if (!dosagePerKgInput.val()) {
-              dosagePerKgInput.val(data.default_dosage_per_kg || '');
-            }
-
-            // Предварительно заполняем другие поля, если они пусты
-            if (!frequencyInput.val()) {
-              frequencyInput.val(data.default_frequency_hours_options || data.default_frequency || '');
-            }
-            if (!durationInput.val()) {
-              durationInput.val(data.default_duration || '');
-            }
-            if (!routeInput.val()) {
-              routeInput.val(data.default_route || '');
-            }
-            defaultDosagePerKgUnitDisplay.val(data.default_dosage_per_kg_unit || '');
-
-            calculateDosage(); // Пересчитываем после предварительного заполнения
-          },
-          error: function(error) {
-            console.error('Error fetching medication data:', error);
-            currentMedicationData = null;
-            clearFormFields(); // Очищаем поля при ошибке
+          if (dosagePerKg && patientWeight) {
+            const calculated = dosagePerKg * patientWeight;
+            calculatedDosageValue = `${calculated.toFixed(2)} ${currentMedicationData ? (currentMedicationData.default_dosage_per_kg_unit || '') : ''}`;
+          } else if (currentMedicationData && currentMedicationData.default_dosage) {
+            calculatedDosageValue = currentMedicationData.default_dosage;
           }
-        });
-      } else {
-        clearFormFields();
-        currentMedicationData = null;
-      }
-    }
+          calculatedDosageInput.val(calculatedDosageValue);
+        }
 
-    function clearFormFields() {
-      frequencyInput.val('');
-      durationInput.val('');
-      routeInput.val('');
-      calculatedDosageInput.val('');
-      dosagePerKgInput.val('');
-      defaultDosagePerKgUnitDisplay.val('');
-    }
+        function fetchAndApplyMedicationData() {
+          const medicationId = medicationSelect.val();
+          if (medicationId) {
+            $.ajax({
+              url: `/pharmacy/api/medications/${medicationId}/`,
+              method: 'GET',
+              success: function(data) {
+                currentMedicationData = data;
+                if (!dosagePerKgInput.val()) { dosagePerKgInput.val(data.default_dosage_per_kg || ''); }
+                if (!frequencyInput.val()) { frequencyInput.val(data.default_frequency_hours_options || data.default_frequency || ''); }
+                if (!durationInput.val()) { durationInput.val(data.default_duration || ''); }
+                if (!routeInput.val()) { routeInput.val(data.default_route || ''); }
+                defaultDosagePerKgUnitDisplay.val(data.default_dosage_per_kg_unit || '');
+                calculateDosage();
+              },
+              error: function(error) { console.error('Error fetching medication data:', error); currentMedicationData = null; }
+            });
+          }
+        }
 
-    // Слушатели событий
-    medicationSelect.on('change', fetchAndApplyMedicationData);
-    patientWeightInput.on('input', calculateDosage);
-    dosagePerKgInput.on('input', calculateDosage); // Включаем этот слушатель обратно
+        medicationSelect.on('change', fetchAndApplyMedicationData);
+        patientWeightInput.on('input', calculateDosage);
+        dosagePerKgInput.on('input', calculateDosage);
 
-    // Инициализация при загрузке страницы
-    if (medicationSelect.val()) {
-      fetchAndApplyMedicationData();
+        if (medicationSelect.val()) {
+          fetchAndApplyMedicationData();
+        }
     }
   });
 </script>

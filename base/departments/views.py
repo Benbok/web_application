@@ -11,7 +11,7 @@ from .models import Department, PatientDepartmentStatus
 from documents.models import ClinicalDocument
 from .forms import DocumentAndAssignmentFilterForm # Импортируем новую форму
 
-from treatment_assignments.models import TreatmentAssignment
+from treatment_assignments.models import MedicationAssignment
 
 class DepartmentListView(ListView):
     model = Department
@@ -90,7 +90,7 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
         for doc in documents:
             print(f"[DEBUG] Initial document: {doc.document_type.name} (Department: {doc.document_type.department.name if doc.document_type.department else 'None'})")
 
-        assignments = TreatmentAssignment.objects.filter(
+        assignments = MedicationAssignment.objects.filter(
             content_type=content_type,
             object_id=patient_status.pk
         )
@@ -121,10 +121,6 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
                 # Для назначений ищем в treatment_name и notes
                 assignments = assignments.filter(Q(treatment_name__icontains=search_query) | Q(notes__icontains=search_query))
 
-        print(f"[DEBUG] Final documents queryset count: {documents.count()}")
-        for doc in documents:
-            print(f"[DEBUG] Final document: {doc.document_type.name} (Department: {doc.document_type.department.name if doc.document_type.department else 'None'})")
-
         return documents.order_by('-datetime_document'), assignments.order_by('-start_date')
 
     def get_context_data(self, **kwargs):
@@ -152,7 +148,7 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
         context['title'] = f"История пациента: {patient_status.patient.full_name} в {patient_status.department.name}"
 
         # Получаем активные назначения для этого patient_status
-        active_assignments = TreatmentAssignment.objects.filter(
+        active_assignments = MedicationAssignment.objects.filter(
             content_type=ContentType.objects.get_for_model(PatientDepartmentStatus),
             object_id=patient_status.pk,
             status='active',
@@ -160,7 +156,7 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
         context['active_assignments'] = active_assignments
 
         # Получаем неактивные (завершенные, отмененные, приостановленные) назначения
-        inactive_assignments = TreatmentAssignment.objects.filter(
+        inactive_assignments = MedicationAssignment.objects.filter(
             content_type=ContentType.objects.get_for_model(PatientDepartmentStatus),
             object_id=patient_status.pk,
             status__in=['completed', 'canceled', 'paused'],

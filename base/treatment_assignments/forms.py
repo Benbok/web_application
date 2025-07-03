@@ -1,14 +1,37 @@
 # treatment_assignments/forms.py
 from django import forms
-from .models import TreatmentAssignment
+from .models import MedicationAssignment, GeneralTreatmentAssignment, LabTestAssignment, InstrumentalProcedureAssignment
 from patients.models import Patient
 from pharmacy.models import Medication # Импортируем модель Medication
+from general_treatments.models import GeneralTreatmentDefinition
+from lab_tests.models import LabTestDefinition
+from instrumental_procedures.models import InstrumentalProcedureDefinition
 from django.contrib.auth import get_user_model
 from django_select2.forms import Select2Widget # Импортируем Select2Widget
 
 User = get_user_model()
 
-class TreatmentAssignmentForm(forms.ModelForm):
+# Базовая форма для всех типов назначений
+class BaseAssignmentForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        self.request_user = kwargs.pop('request_user', None)
+        self.content_object = kwargs.pop('content_object', None)
+        self.patient_object = kwargs.pop('patient_object', None)
+        super().__init__(*args, **kwargs)
+        self.fields['patient'].required = False
+
+        if self.patient_object:
+            self.fields['patient'].initial = self.patient_object
+            self.fields['patient'].widget = forms.HiddenInput()
+
+        if self.request_user and not self.instance.pk:
+            self.fields['assigning_doctor'].initial = self.request_user
+
+        if self.instance.pk:
+            self.fields['patient'].widget = forms.HiddenInput()
+
+
+class MedicationAssignmentForm(BaseAssignmentForm):
     calculated_dosage = forms.CharField(
         label="Расчетная дозировка",
         required=False,
@@ -28,10 +51,10 @@ class TreatmentAssignmentForm(forms.ModelForm):
     )
 
     class Meta:
-        model = TreatmentAssignment
+        model = MedicationAssignment
         fields = [
             'patient', 'assigning_doctor', 'patient_weight',
-            'medication', 'frequency', 'duration', 'route', # Removed 'dosage'
+            'medication', 'frequency', 'duration', 'route',
             'notes', 'status', 'start_date',
         ]
         widgets = {
@@ -39,20 +62,19 @@ class TreatmentAssignmentForm(forms.ModelForm):
             'assigning_doctor': forms.Select(attrs={'class': 'form-select'}),
             'patient_weight': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Например, 10.5', 'step': '0.1'}),
             'dosage_per_kg': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Например, 10', 'step': '0.1'}),
-            'assignment_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+            'start_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
             'medication': Select2Widget(attrs={'class': 'form-select'}),
             'frequency': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Например, 2 раза в день'}),
             'duration': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Например, 7 дней'}),
             'route': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Например, внутримышечно'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Дополнительные примечания'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
-            'start_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
         }
         labels = {
             'patient': 'Пациент',
             'assigning_doctor': 'Назначивший врач',
             'patient_weight': 'Вес пациента (кг)',
-            'assignment_date': 'Дата назначения',
+            'start_date': 'Дата назначения',
             'medication': 'Препарат',
             'frequency': 'Частота',
             'duration': 'Длительность',
@@ -62,22 +84,7 @@ class TreatmentAssignmentForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        self.request_user = kwargs.pop('request_user', None)
-        self.content_object = kwargs.pop('content_object', None)
-        self.patient_object = kwargs.pop('patient_object', None)
         super().__init__(*args, **kwargs)
-        self.fields['patient'].required = False
-
-        if self.patient_object:
-            self.fields['patient'].initial = self.patient_object
-            self.fields['patient'].widget = forms.HiddenInput()
-
-        if self.request_user and not self.instance.pk:
-            self.fields['assigning_doctor'].initial = self.request_user
-
-        if self.instance.pk:
-            self.fields['patient'].widget = forms.HiddenInput()
-
         # Устанавливаем поля отображения как disabled
         self.fields['calculated_dosage'].disabled = True
         self.fields['default_dosage_per_kg_unit_display'].disabled = True
@@ -86,7 +93,6 @@ class TreatmentAssignmentForm(forms.ModelForm):
         # заполняем поля дозировки, частоты и длительности из Medication.
         if not self.data and self.instance.medication:
             medication = self.instance.medication
-            # self.fields['dosage'].initial = medication.default_dosage # Removed
             self.fields['frequency'].initial = medication.default_frequency
             self.fields['duration'].initial = medication.default_duration
             self.fields['route'].initial = medication.default_route
@@ -112,8 +118,6 @@ class TreatmentAssignmentForm(forms.ModelForm):
             try:
                 medication_id = self.data.get('medication')
                 medication = Medication.objects.get(pk=medication_id)
-                # if not self.data.get('dosage'): # Removed
-                #     self.fields['dosage'].initial = medication.default_dosage
                 if not self.data.get('frequency'):
                     self.fields['frequency'].initial = medication.default_frequency
                 if not self.data.get('duration'):
@@ -122,3 +126,84 @@ class TreatmentAssignmentForm(forms.ModelForm):
                     self.fields['route'].initial = medication.default_route
             except Medication.DoesNotExist:
                 pass
+
+
+class GeneralTreatmentAssignmentForm(BaseAssignmentForm):
+    class Meta:
+        model = GeneralTreatmentAssignment
+        fields = [
+            'patient', 'assigning_doctor', 'general_treatment',
+            'notes', 'status', 'start_date', 'end_date',
+        ]
+        widgets = {
+            'patient': forms.HiddenInput(),
+            'assigning_doctor': forms.Select(attrs={'class': 'form-select'}),
+            'general_treatment': Select2Widget(attrs={'class': 'form-select'}),
+            'start_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+            'end_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Дополнительные примечания'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+        }
+        labels = {
+            'patient': 'Пациент',
+            'assigning_doctor': 'Назначивший врач',
+            'general_treatment': 'Общее назначение',
+            'notes': 'Примечания',
+            'status': 'Статус',
+            'start_date': 'Дата начала',
+            'end_date': 'Дата завершения',
+        }
+
+
+class LabTestAssignmentForm(BaseAssignmentForm):
+    class Meta:
+        model = LabTestAssignment
+        fields = [
+            'patient', 'assigning_doctor', 'lab_test',
+            'notes', 'status', 'start_date', 'end_date',
+        ]
+        widgets = {
+            'patient': forms.HiddenInput(),
+            'assigning_doctor': forms.Select(attrs={'class': 'form-select'}),
+            'lab_test': Select2Widget(attrs={'class': 'form-select'}),
+            'start_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+            'end_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Дополнительные примечания'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+        }
+        labels = {
+            'patient': 'Пациент',
+            'assigning_doctor': 'Назначивший врач',
+            'lab_test': 'Лабораторное исследование',
+            'notes': 'Примечания',
+            'status': 'Статус',
+            'start_date': 'Дата начала',
+            'end_date': 'Дата завершения',
+        }
+
+
+class InstrumentalProcedureAssignmentForm(BaseAssignmentForm):
+    class Meta:
+        model = InstrumentalProcedureAssignment
+        fields = [
+            'patient', 'assigning_doctor', 'instrumental_procedure',
+            'notes', 'status', 'start_date', 'end_date',
+        ]
+        widgets = {
+            'patient': forms.HiddenInput(),
+            'assigning_doctor': forms.Select(attrs={'class': 'form-select'}),
+            'instrumental_procedure': Select2Widget(attrs={'class': 'form-select'}),
+            'start_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+            'end_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Дополнительные примечания'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+        }
+        labels = {
+            'patient': 'Пациент',
+            'assigning_doctor': 'Назначивший врач',
+            'instrumental_procedure': 'Инструментальное исследование',
+            'notes': 'Примечания',
+            'status': 'Статус',
+            'start_date': 'Дата начала',
+            'end_date': 'Дата завершения',
+        }

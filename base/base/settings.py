@@ -46,6 +46,9 @@ INSTALLED_APPS = [
     'treatment_assignments',
     'widget_tweaks',
     'pharmacy',
+    'general_treatments',
+    'lab_tests',
+    'instrumental_procedures',
 ]
 
 MIDDLEWARE = [
