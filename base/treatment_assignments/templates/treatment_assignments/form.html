@@ -27,6 +27,11 @@
               {% for error in form.start_date.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
             </div>
             <div class="col-12 col-md-6 mb-3">
+              <label for="{{ form.end_date.id_for_label }}" class="form-label fw-medium">{{ form.end_date.label }}{% if form.end_date.field.required %}<span class="text-danger">*</span>{% endif %}</label>
+              {{ form.end_date|add_class:"form-control" }}
+              {% for error in form.end_date.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-12 col-md-6 mb-3">
               <label for="{{ form.medication.id_for_label }}" class="form-label fw-medium">{{ form.medication.label }}{% if form.medication.field.required %}<span class="text-danger">*</span>{% endif %}</label>
               {{ form.medication }}
               {% for error in form.medication.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}

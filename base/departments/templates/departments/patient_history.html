@@ -9,8 +9,12 @@
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h3 class="mb-0">{{ title }}</h3>
-            <a href="{% url 'departments:department_detail' patient_status.department.pk %}"
-               class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> К отделению</a>
+            <div>
+                <a href="{% url 'treatment_assignments:daily_plan' model_name='patientdepartmentstatus' object_id=patient_status.pk %}?next={{ request.get_full_path|urlencode }}"
+                   class="btn btn-info me-2"><i class="fas fa-calendar-alt me-1"></i> Лист назначений</a>
+                <a href="{% url 'departments:department_detail' patient_status.department.pk %}"
+                   class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> К отделению</a>
+            </div>
         </div>
 
         <div class="card mb-4">
@@ -54,44 +58,33 @@
                         <div class="accordion accordion-flush" id="activeAssignmentsAccordion">
                             {% for assignment in active_assignments %}
                             <div class="accordion-item">
-                                <h2 class="accordion-header" id="activeAssignmentHeading{{ assignment.pk }}">
-                                    <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
-                                            type="button"
-                                            data-bs-toggle="collapse"
-                                            data-bs-target="#activeAssignmentCollapse{{ assignment.pk }}"
-                                            aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
-                                            aria-controls="activeAssignmentCollapse{{ assignment.pk }}">
-                                        <strong>{{ assignment.medication.name }}</strong>
+                                <h2 class="accordion-header" id="activeAssignmentHeading{{ assignment.assignment_type }}{{ assignment.pk }}">
+                                    <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#activeAssignmentCollapse{{ assignment.assignment_type }}{{ assignment.pk }}" aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="activeAssignmentCollapse{{ assignment.assignment_type }}{{ assignment.pk }}">
+                                        {# ИЗМЕНЕНИЕ: Используем treatment_name из модели #}
+                                        <strong>{{ assignment.treatment_name }}</strong>
                                         <span class="ms-auto text-muted small">
-                                            {{ assignment.start_date|date:'d.m.Y H:i' }} - 
-                                            {% if assignment.end_date %}
-                                                {{ assignment.end_date|date:'d.m.Y H:i' }}
-                                            {% else %}
-                                                (продолжается)
-                                            {% endif %}
+                                            {{ assignment.start_date|date:'d.m.Y' }}
                                         </span>
                                     </button>
                                 </h2>
-                                <div id="activeAssignmentCollapse{{ assignment.pk }}"
-                                     class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
-                                     aria-labelledby="activeAssignmentHeading{{ assignment.pk }}"
-                                     data-bs-parent="#activeAssignmentsAccordion">
+                                <div id="activeAssignmentCollapse{{ assignment.assignment_type }}{{ assignment.pk }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" aria-labelledby="activeAssignmentHeading{{ assignment.assignment_type }}{{ assignment.pk }}" data-bs-parent="#activeAssignmentsAccordion">
                                     <div class="accordion-body">
                                         <ul class="list-group list-group-flush">
-                                            <li class="list-group-item"><strong>Дозировка:</strong> {{ assignment.dosage }}</li>
-                                            <li class="list-group-item"><strong>Частота:</strong> {{ assignment.frequency }}</li>
-                                            <li class="list-group-item"><strong>Длительность:</strong> {{ assignment.duration }}</li>
-                                            <li class="list-group-item"><strong>Путь введения:</strong> {{ assignment.route }}</li>
+                                            {# ИЗМЕНЕНИЕ: Динамический вывод деталей в зависимости от типа #}
+                                            {% if assignment.assignment_type == 'medication' %}
+                                                <li class="list-group-item"><strong>Дозировка:</strong> {{ assignment.dosage|default:"-" }}</li>
+                                                <li class="list-group-item"><strong>Частота:</strong> {{ assignment.frequency|default:"-" }}</li>
+                                                <li class="list-group-item"><strong>Путь введения:</strong> {{ assignment.route|default:"-" }}</li>
+                                            {% endif %}
                                             <li class="list-group-item"><strong>Назначивший врач:</strong> {{ assignment.assigning_doctor.get_full_name|default:assignment.assigning_doctor.username }}</li>
                                             {% if assignment.notes %}
                                             <li class="list-group-item"><strong>Примечания:</strong> {{ assignment.notes|linebreaksbr }}</li>
                                             {% endif %}
                                         </ul>
                                         <div class="mt-3 d-flex justify-content-end gap-2">
-                                            <a href="{% url 'treatment_assignments:assignment_update' assignment.pk %}?next={{ request.get_full_path|urlencode }}"
-                                               class="btn btn-sm btn-outline-primary"><i class="fas fa-edit me-1"></i> Редактировать</a>
-                                            <a href="{% url 'treatment_assignments:assignment_detail' assignment.pk %}?next={{ request.get_full_path|urlencode }}"
-                                               class="btn btn-sm btn-outline-info"><i class="fas fa-info-circle me-1"></i> Детали</a>
+                                            {# ИЗМЕНЕНИЕ: Используем правильные методы для URL #}
+                                            <a href="{{ assignment.get_update_url }}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-edit me-1"></i> Редактировать</a>
+                                            <a href="{{ assignment.get_absolute_url }}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-info"><i class="fas fa-info-circle me-1"></i> Детали</a>
                                         </div>
                                     </div>
                                 </div>
@@ -114,14 +107,10 @@
                         <div class="accordion accordion-flush" id="inactiveAssignmentsAccordion">
                             {% for assignment in inactive_assignments %}
                             <div class="accordion-item">
-                                <h2 class="accordion-header" id="inactiveAssignmentHeading{{ assignment.pk }}">
-                                    <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
-                                            type="button"
-                                            data-bs-toggle="collapse"
-                                            data-bs-target="#inactiveAssignmentCollapse{{ assignment.pk }}"
-                                            aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
-                                            aria-controls="inactiveAssignmentCollapse{{ assignment.pk }}">
-                                        <strong>{{ assignment.medication.name }}</strong>
+                                <h2 class="accordion-header" id="inactiveAssignmentHeading{{ assignment.assignment_type }}{{ assignment.pk }}">
+                                    <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#inactiveAssignmentCollapse{{ assignment.assignment_type }}{{ assignment.pk }}" aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="inactiveAssignmentCollapse{{ assignment.assignment_type }}{{ assignment.pk }}">
+                                        {# ИЗМЕНЕНИЕ: Используем treatment_name из модели #}
+                                        <strong>{{ assignment.treatment_name }}</strong>
                                         <span class="ms-auto text-muted small">
                                             {{ assignment.start_date|date:'d.m.Y H:i' }} - 
                                             {% if assignment.end_date %}
@@ -132,26 +121,24 @@
                                         </span>
                                     </button>
                                 </h2>
-                                <div id="inactiveAssignmentCollapse{{ assignment.pk }}"
-                                     class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
-                                     aria-labelledby="inactiveAssignmentHeading{{ assignment.pk }}"
-                                     data-bs-parent="#inactiveAssignmentsAccordion">
+                                <div id="inactiveAssignmentCollapse{{ assignment.assignment_type }}{{ assignment.pk }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" aria-labelledby="inactiveAssignmentHeading{{ assignment.assignment_type }}{{ assignment.pk }}" data-bs-parent="#inactiveAssignmentsAccordion">
                                     <div class="accordion-body">
                                         <ul class="list-group list-group-flush">
-                                            <li class="list-group-item"><strong>Дозировка:</strong> {{ assignment.dosage }}</li>
-                                            <li class="list-group-item"><strong>Частота:</strong> {{ assignment.frequency }}</li>
-                                            <li class="list-group-item"><strong>Длительность:</strong> {{ assignment.duration }}</li>
-                                            <li class="list-group-item"><strong>Путь введения:</strong> {{ assignment.route }}</li>
+                                            {# ИЗМЕНЕНИЕ: Динамический вывод деталей в зависимости от типа #}
+                                            {% if assignment.assignment_type == 'medication' %}
+                                                <li class="list-group-item"><strong>Дозировка:</strong> {{ assignment.dosage|default:"-" }}</li>
+                                                <li class="list-group-item"><strong>Частота:</strong> {{ assignment.frequency|default:"-" }}</li>
+                                                <li class="list-group-item"><strong>Путь введения:</strong> {{ assignment.route|default:"-" }}</li>
+                                            {% endif %}
                                             <li class="list-group-item"><strong>Назначивший врач:</strong> {{ assignment.assigning_doctor.get_full_name|default:assignment.assigning_doctor.username }}</li>
                                             {% if assignment.notes %}
                                             <li class="list-group-item"><strong>Примечания:</strong> {{ assignment.notes|linebreaksbr }}</li>
                                             {% endif %}
                                         </ul>
                                         <div class="mt-3 d-flex justify-content-end gap-2">
-                                            <a href="{% url 'treatment_assignments:assignment_update' assignment.pk %}?next={{ request.get_full_path|urlencode }}"
-                                               class="btn btn-sm btn-outline-primary"><i class="fas fa-edit me-1"></i> Редактировать</a>
-                                            <a href="{% url 'treatment_assignments:assignment_detail' assignment.pk %}?next={{ request.get_full_path|urlencode }}"
-                                               class="btn btn-sm btn-outline-info"><i class="fas fa-info-circle me-1"></i> Детали</a>
+                                            {# ИЗМЕНЕНИЕ: Используем правильные методы для URL #}
+                                            <a href="{{ assignment.get_update_url }}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-edit me-1"></i> Редактировать</a>
+                                            <a href="{{ assignment.get_absolute_url }}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-info"><i class="fas fa-info-circle me-1"></i> Детали</a>
                                         </div>
                                     </div>
                                 </div>
@@ -159,7 +146,7 @@
                             {% endfor %}
                         </div>
                         {% else %}
-                        <p class="text-muted">Нет завершенных, приостановленных или отмененных назначений.</p>
+                        <p class="text-muted">Нет неактивных назначений.</p>
                         {% endif %}
                     </div>
                 </div>
@@ -385,10 +372,10 @@
                                                 {% endif %}
                                                 <strong>Статус:</strong> {{ assignment.get_status_display }}
                                                 <div class="mt-3 d-flex justify-content-end gap-2">
-                                                    <a href="{% url 'treatment_assignments:assignment_update' assignment.pk %}?next={{ request.get_full_path|urlencode }}"
+                                                    <a href="{{ assignment.get_update_url }}?next={{ request.get_full_path|urlencode }}"
                                                        class="btn btn-sm btn-outline-primary"><i
                                                             class="fas fa-edit me-1"></i> Редактировать</a>
-                                                    <a href="{% url 'treatment_assignments:assignment_detail' assignment.pk %}?next={{ request.get_full_path|urlencode }}"
+                                                    <a href="{{ assignment.get_update_url }}?next={{ request.get_full_path|urlencode }}"
                                                        class="btn btn-sm btn-outline-info"><i
                                                             class="fas fa-info-circle me-1"></i> Детали</a>
                                                 </div>

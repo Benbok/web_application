@@ -55,7 +55,7 @@ class MedicationAssignmentForm(BaseAssignmentForm):
         fields = [
             'patient', 'assigning_doctor', 'patient_weight',
             'medication', 'frequency', 'duration', 'route',
-            'notes', 'status', 'start_date',
+            'notes', 'status', 'start_date', 'end_date',
         ]
         widgets = {
             'patient': forms.HiddenInput(),
@@ -63,6 +63,7 @@ class MedicationAssignmentForm(BaseAssignmentForm):
             'patient_weight': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Например, 10.5', 'step': '0.1'}),
             'dosage_per_kg': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Например, 10', 'step': '0.1'}),
             'start_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+            'end_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
             'medication': Select2Widget(attrs={'class': 'form-select'}),
             'frequency': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Например, 2 раза в день'}),
             'duration': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Например, 7 дней'}),
