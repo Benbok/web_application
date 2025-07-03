@@ -83,7 +83,7 @@ class EncounterDeleteView(DeleteView):
         return context
     
     def get_success_url(self):
-        return reverse_lazy('patient_detail', kwargs={'pk': self.object.patient.pk})
+        return reverse_lazy('patients:patient_detail', kwargs={'pk': self.object.patient.pk})
     
 class EncounterCloseView(UpdateView):
     model = Encounter

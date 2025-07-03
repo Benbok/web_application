@@ -19,9 +19,11 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('select2/', include('django_select2.urls')), # Добавляем URL-адреса django-select2
     path('patients/', include('patients.urls')),
     path('encounters/', include('encounters.urls')),
     path('documents/', include('documents.urls')),
     path('departments/', include('departments.urls')),
     path('treatment_assignments/', include('treatment_assignments.urls')),
+    path('pharmacy/', include('pharmacy.urls')),
 ]

@@ -20,7 +20,7 @@
     <ul class="list-group list-group-flush mb-3">
       <li class="list-group-item">
         <strong>Пациент:</strong>
-        <a href="{% url 'patient_detail' encounter.patient.pk %}" {# Обновлен URL #}
+        <a href="{% url 'patients:patient_detail' encounter.patient.pk %}" {# Обновлен URL #}
           >{{ encounter.patient.full_name }}</a
         >
       </li>
@@ -45,7 +45,7 @@
       </li>
       {% if encounter.outcome == 'transferred' and encounter.transfer_to_department %} {# Добавлено отображение отделения #}
       <li class="list-group-item">
-        <strong>Переведен в отделение:</strong> {{ encounter.transfer_to_department.name }}
+        <strong>Переведен в отделение:</strong> <a href="{% url 'departments:department_detail' encounter.transfer_to_department.pk %}">{{ encounter.transfer_to_department.name }}</a>
       </li>
       {% endif %}
       <li class="list-group-item">
@@ -83,7 +83,7 @@
       
       {% endif %}
       <a
-        href="{% url 'patient_detail' encounter.patient.pk %}" 
+        href="{% url 'patients:patient_detail' encounter.patient.pk %}"
         class="btn btn-outline-secondary ms-auto"
       >
         <i class="fas fa-arrow-left me-1"></i> К пациенту
@@ -94,7 +94,14 @@
 
 <div class="card mt-4">
   <div class="card-body">
-    <h5 class="card-title mb-3">Прикреплённые документы</h5>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="card-title mb-0">Прикреплённые документы</h5>
+            <a
+              href="{% url 'documents:document_type_selection' model_name='encounter' object_id=encounter.pk %}?next={{ request.get_full_path|urlencode }}"
+              class="btn btn-success btn-sm"
+              ><i class="fas fa-plus me-1"></i> Добавить новый документ</a
+            >
+        </div>
     {% if documents %}
     <ul class="list-group list-group-flush mb-3">
       {% for doc in documents %}
@@ -119,11 +126,6 @@
     {% else %}
     <p class="text-muted">Нет прикреплённых документов.</p>
     {% endif %}
-    <a
-      href="{% url 'documents:document_create' model_name='encounter' object_id=encounter.pk %}?next={{ request.get_full_path|urlencode }}"
-      class="btn btn-success mt-3"
-      ><i class="fas fa-plus me-1"></i> Добавить новый документ</a
-    >
   </div>
 </div>
 

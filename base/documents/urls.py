@@ -1,16 +1,13 @@
-# a_refactored_example/urls.py
 from django.urls import path
 from . import views
 
 app_name = 'documents'
 
 urlpatterns = [
-    # Для CBV нужно вызывать метод .as_view()
+    path('select-type/<str:model_name>/<int:object_id>/', views.DocumentTypeSelectionView.as_view(), name='document_type_selection'),
+    path('add/<str:model_name>/<int:object_id>/<int:document_type_id>/', views.DocumentCreateView.as_view(), name='document_create'),
     path('<int:pk>/', views.DocumentDetailView.as_view(), name='document_detail'),
-    path('add/<str:model_name>/<int:object_id>/', views.DocumentCreateView.as_view(), name='document_create'),
-    path('<int:pk>/edit/', views.DocumentUpdateView.as_view(), name='document_update'),
-    path('<int:pk>/delete/', views.DocumentDeleteView.as_view(), name='document_delete'),
-    
-    # Эта ссылка остается без изменений, т.к. view остался функцией
-    path('template-data/<int:pk>/', views.template_data, name='template_data'),
+    path('<int:pk>/update/', views.DocumentUpdateView.as_view(), name='document_update'), # Добавляем обратно этот URL
+    # URL-ы для удаления можно будет добавить позже
+    # path('<int:pk>/delete/', views.DocumentDeleteView.as_view(), name='document_delete'),
 ]

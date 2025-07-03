@@ -7,53 +7,52 @@
 <div class="card shadow-lg">
     <div class="card-body p-5">
         <h3 class="card-title mb-4 text-center">{{ title }}</h3>
-        <form method="post" enctype="multipart/form-data" novalidate>
+        <form method="post" novalidate>
             {% csrf_token %}
 
-            <!-- Основная информация о документе -->
-            <div class="document-form-section mb-5 p-4 bg-light rounded-3 border">
-                <h4 class="mb-4 pb-2 border-bottom">
-                    <i class="bi bi-file-earmark-text me-2"></i>Основная информация о документе
-                </h4>
-
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label for="{{ form.document_category.id_for_label }}" class="form-label fw-bold">{{ form.document_category.label }}</label>
-                        {{ form.document_category|add_class:"form-select form-select-lg" }}
-                        {% if form.document_category.help_text %}
-                            <div class="form-text text-muted">{{ form.document_category.help_text }}</div>
-                        {% endif %}
-                        {% for error in form.document_category.errors %}
-                            <div class="text-danger small mt-1">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-
-                    <div class="col-md-6">
-                        <label for="{{ form.datetime_document.id_for_label }}" class="form-label fw-bold">{{ form.datetime_document.label }}</label>
-                        {{ form.datetime_document|add_class:"form-control form-control-lg"|attr:"type:datetime-local" }}
-                        {% if form.datetime_document.help_text %}
-                            <div class="form-text text-muted">{{ form.datetime_document.help_text }}</div>
-                        {% endif %}
-                        {% for error in form.datetime_document.errors %}
-                            <div class="text-danger small mt-1">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-
-                    <div class="col-12">
-                        <label for="{{ form.template.id_for_label }}" class="form-label fw-bold">{{ form.template.label }}</label>
-                        {{ form.template|add_class:"form-select form-select-lg" }}
-                        {% if form.template.help_text %}
-                            <div class="form-text text-muted">{{ form.template.help_text }}</div>
-                        {% endif %}
-                        {% for error in form.template.errors %}
-                            <div class="text-danger small mt-1">{{ error }}</div>
-                        {% endfor %}
-                    </div>
+            {# Поле выбора шаблона и кнопка #}
+            <div class="mb-3 d-flex align-items-end">
+                <div class="flex-grow-1 me-2">
+                    <label for="{{ form.template_choice.id_for_label }}" class="form-label fw-bold">{{ form.template_choice.label }}</label>
+                    {{ form.template_choice|add_class:"form-select" }}
+                    {% if form.template_choice.help_text %}
+                        <div class="form-text text-muted">{{ form.template_choice.help_text }}</div>
+                    {% endif %}
+                    {% for error in form.template_choice.errors %}
+                        <div class="text-danger small mt-1">{{ error }}</div>
+                    {% endfor %}
                 </div>
+                <button type="submit" name="apply_template" class="btn btn-secondary btn-lg">
+                    Применить шаблон
+                </button>
             </div>
 
-            {% for field in form.hidden_fields %}
-                {{ field }}
+            {# Поле даты документа #}
+            <div class="mb-3">
+                <label for="{{ form.datetime_document.id_for_label }}" class="form-label fw-bold">{{ form.datetime_document.label }}</label>
+                {{ form.datetime_document|add_class:"form-control" }}
+                {% if form.datetime_document.help_text %}
+                    <div class="form-text text-muted">{{ form.datetime_document.help_text }}</div>
+                {% endif %}
+                {% for error in form.datetime_document.errors %}
+                    <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            {# Остальные динамические поля #}
+            {% for field in form %}
+                {% if field.name != 'template_choice' and field.name != 'datetime_document' %}
+                    <div class="mb-3">
+                        <label for="{{ field.id_for_label }}" class="form-label fw-bold">{{ field.label }}</label>
+                        {{ field|add_class:"form-control" }}
+                        {% if field.help_text %}
+                            <div class="form-text text-muted">{{ field.help_text }}</div>
+                        {% endif %}
+                        {% for error in field.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
             {% endfor %}
 
             {% if form.non_field_errors %}
@@ -62,220 +61,15 @@
                 </div>
             {% endif %}
 
-            <!-- Форма дневника новорожденного -->
-            {% if show_neonatal_note_form and neonatal_note_form %}
-            <div id="neonatal-note-fields" class="neonatal-form-section mb-5 p-4 bg-light rounded-3 border">
-                <h4 class="mb-4 pb-2 border-bottom text-primary">
-                    <i class="bi bi-clipboard2-pulse me-2"></i>Дневник наблюдения новорожденного
-                </h4>
-
-                <!-- Вкладки -->
-                <ul class="nav nav-tabs flex-row mb-4" id="neonatalTabs" role="tablist">
-                    <li class="nav-item" role="tab">
-                        <button type="button" class="nav-link active" data-bs-toggle="tab" data-bs-target="#general-tab">Общие данные</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#vitals-tab">Витальные показатели</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#respiratory-tab">Респираторная терапия</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#assessment-tab">Оценка состояния</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#conclusion-tab">Заключение и план</button>
-                    </li>
-                </ul>
-
-                <!-- Содержимое вкладок -->
-                <div class="tab-content">
-                    <!-- Общие данные -->
-                    <div class="tab-pane fade show active" id="general-tab">
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label for="{{ neonatal_note_form.age_in_days.id_for_label }}" class="form-label fw-bold">{{ neonatal_note_form.age_in_days.label }}</label>
-                                {{ neonatal_note_form.age_in_days|add_class:"form-control" }}
-                                {% for error in neonatal_note_form.age_in_days.errors %}
-                                    <div class="text-danger small mt-1">{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                            <div class="col-md-4">
-                                <label for="{{ neonatal_note_form.pkv.id_for_label }}" class="form-label fw-bold">{{ neonatal_note_form.pkv.label }}</label>
-                                {{ neonatal_note_form.pkv|add_class:"form-control" }}
-                                {% for error in neonatal_note_form.pkv.errors %}
-                                    <div class="text-danger small mt-1">{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Витальные показатели -->
-                    <div class="tab-pane fade" id="vitals-tab">
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label for="{{ neonatal_note_form.temperature.id_for_label }}" class="form-label fw-bold">{{ neonatal_note_form.temperature.label }}</label>
-                                {{ neonatal_note_form.temperature|add_class:"form-control"|attr:"step:0.1" }}
-                                {% for error in neonatal_note_form.temperature.errors %}
-                                    <div class="text-danger small mt-1">{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                            <div class="col-md-4">
-                                <label for="{{ neonatal_note_form.respiratory_rate.id_for_label }}" class="form-label fw-bold">{{ neonatal_note_form.respiratory_rate.label }}</label>
-                                {{ neonatal_note_form.respiratory_rate|add_class:"form-control" }}
-                                {% for error in neonatal_note_form.respiratory_rate.errors %}
-                                    <div class="text-danger small mt-1">{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                            <div class="col-md-4">
-                                <label for="{{ neonatal_note_form.heart_rate.id_for_label }}" class="form-label fw-bold">{{ neonatal_note_form.heart_rate.label }}</label>
-                                {{ neonatal_note_form.heart_rate|add_class:"form-control" }}
-                                {% for error in neonatal_note_form.heart_rate.errors %}
-                                    <div class="text-danger small mt-1">{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                            <div class="col-md-4">
-                                <label for="{{ neonatal_note_form.blood_pressure_systolic.id_for_label }}" class="form-label fw-bold">{{ neonatal_note_form.blood_pressure_systolic.label }}</label>
-                                {{ neonatal_note_form.blood_pressure_systolic|add_class:"form-control" }}
-                                {% for error in neonatal_note_form.blood_pressure_systolic.errors %}
-                                    <div class="text-danger small mt-1">{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                            <div class="col-md-4">
-                                <label for="{{ neonatal_note_form.blood_pressure_diastolic.id_for_label }}" class="form-label fw-bold">{{ neonatal_note_form.blood_pressure_diastolic.label }}</label>
-                                {{ neonatal_note_form.blood_pressure_diastolic|add_class:"form-control" }}
-                                {% for error in neonatal_note_form.blood_pressure_diastolic.errors %}
-                                    <div class="text-danger small mt-1">{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                            <div class="col-md-4">
-                                <label for="{{ neonatal_note_form.blood_pressure_mean.id_for_label }}" class="form-label fw-bold">{{ neonatal_note_form.blood_pressure_mean.label }}</label>
-                                {{ neonatal_note_form.blood_pressure_mean|add_class:"form-control" }}
-                                {% for error in neonatal_note_form.blood_pressure_mean.errors %}
-                                    <div class="text-danger small mt-1">{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                            <div class="col-md-4">
-                                <label for="{{ neonatal_note_form.saturation.id_for_label }}" class="form-label fw-bold">{{ neonatal_note_form.saturation.label }}</label>
-                                {{ neonatal_note_form.saturation|add_class:"form-control"|attr:"step:0.1" }}
-                                {% for error in neonatal_note_form.saturation.errors %}
-                                    <div class="text-danger small mt-1">{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Респираторная терапия -->
-                    <div class="tab-pane fade" id="respiratory-tab">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="{{ neonatal_note_form.respiratory_therapy_type.id_for_label }}" class="form-label fw-bold">{{ neonatal_note_form.respiratory_therapy_type.label }}</label>
-                                {{ neonatal_note_form.respiratory_therapy_type|add_class:"form-select" }}
-                                {% for error in neonatal_note_form.respiratory_therapy_type.errors %}
-                                    <div class="text-danger small mt-1">{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                            <div class="col-md-6">
-                                <label for="{{ neonatal_note_form.ventilator_device.id_for_label }}" class="form-label fw-bold">{{ neonatal_note_form.ventilator_device.label }}</label>
-                                {{ neonatal_note_form.ventilator_device|add_class:"form-control" }}
-                                {% for error in neonatal_note_form.ventilator_device.errors %}
-                                    <div class="text-danger small mt-1">{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                            <div class="col-md-6">
-                                <label for="{{ neonatal_note_form.ventilation_mode.id_for_label }}" class="form-label fw-bold">{{ neonatal_note_form.ventilation_mode.label }}</label>
-                                {{ neonatal_note_form.ventilation_mode|add_class:"form-control" }}
-                                {% for error in neonatal_note_form.ventilation_mode.errors %}
-                                    <div class="text-danger small mt-1">{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                            <div class="col-12">
-                                <label for="{{ neonatal_note_form.respiratory_parameters.id_for_label }}" class="form-label fw-bold">{{ neonatal_note_form.respiratory_parameters.label }}</label>
-                                {{ neonatal_note_form.respiratory_parameters|add_class:"form-control"|attr:"rows:3" }}
-                                {% for error in neonatal_note_form.respiratory_parameters.errors %}
-                                    <div class="text-danger small mt-1">{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Оценка состояния -->
-                    <div class="tab-pane fade" id="assessment-tab">
-                        <div class="mb-3">
-                            <label for="{{ neonatal_note_form.severity_assessment.id_for_label }}" class="form-label fw-bold">{{ neonatal_note_form.severity_assessment.label }}</label>
-                            {{ neonatal_note_form.severity_assessment|add_class:"form-control"|attr:"rows:5" }}
-                            {% for error in neonatal_note_form.severity_assessment.errors %}
-                                <div class="text-danger small mt-1">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-                        <div class="mb-3">
-                            <label for="{{ neonatal_note_form.content.id_for_label }}" class="form-label fw-bold">{{ neonatal_note_form.content.label }}</label>
-                            {{ neonatal_note_form.content|add_class:"form-control"|attr:"rows:8" }}
-                            {% for error in neonatal_note_form.content.errors %}
-                                <div class="text-danger small mt-1">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-                    </div>
-
-                    <!-- Заключение и план -->
-                    <div class="tab-pane fade" id="conclusion-tab">
-                        <div class="mb-3">
-                            <label for="{{ neonatal_note_form.conclusion.id_for_label }}" class="form-label fw-bold">{{ neonatal_note_form.conclusion.label }}</label>
-                            {{ neonatal_note_form.conclusion|add_class:"form-control"|attr:"rows:5" }}
-                            {% for error in neonatal_note_form.conclusion.errors %}
-                                <div class="text-danger small mt-1">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-                        <div class="mb-3">
-                            <label for="{{ neonatal_note_form.management_plan.id_for_label }}" class="form-label fw-bold">{{ neonatal_note_form.management_plan.label }}</label>
-                            {{ neonatal_note_form.management_plan|add_class:"form-control"|attr:"rows:5" }}
-                            {% for error in neonatal_note_form.management_plan.errors %}
-                                <div class="text-danger small mt-1">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
-
-                {% for field in neonatal_note_form.hidden_fields %}
-                    {{ field }}
-                {% endfor %}
-
-                {% if neonatal_note_form.non_field_errors %}
-                    <div class="alert alert-danger mt-3">
-                        {{ neonatal_note_form.non_field_errors }}
-                    </div>
-                {% endif %}
-            </div>
-            {% endif %}
-
-            <!-- Кнопки управления -->
             <div class="d-flex justify-content-between mt-4 pt-3 border-top">
-                <a href="{{ request.GET.next|default:default_back_url }}" class="btn btn-outline-secondary btn-lg">
+                <a href="{{ request.GET.next }}" class="btn btn-outline-secondary btn-lg">
                     <i class="bi bi-arrow-left me-2"></i>Назад
                 </a>
-
-                <div>
-                    {% if show_neonatal_note_form %}
-                        <button type="submit" name="submit" class="btn btn-primary btn-lg">
-                            <i class="bi bi-save me-2"></i>Сохранить документ
-                        </button>
-                    {% else %}
-                        <button type="submit" name="show_extra" class="btn btn-primary btn-lg">
-                            <i class="bi bi-arrow-right me-2"></i>Продолжить заполнение
-                        </button>
-                    {% endif %}
-                </div>
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="bi bi-save me-2"></i>Сохранить документ
+                </button>
             </div>
         </form>
     </div>
 </div>
-
-<!-- Подключение Bootstrap JS для вкладок -->
-<script>
-    // Активируем вкладки Bootstrap
-    var tabElms = [].slice.call(document.querySelectorAll('button[data-bs-toggle="tab"]'));
-    tabElms.forEach(function(tabElm) {
-        new bootstrap.Tab(tabElm);
-    });
-</script>
 {% endblock %}

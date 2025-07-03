@@ -44,7 +44,7 @@ def patient_create(request):
         form = PatientForm(request.POST)
         if form.is_valid():
             form.save()
-            return redirect('patient_list')
+            return redirect('patients:patient_list')
     else:
         form = PatientForm()
     return render(request, 'patients/form.html', {'form': form, 'title': 'Добавить пациента'})
@@ -64,5 +64,5 @@ def patient_delete(request, pk):
     patient = get_object_or_404(Patient, pk=pk)
     if request.method == "POST":
         patient.delete()
-        return redirect('patient_list')
+        return redirect('patients:patient_list')
     return render(request, 'patients/confirm_delete.html', {'patient': patient})

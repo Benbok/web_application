@@ -76,6 +76,19 @@ class TreatmentAssignmentCreateView(LoginRequiredMixin, CreateView):
         if not form.instance.patient and self.patient_object:
             form.instance.patient = self.patient_object
 
+        # Логика для сохранения поля dosage
+        medication = form.cleaned_data.get('medication')
+        patient_weight = form.cleaned_data.get('patient_weight')
+        dosage_per_kg = form.cleaned_data.get('dosage_per_kg')
+
+        if medication and dosage_per_kg is not None and patient_weight is not None:
+            calculated_dosage_value = dosage_per_kg * patient_weight
+            form.instance.dosage = f"{calculated_dosage_value:.2f} {medication.default_dosage_per_kg_unit or ''}"
+        elif medication and medication.default_dosage:
+            form.instance.dosage = medication.default_dosage
+        else:
+            form.instance.dosage = form.cleaned_data.get('dosage') # Fallback to whatever was in the form's dosage field (should be empty now)
+
         return super().form_valid(form)
 
     def get_context_data(self, **kwargs):
@@ -94,10 +107,21 @@ class TreatmentAssignmentUpdateView(LoginRequiredMixin, UpdateView):
     form_class = TreatmentAssignmentForm
     template_name = 'treatment_assignments/form.html'
 
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['request_user'] = self.request.user
-        return kwargs
+    def form_valid(self, form):
+        # Логика для сохранения поля dosage
+        medication = form.cleaned_data.get('medication')
+        patient_weight = form.cleaned_data.get('patient_weight')
+        dosage_per_kg = form.cleaned_data.get('dosage_per_kg')
+
+        if medication and dosage_per_kg is not None and patient_weight is not None:
+            calculated_dosage_value = dosage_per_kg * patient_weight
+            form.instance.dosage = f"{calculated_dosage_value:.2f} {medication.default_dosage_per_kg_unit or ''}"
+        elif medication and medication.default_dosage:
+            form.instance.dosage = medication.default_dosage
+        else:
+            form.instance.dosage = form.cleaned_data.get('dosage') # Fallback to whatever was in the form's dosage field (should be empty now)
+
+        return super().form_valid(form)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -109,6 +133,7 @@ class TreatmentAssignmentUpdateView(LoginRequiredMixin, UpdateView):
     def get_success_url(self):
        return reverse('treatment_assignments:assignment_detail', kwargs={'pk': self.object.pk})
 
+
 class TreatmentAssignmentDeleteView(LoginRequiredMixin, DeleteView):
     model = TreatmentAssignment
     template_name = 'treatment_assignments/confirm_delete.html'
@@ -119,7 +144,7 @@ class TreatmentAssignmentDeleteView(LoginRequiredMixin, DeleteView):
         context['title'] = 'Удалить назначение лечения'
         context['next_url'] = self.request.GET.get('next', get_treatment_assignment_back_url(self.object))
         return context
-    
+
     def get_success_url(self):
         return reverse('departments:department_list') 
 

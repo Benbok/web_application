@@ -38,12 +38,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_select2',
     'patients',
     'encounters',
     'documents',
     'departments',
     'treatment_assignments',
     'widget_tweaks',
+    'pharmacy',
 ]
 
 MIDDLEWARE = [
@@ -126,7 +128,6 @@ STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
     os.path.join(BASE_DIR, 'patients', 'static'),
 ]
 

@@ -1,58 +1,38 @@
 {% extends "patients/base.html" %}
-{% block title %}
-Документ: {{ document.title }}
-{% endblock %}
+
+{% block title %}{{ title }}{% endblock %}
 
 {% block content %}
-<div class="card mt-4">
-  <div class="card-body">
-    <h4 class="card-title mb-4">{{ document.title }}</h4>
+<div class="card shadow-lg">
+    <div class="card-body p-5">
+        <h3 class="card-title mb-4 text-center">{{ title }}</h3>
 
-    <ul class="list-group list-group-flush mb-3">
-      <li class="list-group-item"><strong>Тип:</strong> {{ document.get_document_type_display }}</li>
-      <li class="list-group-item"><strong>Дата создания:</strong> {{ document.created_at|date:"d.m.Y H:i" }}</li>
-      <li class="list-group-item"><strong>Автор:</strong> {{ document.author }}</li>
-      <li class="list-group-item"><strong>Содержание:</strong><br />{{ document.content|linebreaks }}</li>
-    </ul>
+        <div class="mb-3">
+            <strong>Тип документа:</strong> {{ document.document_type.name }}
+        </div>
+        <div class="mb-3">
+            <strong>Дата документа:</strong> {{ document.datetime_document|date:"d.m.Y H:i" }}
+        </div>
+        <div class="mb-3">
+            <strong>Автор:</strong> {{ document.author.get_full_name|default:document.author.username }}
+        </div>
+        <hr>
 
-    {% if neonatal_note %}
-    <hr class="mt-4 mb-3" />
-    <h5 class="mb-3">Дневник наблюдения новорожденного</h5>
+        <h4>Данные документа:</h4>
+        {% for field in form %}
+            <div class="mb-2">
+                <strong>{{ field.label }}:</strong> {{ field.value }}
+            </div>
+        {% empty %}
+            <p class="text-muted">Нет данных для отображения.</p>
+        {% endfor %}
 
-    <ul class="list-group list-group-flush">
-      <li class="list-group-item"><strong>Возраст (дн):</strong> {{ neonatal_note.age_in_days }}</li>
-      <li class="list-group-item"><strong>ПКВ:</strong> {{ neonatal_note.pkv }}</li>
-      <li class="list-group-item"><strong>Температура:</strong> {{ neonatal_note.temperature }} °C</li>
-      <li class="list-group-item"><strong>ЧДД:</strong> {{ neonatal_note.respiratory_rate }}</li>
-      <li class="list-group-item"><strong>ЧСС:</strong> {{ neonatal_note.heart_rate }}</li>
-      <li class="list-group-item"><strong>АД (сист/диаст/ср):</strong>
-        {{ neonatal_note.blood_pressure_systolic }}/
-        {{ neonatal_note.blood_pressure_diastolic }}/
-        {{ neonatal_note.blood_pressure_mean }}
-      </li>
-      <li class="list-group-item"><strong>Сатурация:</strong> {{ neonatal_note.saturation }}%</li>
-      <li class="list-group-item"><strong>Тип респираторной терапии:</strong> {{ neonatal_note.get_respiratory_therapy_type_display }}</li>
-      <li class="list-group-item"><strong>Аппарат ИВЛ:</strong> {{ neonatal_note.ventilator_device }}</li>
-      <li class="list-group-item"><strong>Режим вентиляции:</strong> {{ neonatal_note.ventilation_mode }}</li>
-      <li class="list-group-item"><strong>Параметры вентиляции:</strong> {{ neonatal_note.respiratory_parameters|linebreaks }}</li>
-      <li class="list-group-item"><strong>Оценка состояния:</strong> {{ neonatal_note.severity_assessment|linebreaks }}</li>
-      <li class="list-group-item"><strong>Описание:</strong> {{ neonatal_note.content|linebreaks }}</li>
-      <li class="list-group-item"><strong>Заключение:</strong> {{ neonatal_note.conclusion|linebreaks }}</li>
-      <li class="list-group-item"><strong>План ведения:</strong> {{ neonatal_note.management_plan|linebreaks }}</li>
-    </ul>
-    {% endif %}
-
-    <div class="d-flex gap-2 mt-4">
-      <a href="{% url 'documents:document_update' document.pk %}?next={{ next_url|urlencode }}" class="btn btn-outline-primary">
-        <i class="fas fa-edit me-1"></i> Редактировать
-      </a>
-      <a href="{% url 'documents:document_delete' document.pk %}?next={{ next_url|urlencode }}" class="btn btn-outline-danger">
-        <i class="fas fa-trash-alt me-1"></i> Удалить
-      </a>
-      <a href="{{ request.GET.next|default:default_back_url }}" class="btn btn-outline-secondary ms-auto">
-        <i class="fas fa-arrow-left me-1"></i> Назад
-      </a>
+        <div class="d-flex justify-content-end mt-4 pt-3 border-top">
+            <a href="{{ request.GET.next|default:document.content_object.get_absolute_url }}" class="btn btn-outline-secondary btn-lg">
+                <i class="bi bi-arrow-left me-2"></i>Назад
+            </a>
+            {# Кнопки редактирования/удаления можно добавить здесь #}
+        </div>
     </div>
-  </div>
 </div>
 {% endblock %}

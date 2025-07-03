@@ -1,4 +1,3 @@
-# departments/views.py
 from django.db.models import Q
 from django.views.generic import ListView, DetailView, View, CreateView
 from django.shortcuts import get_object_or_404, redirect
@@ -10,7 +9,8 @@ from django.core.paginator import Paginator
 
 from .models import Department, PatientDepartmentStatus 
 from documents.models import ClinicalDocument
-from documents.forms import ClinicalDocumentFilterForm, ClinicalDocumentForm
+from .forms import DocumentAndAssignmentFilterForm # Импортируем новую форму
+
 from treatment_assignments.models import TreatmentAssignment
 
 class DepartmentListView(ListView):
@@ -44,7 +44,7 @@ class DepartmentDetailView(LoginRequiredMixin, DetailView):
             status='accepted'
         ).select_related('patient').order_by('acceptance_date')
 
-        context['title'] = f"Отделение: {department.name}"
+        context['title'] = "Отделение: {department.name}"
         return context
 
 class PatientDepartmentAcceptView(LoginRequiredMixin, View):
@@ -75,47 +75,65 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
         """
         Вспомогательный метод для фильтрации документов и назначений по форме.
         """
+        print(f"[DEBUG] Filtering for PatientDepartmentStatus ID: {patient_status.pk}")
+        print(f"[DEBUG] PatientDepartmentStatus Department: {patient_status.department.name} (ID: {patient_status.department.pk})")
+
         content_type = ContentType.objects.get_for_model(PatientDepartmentStatus)
+        print(f"[DEBUG] ContentType for PatientDepartmentStatus: {content_type.model} (ID: {content_type.pk})")
+
         documents = ClinicalDocument.objects.filter(
             content_type=content_type,
-            object_id=patient_status.pk
+            object_id=patient_status.pk,
+            document_type__department=patient_status.department # Добавляем фильтрацию по отделению
         )
+        print(f"[DEBUG] Initial documents queryset count (filtered by department): {documents.count()}")
+        for doc in documents:
+            print(f"[DEBUG] Initial document: {doc.document_type.name} (Department: {doc.document_type.department.name if doc.document_type.department else 'None'})")
+
         assignments = TreatmentAssignment.objects.filter(
             content_type=content_type,
             object_id=patient_status.pk
         )
+
         if filter_form.is_valid():
             start_date = filter_form.cleaned_data.get('start_date')
             end_date = filter_form.cleaned_data.get('end_date')
             author = filter_form.cleaned_data.get('author')
+            document_type = filter_form.cleaned_data.get('document_type') # Получаем выбранный тип документа
             search_query = filter_form.cleaned_data.get('search_query')
 
+            print(f"[DEBUG] Filter form cleaned data: start_date={start_date}, end_date={end_date}, author={author}, document_type={document_type}, search_query={search_query}")
+
             if start_date:
-                documents = documents.filter(created_at__date__gte=start_date)
-                assignments = assignments.filter(created_at__date__gte=start_date)
+                documents = documents.filter(datetime_document__date__gte=start_date)
+                assignments = assignments.filter(start_date__date__gte=start_date)
             if end_date:
-                documents = documents.filter(created_at__date__lte=end_date)
-                assignments = assignments.filter(created_at__date__lte=end_date)
+                documents = documents.filter(datetime_document__date__lte=end_date)
+                assignments = assignments.filter(start_date__date__lte=end_date)
             if author:
                 documents = documents.filter(author=author)
-                # assignments: фильтрация по author только если поле есть
-                if hasattr(TreatmentAssignment, 'author'):
-                    assignments = assignments.filter(author=author)
+                assignments = assignments.filter(assigning_doctor=author)
+            if document_type: # Добавляем фильтрацию по типу документа
+                documents = documents.filter(document_type=document_type)
             if search_query:
-                documents = documents.filter(
-                    Q(title__icontains=search_query) | Q(content__icontains=search_query)
-                )
-                assignments = assignments.filter(
-                    Q(title__icontains=search_query) | Q(content__icontains=search_query)
-                )
-        return documents.order_by('-created_at'), assignments.order_by('-created_at')
+                # Для документов ищем в JSONField 'data'
+                documents = documents.filter(Q(data__icontains=search_query) | Q(document_type__name__icontains=search_query))
+                # Для назначений ищем в treatment_name и notes
+                assignments = assignments.filter(Q(treatment_name__icontains=search_query) | Q(notes__icontains=search_query))
+
+        print(f"[DEBUG] Final documents queryset count: {documents.count()}")
+        for doc in documents:
+            print(f"[DEBUG] Final document: {doc.document_type.name} (Department: {doc.document_type.department.name if doc.document_type.department else 'None'})")
+
+        return documents.order_by('-datetime_document'), assignments.order_by('-start_date')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         patient_status = self.get_object()
+        department = patient_status.department # Получаем объект отделения
 
         # Обработка фильтров из GET-запроса
-        filter_form = ClinicalDocumentFilterForm(self.request.GET)
+        filter_form = DocumentAndAssignmentFilterForm(self.request.GET, department=department) # Передаем department в форму
         # Получаем отфильтрованные документы и назначения
         documents, assignments = self.get_filtered_documents_and_assignments(patient_status, filter_form)
 
@@ -128,10 +146,27 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
         assignments_page_number = self.request.GET.get('assignments_page')
         assignments_page_obj = assignments_paginator.get_page(assignments_page_number)
 
-        context['clinical_documents_filter_form'] = filter_form
+        context['filter_form'] = filter_form # Передаем форму фильтра в контекст
         context['daily_notes_page_obj'] = documents_page_obj
         context['assignments_page_obj'] = assignments_page_obj
         context['title'] = f"История пациента: {patient_status.patient.full_name} в {patient_status.department.name}"
+
+        # Получаем активные назначения для этого patient_status
+        active_assignments = TreatmentAssignment.objects.filter(
+            content_type=ContentType.objects.get_for_model(PatientDepartmentStatus),
+            object_id=patient_status.pk,
+            status='active',
+        ).order_by('-start_date')
+        context['active_assignments'] = active_assignments
+
+        # Получаем неактивные (завершенные, отмененные, приостановленные) назначения
+        inactive_assignments = TreatmentAssignment.objects.filter(
+            content_type=ContentType.objects.get_for_model(PatientDepartmentStatus),
+            object_id=patient_status.pk,
+            status__in=['completed', 'canceled', 'paused'],
+        ).order_by('-start_date')
+        context['inactive_assignments'] = inactive_assignments
+
         return context
 
 
