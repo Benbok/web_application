@@ -7,7 +7,9 @@ app_name = 'treatment_assignments'
 urlpatterns = [
     path('', views.TreatmentAssignmentListView.as_view(), name='assignment_list'),
 
-    # ИЗМЕНЕНИЕ: Добавлен URL для листа назначений
+    # --- УДАЛЕНО: URL для получения формы для модального окна ---
+    # path('get-assignment-form/', views.get_assignment_form_view, name='get_assignment_form'),
+
     path('daily-plan/<str:model_name>/<int:object_id>/', views.DailyTreatmentPlanView.as_view(), name='daily_plan'),
 
     # URL для просмотра, редактирования и удаления

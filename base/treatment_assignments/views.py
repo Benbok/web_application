@@ -1,4 +1,5 @@
 # treatment_assignments/views.py
+import re
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse, reverse_lazy
 from django.views.generic import DetailView, CreateView, UpdateView, DeleteView, ListView, View
@@ -8,7 +9,9 @@ from django.db.models import Q
 from django.http import Http404
 from django.utils import timezone
 from datetime import timedelta
+from datetime import datetime
 from itertools import chain
+from django.conf import settings
 
 from .models import MedicationAssignment, GeneralTreatmentAssignment, LabTestAssignment, InstrumentalProcedureAssignment
 from .forms import MedicationAssignmentForm, GeneralTreatmentAssignmentForm, LabTestAssignmentForm, \
@@ -23,7 +26,6 @@ ASSIGNMENT_MODELS = {
     'lab': LabTestAssignment,
     'instrumental': InstrumentalProcedureAssignment,
 }
-
 
 # (Вспомогательная функция и CreateViews остаются без изменений)
 def get_treatment_assignment_back_url(obj_or_parent_obj):
@@ -56,6 +58,20 @@ class BaseAssignmentCreateView(LoginRequiredMixin, CreateView):
         else:
             self.patient_object = None
 
+    # --- ИЗМЕНЕНИЕ: Добавлен метод get_initial для автозаполнения даты ---
+    def get_initial(self):
+        initial = super().get_initial()
+        start_date_str = self.request.GET.get('start_date')
+        if start_date_str:
+            try:
+                dt = datetime.strptime(start_date_str, '%Y-%m-%d')
+                # Используем USE_TZ из настроек, чтобы корректно обработать часовые пояса
+                initial['start_date'] = timezone.make_aware(dt) if settings.USE_TZ else dt
+            except (ValueError, TypeError):
+                # Игнорируем некорректный формат даты
+                pass
+        return initial
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['request_user'] = self.request.user
@@ -67,17 +83,24 @@ class BaseAssignmentCreateView(LoginRequiredMixin, CreateView):
         form.instance.content_type = ContentType.objects.get_for_model(self.parent_object)
         form.instance.object_id = self.parent_object.pk
         if not form.instance.patient and self.patient_object: form.instance.patient = self.patient_object
+        # --- ИЗМЕНЕНИЕ: Удалена логика для AJAX (возврат JsonResponse) ---
         return super().form_valid(form)
+
+    # --- ИЗМЕНЕНИЕ: Удалена логика для AJAX из form_invalid ---
+    def form_invalid(self, form):
+        return super().form_invalid(form)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['assignment_type'] = self.assignment_type
+        # Используем get_treatment_assignment_back_url для более надежной генерации URL отмены
         context['next_url'] = self.request.GET.get('next', get_treatment_assignment_back_url(self.parent_object))
         context['parent_object'] = self.parent_object
         return context
 
     def get_success_url(self):
-        return self.object.get_absolute_url()
+        # Приоритет 'next' из GET-параметра для возврата на предыдущую страницу
+        return self.request.GET.get('next', self.object.get_absolute_url())
 
 
 class MedicationAssignmentCreateView(BaseAssignmentCreateView):
@@ -169,7 +192,9 @@ class TreatmentAssignmentUpdateView(BaseAssignmentActionView, UpdateView):
         return context
 
     def get_success_url(self):
-        return self.object.get_absolute_url()
+        # Сначала пытаемся взять URL для возврата из GET-параметра 'next'
+        # Если его нет, то, как и раньше, переходим на страницу деталей
+        return self.request.GET.get('next', self.object.get_absolute_url())
 
 
 class TreatmentAssignmentDeleteView(BaseAssignmentActionView, DeleteView):
@@ -189,18 +214,28 @@ class DailyTreatmentPlanView(LoginRequiredMixin, View):
         parent_obj = get_object_or_404(content_type.model_class(), pk=object_id)
         patient = parent_obj.patient if isinstance(parent_obj, PatientDepartmentStatus) else parent_obj if isinstance(
             parent_obj, Patient) else None
-        if not patient: raise Http404("Пациент не определен для данного объекта")
+        if not patient:
+            raise Http404("Пациент не определен для данного объекта")
+
         start_date_str = request.GET.get('start_date')
         end_date_str = request.GET.get('end_date')
+
         if start_date_str and end_date_str:
             start_date = timezone.datetime.strptime(start_date_str, '%Y-%m-%d').date()
             end_date = timezone.datetime.strptime(end_date_str, '%Y-%m-%d').date()
         else:
-            today = timezone.localdate()
-            start_date = today - timedelta(days=today.weekday())
-            end_date = start_date + timedelta(days=6)
+            if isinstance(parent_obj, PatientDepartmentStatus) and parent_obj.admission_date:
+                start_date = parent_obj.admission_date.date()
+            else:
+                start_date = timezone.localdate()
+            end_date = start_date + timedelta(days=13)
+
+        duration_days = (end_date - start_date).days
+        next_start_date = end_date + timedelta(days=1)
+        prev_start_date = start_date - timedelta(days=duration_days + 1)
+
         q_active_in_range = Q(start_date__date__lte=end_date) & (
-                    Q(end_date__date__gte=start_date) | Q(end_date__isnull=True))
+                Q(end_date__date__gte=start_date) | Q(end_date__isnull=True))
         med_qs = MedicationAssignment.objects.filter(Q(patient=patient) & q_active_in_range).select_related(
             'medication')
         gen_qs = GeneralTreatmentAssignment.objects.filter(Q(patient=patient) & q_active_in_range).select_related(
@@ -208,14 +243,36 @@ class DailyTreatmentPlanView(LoginRequiredMixin, View):
         lab_qs = LabTestAssignment.objects.filter(Q(patient=patient) & q_active_in_range).select_related('lab_test')
         inst_qs = InstrumentalProcedureAssignment.objects.filter(Q(patient=patient) & q_active_in_range).select_related(
             'instrumental_procedure')
+
         all_assignments = list(chain(med_qs, gen_qs, lab_qs, inst_qs))
         daily_plan_dict = {
             start_date + timedelta(days=i): {'medications': [], 'general_treatments': [], 'lab_tests': [],
                                              'instrumental_procedures': []} for i in
             range((end_date - start_date).days + 1)}
+
+        # --- НАЧАЛО ИЗМЕНЕНИЙ В ЛОГИКЕ ---
         for assignment in all_assignments:
             assignment_start = assignment.start_date.date()
-            assignment_end = assignment.end_date.date() if assignment.end_date else end_date
+            assignment_end = None
+
+            # Новая логика: если это медикамент и у него есть длительность...
+            if isinstance(assignment, MedicationAssignment) and assignment.duration:
+                try:
+                    # Ищем первое число в строке "Длительность"
+                    days_match = re.search(r'\d+', str(assignment.duration))
+                    if days_match:
+                        duration_in_days = int(days_match.group(0))
+                        # ...рассчитываем дату окончания на основе длительности.
+                        assignment_end = assignment_start + timedelta(days=duration_in_days - 1)
+                except (ValueError, TypeError):
+                    pass  # Игнорируем ошибки парсинга
+
+            # Если дату окончания не удалось рассчитать по длительности,
+            # используем поле end_date, как и раньше.
+            if not assignment_end:
+                assignment_end = assignment.end_date.date() if assignment.end_date else end_date
+
+            # Распределяем назначение по дням в календаре
             current_date = max(assignment_start, start_date)
             while current_date <= min(assignment_end, end_date):
                 if isinstance(assignment, MedicationAssignment):
@@ -227,12 +284,20 @@ class DailyTreatmentPlanView(LoginRequiredMixin, View):
                 elif isinstance(assignment, InstrumentalProcedureAssignment):
                     daily_plan_dict[current_date]['instrumental_procedures'].append(assignment)
                 current_date += timedelta(days=1)
+        # --- КОНЕЦ ИЗМЕНЕНИЙ В ЛОГИКЕ ---
+
         daily_plan_list = sorted(daily_plan_dict.items())
+
         context = {
             'patient': patient, 'parent_obj': parent_obj, 'parent_model_name': model_name,
             'daily_plan_list': daily_plan_list, 'start_date': start_date, 'end_date': end_date,
             'title': f'Лист назначений для {patient.full_name}',
-            'next_url': get_treatment_assignment_back_url(parent_obj)
+            'next_url': get_treatment_assignment_back_url(parent_obj),
+            'next_start_date': next_start_date.strftime('%Y-%m-%d'),
+            'next_end_date': (next_start_date + timedelta(days=duration_days)).strftime('%Y-%m-%d'),
+            'prev_start_date': prev_start_date.strftime('%Y-%m-%d'),
+            'prev_end_date': (prev_start_date + timedelta(days=duration_days)).strftime('%Y-%m-%d'),
+            'today': timezone.localdate(),
         }
         return render(request, self.template_name, context)
 

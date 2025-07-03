@@ -1,13 +1,10 @@
 # treatment_assignments/forms.py
 from django import forms
 from .models import MedicationAssignment, GeneralTreatmentAssignment, LabTestAssignment, InstrumentalProcedureAssignment
-from patients.models import Patient
-from pharmacy.models import Medication # Импортируем модель Medication
-from general_treatments.models import GeneralTreatmentDefinition
-from lab_tests.models import LabTestDefinition
-from instrumental_procedures.models import InstrumentalProcedureDefinition
+from pharmacy.models import Medication
 from django.contrib.auth import get_user_model
-from django_select2.forms import Select2Widget # Импортируем Select2Widget
+from django_select2.forms import Select2Widget
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -30,6 +27,42 @@ class BaseAssignmentForm(forms.ModelForm):
         if self.instance.pk:
             self.fields['patient'].widget = forms.HiddenInput()
 
+    def save(self, commit=True):
+        """
+        Переопределяем метод сохранения для добавления кастомной логики
+        для статуса и даты завершения.
+        """
+        # Сначала получаем объект модели, но пока не сохраняем его в базу данных.
+        instance = super().save(commit=False)
+
+        # Получаем значения из проверенных данных формы.
+        status = self.cleaned_data.get('status')
+        end_date = self.cleaned_data.get('end_date')
+
+        # ЛОГИКА 1: Если пользователь установил статус "Завершено",
+        # а дату завершения оставил пустой, то устанавливаем текущее время.
+        if status == 'active':
+            instance.end_date = None
+
+            # ПРАВИЛО 2: Если статус НЕ "Активно" и пользователь указал дату завершения,
+            # то мы принудительно устанавливаем статус "Завершено".
+        elif end_date:
+            instance.status = 'completed'
+
+            # ПРАВИЛО 3 (на всякий случай): Если пользователь выбрал "Завершено",
+            # но не указал дату, подставим текущую.
+        elif status == 'completed':
+            # instance.end_date тут будет пустым, т.к. мы прошли проверку 'elif end_date'
+            instance.end_date = timezone.now()
+
+
+        # Если commit=True, сохраняем измененный объект в базу данных.
+        if commit:
+            instance.save()
+            # Django требует сохранить и m2m поля после основного сохранения.
+            self.save_m2m()
+
+        return instance
 
 class MedicationAssignmentForm(BaseAssignmentForm):
     calculated_dosage = forms.CharField(
@@ -90,9 +123,9 @@ class MedicationAssignmentForm(BaseAssignmentForm):
         self.fields['calculated_dosage'].disabled = True
         self.fields['default_dosage_per_kg_unit_display'].disabled = True
 
-        # Если форма не отправлена (GET-запрос) и есть выбранный препарат,
+        # Если форма не отправлена (GET-запрос) и это существующий объект (для редактирования),
         # заполняем поля дозировки, частоты и длительности из Medication.
-        if not self.data and self.instance.medication:
+        if not self.data and self.instance.pk and self.instance.medication:
             medication = self.instance.medication
             self.fields['frequency'].initial = medication.default_frequency
             self.fields['duration'].initial = medication.default_duration

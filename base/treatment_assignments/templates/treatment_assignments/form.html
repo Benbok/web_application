@@ -15,7 +15,7 @@
 
         <div class="row g-3">
           {% comment %} Скрытые поля, общие для всех {% endcomment %}
-          {{ form.patient }}
+          <div style="display:none;">{{ form.patient }}</div>
 
           {# --- УНИВЕРСАЛЬНЫЙ БЛОК ДЛЯ ОТОБРАЖЕНИЯ ПОЛЕЙ --- #}
 
@@ -31,7 +31,7 @@
               {{ form.end_date|add_class:"form-control" }}
               {% for error in form.end_date.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
             </div>
-            <div class="col-12 col-md-6 mb-3">
+            <div class="col-12 col-md-12 mb-3">
               <label for="{{ form.medication.id_for_label }}" class="form-label fw-medium">{{ form.medication.label }}{% if form.medication.field.required %}<span class="text-danger">*</span>{% endif %}</label>
               {{ form.medication }}
               {% for error in form.medication.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
@@ -136,6 +136,8 @@
 
 {{ form.media }}
 
+<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+
 <script>
   // Этот JavaScript код будет работать ТОЛЬКО для формы назначения препаратов
   // и не будет мешать другим формам.
@@ -148,7 +150,9 @@
         const durationInput = $('#id_duration');
         const routeInput = $('#id_route');
         const calculatedDosageInput = $('#id_calculated_dosage');
-        const defaultDosagePerKgUnitDisplay = $('#id_default_dosage_per_kg_unit_display');
+
+        // 2. Я удалил строку, которая искала несуществующий элемент
+        // #id_default_dosage_per_kg_unit_display, так как его нет в вашем HTML.
 
         let currentMedicationData = null;
 
@@ -157,12 +161,17 @@
           const dosagePerKg = parseFloat(dosagePerKgInput.val());
           let calculatedDosageValue = '';
 
-          if (dosagePerKg && patientWeight) {
+          // Проверяем, что оба значения числовые и не пустые
+          if (!isNaN(dosagePerKg) && !isNaN(patientWeight)) {
             const calculated = dosagePerKg * patientWeight;
-            calculatedDosageValue = `${calculated.toFixed(2)} ${currentMedicationData ? (currentMedicationData.default_dosage_per_kg_unit || '') : ''}`;
+            const unit = currentMedicationData ? (currentMedicationData.default_dosage_per_kg_unit || '') : '';
+            // Формируем строку с результатом и единицей измерения
+            calculatedDosageValue = `${calculated.toFixed(2)} ${unit}`.trim();
           } else if (currentMedicationData && currentMedicationData.default_dosage) {
+            // Если расчет невозможен, но есть доза по умолчанию для препарата
             calculatedDosageValue = currentMedicationData.default_dosage;
           }
+          // Обновляем значение в поле
           calculatedDosageInput.val(calculatedDosageValue);
         }
 
@@ -174,26 +183,34 @@
               method: 'GET',
               success: function(data) {
                 currentMedicationData = data;
+                // Заполняем поля значениями по умолчанию, если они пустые
                 if (!dosagePerKgInput.val()) { dosagePerKgInput.val(data.default_dosage_per_kg || ''); }
                 if (!frequencyInput.val()) { frequencyInput.val(data.default_frequency_hours_options || data.default_frequency || ''); }
                 if (!durationInput.val()) { durationInput.val(data.default_duration || ''); }
                 if (!routeInput.val()) { routeInput.val(data.default_route || ''); }
-                defaultDosagePerKgUnitDisplay.val(data.default_dosage_per_kg_unit || '');
+                // Сразу после получения данных запускаем перерасчет
                 calculateDosage();
               },
-              error: function(error) { console.error('Error fetching medication data:', error); currentMedicationData = null; }
+              error: function(error) {
+                console.error('Ошибка при загрузке данных о препарате:', error);
+                currentMedicationData = null;
+              }
             });
           }
         }
 
+        // Привязываем обработчики событий
         medicationSelect.on('change', fetchAndApplyMedicationData);
         patientWeightInput.on('input', calculateDosage);
         dosagePerKgInput.on('input', calculateDosage);
 
+        // Если препарат уже выбран при загрузке страницы (например, при редактировании),
+        // загружаем его данные
         if (medicationSelect.val()) {
           fetchAndApplyMedicationData();
         }
     }
   });
 </script>
+
 {% endblock %}
