@@ -652,3 +652,44 @@ body {
 .app-container.sidebar-collapsed .app-main {
     margin-left: var(--sidebar-collapsed-width);
 }
+
+/* Общие стили формы */
+.document-form-section, .neonatal-form-section {
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+/* Стили для вкладок */
+.nav-tabs .nav-link {
+    font-weight: 500;
+    border: none;
+    padding: 12px 20px;
+    color: #495057;
+}
+
+.nav-tabs .nav-link.active {
+    color: #0d6efd;
+    border-bottom: 3px solid #0d6efd;
+    background: transparent;
+}
+
+/* Улучшенные поля ввода */
+.form-control, .form-select {
+    padding: 12px;
+    border-radius: 8px;
+}
+
+.form-label {
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+/* Анимация появления дневника */
+#neonatal-note-fields {
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
