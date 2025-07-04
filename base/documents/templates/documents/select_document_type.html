@@ -1,0 +1,45 @@
+{% extends "patients/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="card shadow-lg">
+    <div class="card-body p-5">
+        <h3 class="card-title mb-4 text-center">{{ title }}</h3>
+        <p class="text-muted text-center">Выберите тип документа, который вы хотите создать.</p>
+
+        <form method="get" class="mb-4">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="Поиск по названию типа документа..." value="{{ search_query|default_if_none:'' }}">
+                <button class="btn btn-outline-secondary" type="submit">Поиск</button>
+                {% if search_query %}
+                    <a href="{% url 'documents:document_type_selection' model_name=model_name object_id=object_id %}?next={{ next_url }}" class="btn btn-outline-danger">Сбросить</a>
+                {% endif %}
+            </div>
+            <input type="hidden" name="next" value="{{ next_url }}">
+        </form>
+
+        <div class="list-group">
+            {% for doc_type in document_types %}
+                <a href="{% url 'documents:document_create' model_name=model_name object_id=object_id document_type_id=doc_type.pk %}?next={{ next_url }}"
+                   class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    {{ doc_type.name }}
+                    {% if doc_type.department %}
+                        <span class="badge bg-info rounded-pill">{{ doc_type.department.name }}</span>
+                    {% endif %}
+                </a>
+            {% empty %}
+                <div class="alert alert-warning text-center" role="alert">
+                    Нет доступных типов документов. Пожалуйста, создайте их в админ-панели.
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="d-flex justify-content-start mt-4 pt-3 border-top">
+            <a href="{{ next_url }}" class="btn btn-outline-secondary btn-lg">
+                <i class="bi bi-arrow-left me-2"></i>Назад
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
