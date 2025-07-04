@@ -137,8 +137,20 @@
               {% endcomment %}
             </div>
             <div class="user-info">
-              <div class="user-name">Доктор Иванов</div>
-              <div class="user-role">Кардиолог</div>
+              <div class="user-name">
+                {% if request.user.is_authenticated and request.user.doctor_profile %}
+                  {{ request.user.doctor_profile.full_name }}
+                {% else %}
+                  {{ request.user.username|default:"Гость" }}
+                {% endif %}
+              </div>
+              <div class="user-role">
+                {% if request.user.is_authenticated and request.user.doctor_profile %}
+                  {{ request.user.doctor_profile.position|default:"-" }}
+                {% else %}
+                  -
+                {% endif %}
+              </div>
             </div>
             <div class="user-actions">
               <a href="#" class="btn btn-sm btn-icon" data-bs-toggle="dropdown"

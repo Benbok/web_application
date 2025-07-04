@@ -67,7 +67,7 @@
                                         </span>
                                     </button>
                                 </h2>
-                                <div id="activeAssignmentCollapse{{ assignment.assignment_type }}{{ assignment.pk }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" aria-labelledby="activeAssignmentHeading{{ assignment.assignment_type }}{{ assignment.pk }}" data-bs-parent="#activeAssignmentsAccordion">
+                                <div id="activeAssignmentCollapse{{ assignment.assignment_type }}{{ assignment.pk }}" class="accordion-collapse collapse" aria-labelledby="activeAssignmentHeading{{ assignment.assignment_type }}{{ assignment.pk }}" data-bs-parent="#activeAssignmentsAccordion">
                                     <div class="accordion-body">
                                         <ul class="list-group list-group-flush">
                                             {# ИЗМЕНЕНИЕ: Динамический вывод деталей в зависимости от типа #}
@@ -127,7 +127,7 @@
                                         </span>
                                     </button>
                                 </h2>
-                                <div id="inactiveAssignmentCollapse{{ assignment.assignment_type }}{{ assignment.pk }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" aria-labelledby="inactiveAssignmentHeading{{ assignment.assignment_type }}{{ assignment.pk }}" data-bs-parent="#inactiveAssignmentsAccordion">
+                                <div id="inactiveAssignmentCollapse{{ assignment.assignment_type }}{{ assignment.pk }}" class="accordion-collapse collapse" aria-labelledby="inactiveAssignmentHeading{{ assignment.assignment_type }}{{ assignment.pk }}" data-bs-parent="#inactiveAssignmentsAccordion">
                                     <div class="accordion-body">
                                         <ul class="list-group list-group-flush">
                                             {# ИЗМЕНЕНИЕ: Динамический вывод деталей в зависимости от типа #}
