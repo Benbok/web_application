@@ -3,6 +3,7 @@ from django.views import View
 from django.urls import reverse
 from django.contrib.contenttypes.models import ContentType
 from .models import DocumentType, ClinicalDocument, DocumentTemplate
+from profiles.models import DoctorProfile # Импортируем DoctorProfile
 from .forms import build_document_form
 from decimal import Decimal
 
@@ -104,10 +105,16 @@ class DocumentCreateView(View):
             # Преобразуем Decimal в строки перед сохранением в JSONField
             data_to_save = convert_decimals_to_str(cleaned_data)
 
+            # Получаем текущую должность автора
+            author_position = None
+            if request.user.is_authenticated and hasattr(request.user, 'doctor_profile'):
+                author_position = request.user.doctor_profile.get_current_position(at_date=datetime_document.date())
+
             ClinicalDocument.objects.create(
                 document_type=document_type,
                 content_object=parent_object,
                 author=request.user,
+                author_position=author_position, # Сохраняем должность автора
                 datetime_document=datetime_document,
                 data=data_to_save
             )
@@ -138,12 +145,32 @@ class DocumentDetailView(View):
             'title': f'Детали: {document_type.name}',
         })
 
-class DocumentUpdateView(View):
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+
+# ... (остальной код)
+
+class DocumentUpdateView(LoginRequiredMixin, PermissionRequiredMixin, View):
     """
     Представление для редактирования динамического документа.
     """
+    permission_required = 'documents.change_clinicaldocument' # Требуемое разрешение
+
+    def dispatch(self, request, *args, **kwargs):
+        self.document = get_object_or_404(ClinicalDocument, pk=kwargs['pk'])
+        
+        # Суперпользователи могут редактировать любой документ
+        if request.user.is_superuser:
+            return super().dispatch(request, *args, **kwargs)
+
+        # Только автор может редактировать документ
+        if self.document.author != request.user:
+            messages.error(request, "У вас нет прав для редактирования этого документа.")
+            return redirect(reverse('documents:document_detail', kwargs={'pk': self.document.pk}))
+
+        return super().dispatch(request, *args, **kwargs)
+
     def get(self, request, pk):
-        document = get_object_or_404(ClinicalDocument, pk=pk)
+        document = self.document
         document_type = document.document_type
 
         DocumentForm = build_document_form(document_type.schema, document_type=document_type, user=request.user)
@@ -157,7 +184,7 @@ class DocumentUpdateView(View):
         })
 
     def post(self, request, pk):
-        document = get_object_or_404(ClinicalDocument, pk=pk)
+        document = self.document
         document_type = document.document_type
 
         DocumentForm = build_document_form(document_type.schema, document_type=document_type, user=request.user)
@@ -184,6 +211,10 @@ class DocumentUpdateView(View):
             document.datetime_document = cleaned_data.pop('datetime_document')
             template_choice = cleaned_data.pop('template_choice') # Удаляем поле шаблона
             
+            # Получаем текущую должность автора на момент документа
+            if request.user.is_authenticated and hasattr(request.user, 'doctor_profile'):
+                document.author_position = request.user.doctor_profile.get_current_position(at_date=document.datetime_document.date())
+
             # Преобразуем Decimal в строки перед сохранением в JSONField
             document.data = convert_decimals_to_str(cleaned_data)
             document.save()
@@ -196,5 +227,39 @@ class DocumentUpdateView(View):
             'title': f'Редактирование: {document_type.name}',
         })
 
-# DocumentDeleteView потребует схожих изменений.
-# Мы можем реализовать ее позже.
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.contrib import messages
+
+# ... (остальной код)
+
+class DocumentDeleteView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """
+    Представление для удаления динамического документа.
+    """
+    permission_required = 'documents.delete_clinicaldocument' # Требуемое разрешение
+
+    def dispatch(self, request, *args, **kwargs):
+        self.document = get_object_or_404(ClinicalDocument, pk=kwargs['pk'])
+        
+        # Суперпользователи могут удалять любой документ
+        if request.user.is_superuser:
+            return super().dispatch(request, *args, **kwargs)
+
+        # Только автор может удалять документ
+        if self.document.author != request.user:
+            messages.error(request, "У вас нет прав для удаления этого документа.")
+            return redirect(reverse('documents:document_detail', kwargs={'pk': self.document.pk}))
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, pk):
+        # Обычно для удаления используется POST-запрос, но для простоты можно сделать и через GET
+        # В реальном приложении лучше использовать форму с POST-запросом для удаления
+        document = self.document
+        return render(request, 'documents/confirm_delete.html', {'document': document, 'title': 'Удалить документ'})
+
+    def post(self, request, pk):
+        document = self.document
+        document.delete()
+        messages.success(request, "Документ успешно удален.")
+        return redirect(request.GET.get('next', reverse('patients:patient_list')))

@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'general_treatments',
     'lab_tests',
     'instrumental_procedures',
+    'profiles',
 ]
 
 MIDDLEWARE = [

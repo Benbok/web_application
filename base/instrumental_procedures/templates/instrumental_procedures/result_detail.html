@@ -10,10 +10,8 @@
         <div class="card-body">
             <p><strong>Пациент:</strong> {{ result.instrumental_procedure_assignment.patient.full_name }}</p>
             <p><strong>Тип исследования:</strong> {{ result.instrumental_procedure_assignment.instrumental_procedure.name }}</p>
-            <p><strong>Дата начала назначения:</strong> {{ result.instrumental_procedure_assignment.start_date|date:"d.m.Y H:i" }}</p>
-            <p><strong>Дата выполнения назначения:</strong> {{ result.instrumental_procedure_assignment.end_date|date:"d.m.Y H:i" }}</p>
-            <p><strong>Дата и время выполнения:</strong> {{ result.datetime_result|date:"d.m.Y H:i" }}</p>
-            <p><strong>Автор:</strong> {{ result.author.get_full_name|default:result.author.username }}</p>
+            <p><strong>Дата выполнения:</strong> {{ result.datetime_result|date:"d.m.Y H:i" }}</p>
+            <p><strong>Врач:</strong> {{ result.author.doctor_profile.full_name|default:result.author.username }}</p>
 
             <hr>
             <h4>Результаты:</h4>
@@ -22,6 +20,8 @@
             {% endfor %}
 
             <a href="{% url 'instrumental_procedures:assignment_list' %}" class="btn btn-secondary">Назад к списку</a>
+            <a href="{% url 'instrumental_procedures:result_update' result.pk %}" class="btn btn-primary">Редактировать</a>
+            <a href="{% url 'instrumental_procedures:result_delete' result.pk %}" class="btn btn-danger">Удалить</a>
         </div>
     </div>
 </div>

@@ -42,19 +42,20 @@
                             <th scope="row">Медикаменты</th>
                             {% for date, daily_data in daily_plan_list %}
                             <td data-date="{{ date|date:'Y-m-d' }}" class="{% if date == today %}table-success{% endif %}">
-                                    {% for assignment in daily_data.medications %}
-                                        <div class="assignment-item {% if assignment.status == 'completed' %}completed-assignment{% endif %}">
-                                            <span class="assignment-badge">
-                                                <a href="{{ assignment.get_absolute_url }}?next={{ request.get_full_path|urlencode }}"
-                                                   data-bs-toggle="tooltip"
-                                                   title="{{ assignment.treatment_name }}{% if assignment.dosage %} ({{ assignment.dosage }}){% endif %}">
-                                                    {{ assignment.treatment_name }}{% if assignment.dosage %} ({{ assignment.dosage }}){% endif %}
-                                                </a>
-                                            </span>
-                                        </div>
-                                    {% endfor %}
-                                    <button class="btn btn-sm btn-light add-assignment-btn">+</button>
-                                </td>
+                                {% for assignment in daily_data.medications %}
+                                    <div class="assignment-item {% if assignment.status == 'completed' %}completed-assignment{% endif %}">
+                                        <span class="assignment-badge">
+                                            <a href="{{ assignment.get_absolute_url }}?next={{ request.get_full_path|urlencode }}"
+                                               data-bs-toggle="tooltip"
+                                               title="{{ assignment.treatment_name }}{% if assignment.dosing_rule %} ({{ assignment.dosing_rule.name }}){% endif %}">
+
+                                                {{ assignment.treatment_name }}{% if assignment.dosing_rule %} ({{ assignment.dosing_rule.name }}){% endif %}
+                                            </a>
+                                        </span>
+                                    </div>
+                                {% endfor %}
+                                <button class="btn btn-sm btn-light add-assignment-btn">+</button>
+                            </td>
                             {% endfor %}
                         </tr>
                         <tr data-assignment-type="general">

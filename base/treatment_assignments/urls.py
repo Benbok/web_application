@@ -28,4 +28,5 @@ urlpatterns = [
          name='lab_assignment_create'),
     path('create/instrumental/<str:model_name>/<int:object_id>/',
          views.InstrumentalProcedureAssignmentCreateView.as_view(), name='instrumental_assignment_create'),
+    path('api/get-dosing-rules/', views.get_dosing_rules, name='get_dosing_rules'),
 ]

@@ -9,5 +9,5 @@ urlpatterns = [
     path('<int:pk>/', views.DocumentDetailView.as_view(), name='document_detail'),
     path('<int:pk>/update/', views.DocumentUpdateView.as_view(), name='document_update'), # Добавляем обратно этот URL
     # URL-ы для удаления можно будет добавить позже
-    # path('<int:pk>/delete/', views.DocumentDeleteView.as_view(), name='document_delete'),
+    path('<int:pk>/delete/', views.DocumentDeleteView.as_view(), name='document_delete'),
 ]

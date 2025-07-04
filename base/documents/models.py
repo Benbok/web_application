@@ -45,6 +45,7 @@ class ClinicalDocument(models.Model):
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey('content_type', 'object_id')
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    author_position = models.CharField("Должность автора", max_length=255, blank=True, null=True)
     datetime_document = models.DateTimeField("Дата документа", default=timezone.now)
     created_at = models.DateTimeField("Создан", auto_now_add=True)
     updated_at = models.DateTimeField("Обновлён", auto_now=True)

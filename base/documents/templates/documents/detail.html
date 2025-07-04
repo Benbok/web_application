@@ -14,7 +14,7 @@
             <strong>Дата документа:</strong> {{ document.datetime_document|date:"d.m.Y H:i" }}
         </div>
         <div class="mb-3">
-            <strong>Автор:</strong> {{ document.author.get_full_name|default:document.author.username }}
+            <strong>{{ document.author_position|default:"Врач" }}:</strong> {{ document.author.doctor_profile.full_name|default:document.author.username }}
         </div>
         <hr>
 
@@ -31,8 +31,28 @@
             <a href="{{ request.GET.next|default:'/' }}" class="btn btn-outline-secondary btn-lg">
                 <i class="bi bi-arrow-left me-2"></i>Назад
             </a>
-            {# Кнопки редактирования/удаления можно добавить здесь #}
-        </div>
+            {% if request.user == document.author or request.user.is_superuser %}
+            <a href="{% url 'documents:document_update' document.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-primary btn-lg ms-2">
+                <i class="bi bi-pencil-square me-2"></i>Редактировать
+            </a>
+            {% if document.content_object|stringformat:"s" == "patientdepartmentstatus" %}
+                {% with next_url=document.content_object.get_absolute_url %}
+                    <a href="{% url 'documents:document_delete' document.pk %}?next={{ next_url|urlencode }}" class="btn btn-danger btn-lg ms-2">
+                        <i class="bi bi-trash me-2"></i>Удалить
+                    </a>
+                {% endwith %}
+            {% elif document.content_object|stringformat:"s" == "encounter" %}
+                {% with next_url=document.content_object.get_absolute_url %}
+                    <a href="{% url 'documents:document_delete' document.pk %}?next={{ next_url|urlencode }}" class="btn btn-danger btn-lg ms-2">
+                        <i class="bi bi-trash me-2"></i>Удалить
+                    </a>
+                {% endwith %}
+            {% else %}
+                <a href="{% url 'documents:document_delete' document.pk %}?next={{ request.GET.next|default:'/' }}" class="btn btn-danger btn-lg ms-2">
+                    <i class="bi bi-trash me-2"></i>Удалить
+                </a>
+            {% endif %}
+            {% endif %}
     </div>
 </div>
 {% endblock %}

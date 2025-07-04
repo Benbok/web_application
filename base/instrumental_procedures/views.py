@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.views.generic import ListView, DetailView, View
+from django.views.generic import ListView, DetailView, View, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.http import JsonResponse
@@ -99,3 +99,42 @@ class InstrumentalProcedureResultDetailView(LoginRequiredMixin, DetailView):
         queryset = super().get_queryset()
         # Дополнительная фильтрация, если нужно
         return queryset
+
+class InstrumentalProcedureResultUpdateView(LoginRequiredMixin, View):
+    template_name = 'instrumental_procedures/result_form.html'
+
+    def get(self, request, pk):
+        result = get_object_or_404(InstrumentalProcedureResult, pk=pk)
+        initial_data = {'datetime_result': result.datetime_result, **result.data}
+        form = build_instrumental_procedure_result_form(result.result_type.schema, result_type=result.result_type, user=request.user, initial=initial_data)
+        return render(request, self.template_name, {
+            'form': form,
+            'assignment': result.instrumental_procedure_assignment,
+            'result_type': result.result_type,
+            'result': result
+        })
+
+    def post(self, request, pk):
+        result = get_object_or_404(InstrumentalProcedureResult, pk=pk)
+        DynamicFormClass = build_instrumental_procedure_result_form(result.result_type.schema, result_type=result.result_type, user=request.user)
+        form = DynamicFormClass(request.POST)
+
+        if form.is_valid():
+            result.datetime_result = form.cleaned_data['datetime_result']
+            result.data = {k: v for k, v in form.cleaned_data.items() if k != 'datetime_result'}
+            result.author = request.user
+            result.save()
+            return redirect(reverse_lazy('instrumental_procedures:result_detail', kwargs={'pk': result.pk}))
+
+        return render(request, self.template_name, {
+            'form': form,
+            'assignment': result.instrumental_procedure_assignment,
+            'result_type': result.result_type,
+            'result': result
+        })
+
+class InstrumentalProcedureResultDeleteView(LoginRequiredMixin, DeleteView):
+    model = InstrumentalProcedureResult
+    template_name = 'instrumental_procedures/result_confirm_delete.html'
+    context_object_name = 'result'
+    success_url = reverse_lazy('instrumental_procedures:assignment_list')

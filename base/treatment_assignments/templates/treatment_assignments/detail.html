@@ -76,8 +76,23 @@
                 </li>
             {% endif %}
             <li class="list-group-item">
-                <strong>Назначивший врач:</strong> {{ assignment.assigning_doctor.get_full_name|default:assignment.assigning_doctor.username }}
+                <strong>Назначивший врач:</strong>
+                {% if assignment.assigning_doctor.doctor_profile %}
+                    {{ assignment.assigning_doctor.doctor_profile.full_name }}
+                {% else %}
+                    {{ assignment.assigning_doctor.get_full_name|default:assignment.assigning_doctor.username }}
+                {% endif %}
             </li>
+            {% if assignment.completed_by %}
+            <li class="list-group-item">
+                <strong>Завершено кем:</strong>
+                {% if assignment.completed_by.doctor_profile %}
+                    {{ assignment.completed_by.doctor_profile.full_name }}
+                {% else %}
+                    {{ assignment.completed_by.get_full_name|default:assignment.completed_by.username }}
+                {% endif %}
+            </li>
+            {% endif %}
         </ul>
 
         {# --- БЛОК С КНОПКАМИ (ОБНОВЛЕННЫЙ) --- #}

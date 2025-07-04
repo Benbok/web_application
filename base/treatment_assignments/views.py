@@ -13,7 +13,10 @@ from datetime import timedelta
 from datetime import datetime
 from itertools import chain
 from django.conf import settings
+from django.http import JsonResponse
 
+
+from pharmacy.models import DosingRule
 from .models import MedicationAssignment, GeneralTreatmentAssignment, LabTestAssignment, InstrumentalProcedureAssignment
 from .forms import MedicationAssignmentForm, GeneralTreatmentAssignmentForm, LabTestAssignmentForm, \
     InstrumentalProcedureAssignmentForm
@@ -185,6 +188,11 @@ class TreatmentAssignmentUpdateView(BaseAssignmentActionView, UpdateView):
         if assignment_type == 'instrumental': return InstrumentalProcedureAssignmentForm
         return None
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request_user'] = self.request.user
+        return kwargs
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['assignment_type'] = self.kwargs.get('assignment_type')
@@ -207,6 +215,8 @@ class TreatmentAssignmentDeleteView(BaseAssignmentActionView, DeleteView):
 
 
 # (DailyTreatmentPlanView и ListView остаются без изменений)
+# treatment_assignments/views.py
+
 class DailyTreatmentPlanView(LoginRequiredMixin, View):
     template_name = 'treatment_assignments/daily_plan.html'
 
@@ -239,7 +249,7 @@ class DailyTreatmentPlanView(LoginRequiredMixin, View):
                             (Q(end_date__date__gte=start_date) | Q(end_date__isnull=True)) & \
                             ~Q(status='paused')
         med_qs = MedicationAssignment.objects.filter(Q(patient=patient) & q_active_in_range).select_related(
-            'medication')
+            'medication', 'dosing_rule')
         gen_qs = GeneralTreatmentAssignment.objects.filter(Q(patient=patient) & q_active_in_range).select_related(
             'general_treatment')
         lab_qs = LabTestAssignment.objects.filter(Q(patient=patient) & q_active_in_range).select_related('lab_test')
@@ -252,39 +262,54 @@ class DailyTreatmentPlanView(LoginRequiredMixin, View):
                                              'instrumental_procedures': []} for i in
             range((end_date - start_date).days + 1)}
 
+        # --- НАЧАЛО ИСПРАВЛЕННОЙ ЛОГИКИ ЦИКЛА ---
         for assignment in all_assignments:
-            # --- НОВАЯ ЛОГИКА ДЛЯ ИНСТРУМЕНТАЛЬНЫХ ИССЛЕДОВАНИЙ ---
+            # ПРАВИЛО 1: Отдельная логика для инструментальных исследований
             if isinstance(assignment, InstrumentalProcedureAssignment):
                 assignment_start_date = assignment.start_date.date()
-                # 1. Показываем назначение ТОЛЬКО в день его создания
                 if start_date <= assignment_start_date <= end_date:
-                    assignment.display_type = 'order'  # Добавляем флаг "заказ"
+                    assignment.display_type = 'order'
                     daily_plan_dict[assignment_start_date]['instrumental_procedures'].append(assignment)
-
-                # 2. Если исследование завершено, добавляем отметку о результате
                 if assignment.status == 'completed' and assignment.end_date:
                     assignment_end_date = assignment.end_date.date()
-                    if start_date <= assignment_end_date <= end_date:
-                        # Создаем копию, чтобы не изменять исходный объект
+                    if start_date <= assignment_end_date <= end_date and assignment_end_date != assignment_start_date:
                         result_marker = copy.copy(assignment)
-                        result_marker.display_type = 'result'  # Добавляем флаг "результат"
-                        # Добавляем в словарь, только если это не тот же день, что и начало
-                        if assignment_end_date != assignment_start_date:
-                            daily_plan_dict[assignment_end_date]['instrumental_procedures'].append(result_marker)
+                        result_marker.display_type = 'result'
+                        daily_plan_dict[assignment_end_date]['instrumental_procedures'].append(result_marker)
+
+            # ПРАВИЛО 2: Общая логика для всех остальных назначений
             else:
-                # --- СТАРАЯ ЛОГИКА для всех остальных назначений ---
                 assignment_start = assignment.start_date.date()
                 assignment_end = None
-                if isinstance(assignment, MedicationAssignment) and assignment.duration:
-                    try:
-                        days_match = re.search(r'\d+', str(assignment.duration))
-                        if days_match:
-                            duration_in_days = int(days_match.group(0))
-                            assignment_end = assignment_start + timedelta(days=duration_in_days - 1)
-                    except (ValueError, TypeError):
-                        pass
-                if not assignment_end:
-                    assignment_end = assignment.end_date.date() if assignment.end_date else end_date
+
+                if isinstance(assignment, MedicationAssignment):
+                    effective_end_date = None
+                    # Calculate end date based on duration_days if available
+                    if assignment.duration_days:
+                        duration_based_end_date = assignment_start + timedelta(days=assignment.duration_days - 1)
+                        effective_end_date = duration_based_end_date
+
+                    # If end_date is explicitly set, compare it with duration_based_end_date
+                    if assignment.end_date:
+                        explicit_end_date = assignment.end_date.date()
+                        if effective_end_date:
+                            # Choose the earlier of the two
+                            effective_end_date = min(effective_end_date, explicit_end_date)
+                        else:
+                            # If no duration_days, use explicit_end_date
+                            effective_end_date = explicit_end_date
+                    
+                    # If no effective_end_date determined yet (e.g., no duration_days and no explicit end_date),
+                    # then it should probably run until the end of the displayed period or indefinitely.
+                    # The original code used `end_date` (the view's end_date) if `assignment.end_date` was not set.
+                    if not effective_end_date:
+                        effective_end_date = end_date # This `end_date` is the view's `end_date` parameter.
+
+                    assignment_end = effective_end_date
+                else:
+                    # Original logic for other assignment types
+                    if not assignment_end:
+                        assignment_end = assignment.end_date.date() if assignment.end_date else end_date
 
                 current_date = max(assignment_start, start_date)
                 while current_date <= min(assignment_end, end_date):
@@ -295,6 +320,7 @@ class DailyTreatmentPlanView(LoginRequiredMixin, View):
                     elif isinstance(assignment, LabTestAssignment):
                         daily_plan_dict[current_date]['lab_tests'].append(assignment)
                     current_date += timedelta(days=1)
+        # --- КОНЕЦ ИСПРАВЛЕННОЙ ЛОГИКИ ЦИКЛА ---
 
         daily_plan_list = sorted(daily_plan_dict.items())
 
@@ -329,3 +355,14 @@ class TreatmentAssignmentListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['title'] = 'Все назначения'
         return context
+
+
+def get_dosing_rules(request):
+    medication_id = request.GET.get('medication_id')
+    if not medication_id:
+        return JsonResponse({'error': 'Medication ID not provided'}, status=400)
+
+    # Находим все правила для данного препарата
+    rules = DosingRule.objects.filter(medication_id=medication_id).values('id', 'name')
+
+    return JsonResponse(list(rules), safe=False)

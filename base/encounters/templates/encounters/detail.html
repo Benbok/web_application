@@ -57,7 +57,12 @@
         {% endif %}
       </li>
       <li class="list-group-item">
-        <strong>Врач:</strong> {{ encounter.doctor }}
+        <strong>Врач:</strong> 
+        {% if encounter.doctor.doctor_profile %}
+            {{ encounter.doctor.doctor_profile.full_name }}
+        {% else %}
+            {{ encounter.doctor.get_full_name|default:encounter.doctor.username }}
+        {% endif %}
       </li>
     </ul>
     <div class="d-flex gap-2 mt-3">
@@ -67,12 +72,14 @@
       >
         <i class="fas fa-edit me-1"></i> Редактировать
       </a>
+      {% if perms.encounters.delete_encounter %}
       <a
         href="{% url 'encounters:encounter_delete' encounter.pk %}"
         class="btn btn-outline-danger"
       >
         <i class="fas fa-trash-alt me-1"></i> Удалить
       </a>
+      {% endif %}
       {% if encounter.is_active %}
       <a
         href="{% url 'encounters:encounter_close' encounter.pk %}"
@@ -109,10 +116,16 @@
         class="list-group-item d-flex justify-content-between align-items-center"
       >
         <span>
-          <strong>{{ doc.get_document_type_display }}</strong> — {{ doc.title }}
+          <strong>Тип документа:</strong> {{ doc.document_type.name }}<br />
+          <strong>Автор:</strong> 
+          {% if doc.author.doctor_profile %}
+              {{ doc.author.doctor_profile.full_name }}
+          {% else %}
+              {{ doc.author.get_full_name|default:doc.author.username }}
+          {% endif %}
           <br />
           <small class="text-muted"
-            >{{ doc.created_at|date:'d.m.Y H:i' }}</small
+            >{{ doc.datetime_document|date:'d.m.Y H:i' }}</small
           >
         </span>
         <a

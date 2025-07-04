@@ -13,7 +13,7 @@ FIELD_TYPE_MAP = {
     'choice': forms.ChoiceField,
 }
 
-def build_instrumental_procedure_result_form(schema, result_type=None, user=None):
+def build_instrumental_procedure_result_form(schema, result_type=None, user=None, initial=None):
     """
     Динамически создает класс Django-формы на основе JSON-схемы для результатов инструментальных исследований.
     """
@@ -53,4 +53,12 @@ def build_instrumental_procedure_result_form(schema, result_type=None, user=None
 
     DynamicInstrumentalProcedureResultForm = type('DynamicInstrumentalProcedureResultForm', (forms.Form,), fields)
 
-    return DynamicInstrumentalProcedureResultForm
+    class BaseForm(DynamicInstrumentalProcedureResultForm):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            if initial:
+                for key, value in initial.items():
+                    if key in self.fields:
+                        self.fields[key].initial = value
+
+    return BaseForm

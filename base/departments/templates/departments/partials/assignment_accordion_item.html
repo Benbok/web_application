@@ -1,0 +1,80 @@
+<div class="accordion-item">
+    <h2 class="accordion-header" id="assignmentHeading{{ object.assignment_type }}{{ object.pk }}">
+        {# 1. Добавляем класс 'collapsed' для ВСЕХ кнопок и убираем условие #}
+        <button class="accordion-button collapsed"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#assignmentCollapse{{ object.assignment_type }}{{ object.pk }}"
+                aria-expanded="false" {# 2. Устанавливаем 'false' для ВСЕХ кнопок #}
+                aria-controls="assignmentCollapse{{ object.assignment_type }}{{ object.pk }}">
+
+            <strong>{{ object.treatment_name }}</strong>
+            <span class="ms-auto text-muted small">{{ object.start_date|date:'d.m.Y H:i' }}</span>
+
+            {% if object.status == 'active' %}
+                <i class="fas fa-check-circle text-success ms-2" title="Активно"></i>
+            {% elif object.status == 'completed' %}
+                <i class="fas fa-circle-check text-primary ms-2" title="Завершено"></i>
+            {% elif object.status == 'paused' %}
+                <i class="fas fa-pause-circle text-warning ms-2" title="Приостановлено"></i>
+            {% elif object.status == 'canceled' %}
+                <i class="fas fa-times-circle text-danger ms-2" title="Отменено"></i>
+            {% endif %}
+        </button>
+    </h2>
+
+    {# 3. Убираем класс 'show' из тела аккордеона #}
+    <div id="assignmentCollapse{{ object.assignment_type }}{{ object.pk }}"
+         class="accordion-collapse collapse"
+         aria-labelledby="assignmentHeading{{ object.assignment_type }}{{ object.pk }}">
+        <div class="accordion-body">
+            <ul class="list-group list-group-flush">
+                {# Детали, специфичные для медикаментов #}
+                {% if object.assignment_type == 'medication' %}
+                    <li class="list-group-item"><strong>Дозировка:</strong> {{ object.dosage|default:"-" }}</li>
+                    <li class="list-group-item"><strong>Частота:</strong> {{ object.frequency|default:"-" }}</li>
+                    <li class="list-group-item"><strong>Путь введения:</strong> {{ object.route|default:"-" }}</li>
+                {% elif object.assignment_type == 'general' %}
+                    <li class="list-group-item"><strong>Назначение:</strong> {{ object.treatment_name }}</li>
+                {% elif object.assignment_type == 'lab' %}
+                    <li class="list-group-item"><strong>Исследование:</strong> {{ object.treatment_name }}</li>
+                {% elif object.assignment_type == 'instrumental' %}
+                    <li class="list-group-item"><strong>Процедура:</strong> {{ object.treatment_name }}</li>
+                {% endif %}
+
+                {# Общие детали для всех назначений #}
+                <li class="list-group-item"><strong>Назначивший врач:</strong> 
+                    {% if object.assigning_doctor.doctor_profile %}
+                        {{ object.assigning_doctor.doctor_profile.full_name }}
+                    {% else %}
+                        {{ object.assigning_doctor.get_full_name|default:object.assigning_doctor.username }}
+                    {% endif %}
+                </li>
+                {% if object.completed_by %}
+                <li class="list-group-item"><strong>Завершено кем:</strong> 
+                    {% if object.completed_by.doctor_profile %}
+                        {{ object.completed_by.doctor_profile.full_name }}
+                    {% else %}
+                        {{ object.completed_by.get_full_name|default:object.completed_by.username }}
+                    {% endif %}
+                </li>
+                {% endif %}
+                <li class="list-group-item"><strong>Статус:</strong> {{ object.get_status_display }}</li>
+                <li class="list-group-item"><strong>Дата назначения:</strong> {{ object.start_date|date:'d.m.Y H:i' }}</li>
+                {% if object.end_date %}
+                    <li class="list-group-item"><strong>Дата завершения:</strong> {{ object.end_date|date:'d.m.Y H:i' }}</li>
+                {% endif %}
+                {% if object.notes %}
+                    <li class="list-group-item"><strong>Примечания:</strong> {{ object.notes|linebreaksbr }}</li>
+                {% endif %}
+                {% if object.cancellation_reason %}
+                     <li class="list-group-item"><strong>Причина отмены:</strong> {{ object.cancellation_reason|linebreaksbr }}</li>
+                {% endif %}
+            </ul>
+            <div class="mt-3 d-flex justify-content-end gap-2">
+                <a href="{{ object.get_update_url }}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-edit me-1"></i> Редактировать</a>
+                <a href="{{ object.get_absolute_url }}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-info"><i class="fas fa-info-circle me-1"></i> Детали</a>
+            </div>
+        </div>
+    </div>
+</div>

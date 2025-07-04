@@ -94,19 +94,19 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
         medication_assignments = MedicationAssignment.objects.filter(
             content_type=content_type,
             object_id=patient_status.pk
-        )
+        ).select_related('assigning_doctor__doctor_profile', 'completed_by__doctor_profile')
         general_treatment_assignments = GeneralTreatmentAssignment.objects.filter(
             content_type=content_type,
             object_id=patient_status.pk
-        )
+        ).select_related('assigning_doctor__doctor_profile', 'completed_by__doctor_profile')
         lab_test_assignments = LabTestAssignment.objects.filter(
             content_type=content_type,
             object_id=patient_status.pk
-        )
+        ).select_related('assigning_doctor__doctor_profile', 'completed_by__doctor_profile')
         instrumental_procedure_assignments = InstrumentalProcedureAssignment.objects.filter(
             content_type=content_type,
             object_id=patient_status.pk
-        )
+        ).select_related('assigning_doctor__doctor_profile', 'completed_by__doctor_profile')
 
         if filter_form.is_valid():
             start_date = filter_form.cleaned_data.get('start_date')
@@ -192,11 +192,14 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
 
         for assignment_page_obj in [
             medication_assignments_page_obj,
+            general_treatment_assignments_page_obj,
+            lab_test_assignments_page_obj,
+            instrumental_procedure_assignments_page_obj,
         ]:
             for assignment in assignment_page_obj.object_list:
-                if assignment.status == 'active':
+                if isinstance(assignment, MedicationAssignment) and assignment.status == 'active':
                     all_active_assignments.append(assignment)
-                elif assignment.status in ['completed', 'canceled', 'paused']:
+                elif isinstance(assignment, MedicationAssignment) and assignment.status in ['completed', 'canceled', 'paused']:
                     all_inactive_assignments.append(assignment)
         
         # Сортируем по дате начала (для активных) и дате обновления (для неактивных)
