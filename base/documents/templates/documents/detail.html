@@ -28,7 +28,7 @@
         {% endfor %}
 
         <div class="d-flex justify-content-end mt-4 pt-3 border-top">
-            <a href="{{ request.GET.next|default:document.content_object.get_absolute_url }}" class="btn btn-outline-secondary btn-lg">
+            <a href="{{ request.GET.next|default:'/' }}" class="btn btn-outline-secondary btn-lg">
                 <i class="bi bi-arrow-left me-2"></i>Назад
             </a>
             {# Кнопки редактирования/удаления можно добавить здесь #}

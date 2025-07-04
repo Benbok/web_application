@@ -43,7 +43,7 @@
                             {% for date, daily_data in daily_plan_list %}
                             <td data-date="{{ date|date:'Y-m-d' }}" class="{% if date == today %}table-success{% endif %}">
                                     {% for assignment in daily_data.medications %}
-                                        <div class="assignment-item">
+                                        <div class="assignment-item {% if assignment.status == 'completed' %}completed-assignment{% endif %}">
                                             <span class="assignment-badge">
                                                 <a href="{{ assignment.get_absolute_url }}?next={{ request.get_full_path|urlencode }}"
                                                    data-bs-toggle="tooltip"
@@ -62,7 +62,7 @@
                             {% for date, daily_data in daily_plan_list %}
                             <td data-date="{{ date|date:'Y-m-d' }}" class="{% if date == today %}table-success{% endif %}">
                                     {% for assignment in daily_data.general_treatments %}
-                                        <div class="assignment-item">
+                                        <div class="assignment-item {% if assignment.status == 'completed' %}completed-assignment{% endif %}">
                                             <span class="assignment-badge">
                                                 <a href="{{ assignment.get_absolute_url }}?next={{ request.get_full_path|urlencode }}"
                                                    data-bs-toggle="tooltip"
@@ -81,7 +81,7 @@
                             {% for date, daily_data in daily_plan_list %}
                             <td data-date="{{ date|date:'Y-m-d' }}" class="{% if date == today %}table-success{% endif %}">
                                     {% for assignment in daily_data.lab_tests %}
-                                        <div class="assignment-item">
+                                        <div class="assignment-item {% if assignment.status == 'completed' %}completed-assignment{% endif %}">
                                             <span class="assignment-badge">
                                                 <a href="{{ assignment.get_absolute_url }}?next={{ request.get_full_path|urlencode }}"
                                                    data-bs-toggle="tooltip"
@@ -99,19 +99,28 @@
                             <th scope="row">Инструментальные исследования</th>
                             {% for date, daily_data in daily_plan_list %}
                             <td data-date="{{ date|date:'Y-m-d' }}" class="{% if date == today %}table-success{% endif %}">
-                                    {% for assignment in daily_data.instrumental_procedures %}
-                                         <div class="assignment-item">
-                                            <span class="assignment-badge">
-                                                <a href="{{ assignment.get_absolute_url }}?next={{ request.get_full_path|urlencode }}"
-                                                   data-bs-toggle="tooltip"
-                                                   title="{{ assignment.treatment_name }}">
-                                                    {{ assignment.treatment_name }}
-                                                </a>
-                                            </span>
-                                        </div>
-                                    {% endfor %}
-                                    <button class="btn btn-sm btn-light add-assignment-btn">+</button>
-                                </td>
+                                {% for assignment in daily_data.instrumental_procedures %}
+                                     <div class="assignment-item {% if assignment.status == 'completed' and assignment.display_type == 'order' %}completed-assignment{% endif %}">
+
+                                        {# Добавляем условные классы для цвета в зависимости от статуса #}
+                                        <span class="assignment-badge
+                                                     {% if assignment.status != 'completed' %}badge-pending{% endif %}
+                                                     {% if assignment.status == 'completed' %}badge-completed{% endif %}">
+
+                                            <a href="{% if assignment.display_type == 'result' %}{% url 'instrumental_procedures:result_detail' assignment.results.first.pk %}{% else %}{{ assignment.get_absolute_url }}?next={{ request.get_full_path|urlencode }}{% endif %}"
+                                               data-bs-toggle="tooltip"
+                                               title="{{ assignment.treatment_name }}{% if assignment.display_type == 'result' %} (Результат){% endif %}">
+
+                                                {{ assignment.treatment_name }}
+                                                {% if assignment.display_type == 'result' %}
+                                                    (Результат)
+                                                {% endif %}
+                                            </a>
+                                        </span>
+                                    </div>
+                                {% endfor %}
+                                <button class="btn btn-sm btn-light add-assignment-btn">+</button>
+                            </td>
                             {% endfor %}
                         </tr>
                     </tbody>
@@ -192,6 +201,35 @@
     .assignment-badge a:hover {
         color: #000;
     }
+
+        /* НОВЫЕ СТИЛИ ДЛЯ ЦВЕТОВОГО КОДИРОВАНИЯ */
+    .badge-pending {
+        background-color: #fff3cd; /* Светло-желтый */
+        color: #664d03;
+    }
+    .badge-pending a {
+        color: inherit !important;
+    }
+
+    .badge-completed {
+        background-color: #d1e7dd; /* Светло-зеленый */
+        color: #0f5132;
+    }
+    .badge-completed a {
+        color: inherit !important;
+    }
+
+    /* Стиль для зачеркивания выполненного заказа */
+    .completed-assignment .assignment-badge a {
+        text-decoration: line-through !important;
+        text-decoration-color: #6c757d; /* Цвет зачеркивания */
+    }
+
+    .completed-assignment .assignment-badge a {
+        text-decoration: line-through !important;
+        color: #6c757d; /* Серый цвет для зачеркнутых */
+    }
+
 </style>
 
 <script>

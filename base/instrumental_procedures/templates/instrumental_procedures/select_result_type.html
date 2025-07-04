@@ -1,0 +1,32 @@
+{% extends 'patients/base.html' %}
+
+{% block title %}Выбор типа исследования{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Выбор типа исследования для {{ assignment.instrumental_procedure.name }}</h1>
+
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <form method="get" class="mb-4">
+                <div class="input-group">
+                    <input type="text" name="q" class="form-control" placeholder="Поиск по названию типа..." value="{{ query|default_if_none:'' }}">
+                    <button class="btn btn-primary" type="submit">Найти</button>
+                </div>
+            </form>
+
+            {% if result_types %}
+            <div class="list-group">
+                {% for result_type in result_types %}
+                    <a href="{% url 'instrumental_procedures:add_result' assignment.pk %}?result_type_pk={{ result_type.pk }}" class="list-group-item list-group-item-action">
+                        {{ result_type.name }}
+                    </a>
+                {% endfor %}
+            </div>
+            {% else %}
+                <p>Нет доступных типов результатов инструментальных исследований. Пожалуйста, создайте их в админ-панели.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -150,7 +150,8 @@
         const durationInput = $('#id_duration');
         const routeInput = $('#id_route');
         const calculatedDosageInput = $('#id_calculated_dosage');
-
+        const statusSelect = $('#id_status');
+        const reasonFieldContainer = $('#id_cancellation_reason').closest('.form-group');
         // 2. Я удалил строку, которая искала несуществующий элемент
         // #id_default_dosage_per_kg_unit_display, так как его нет в вашем HTML.
 
@@ -197,6 +198,14 @@
               }
             });
           }
+        }
+
+        function toggleReasonField() {
+            if (statusSelect.val() === 'canceled') {
+                reasonFieldContainer.show();
+            } else {
+                reasonFieldContainer.hide();
+            }
         }
 
         // Привязываем обработчики событий

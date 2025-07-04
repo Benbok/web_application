@@ -256,10 +256,10 @@
                                             <a class="page-link"
                                                href="?daily_notes_page=
                                                        {{ daily_notes_page_obj.previous_page_number }}{% for key, value in request.GET.items %}
-                          {% if key != 'daily_notes_page' %}
-                            &{{ key }}={{ value }}
-                          {% endif %}
-                        {% endfor %}">
+                                                      {% if key != 'daily_notes_page' %}
+                                                        &{{ key }}={{ value }}
+                                                      {% endif %}
+                                                    {% endfor %}">
                                                 Предыдущая
                                             </a>
                                         </li>
@@ -279,10 +279,10 @@
                                                 <a class="page-link"
                                                    href="?daily_notes_page=
                                                            {{ i }}{% for key, value in request.GET.items %}
-                            {% if key != 'daily_notes_page' %}
-                              &{{ key }}={{ value }}
-                            {% endif %}
-                          {% endfor %}">
+                                                        {% if key != 'daily_notes_page' %}
+                                                          &{{ key }}={{ value }}
+                                                        {% endif %}
+                                                      {% endfor %}">
                                                     {{ i }}
                                                 </a>
                                             </li>
@@ -294,10 +294,10 @@
                                             <a class="page-link"
                                                href="?daily_notes_page=
                                                        {{ daily_notes_page_obj.next_page_number }}{% for key, value in request.GET.items %}
-                          {% if key != 'daily_notes_page' %}
-                            &{{ key }}={{ value }}
-                          {% endif %}
-                        {% endfor %}">
+                                                      {% if key != 'daily_notes_page' %}
+                                                        &{{ key }}={{ value }}
+                                                      {% endif %}
+                                                    {% endfor %}">
                                                 Следующая
                                             </a>
                                         </li>
@@ -318,132 +318,343 @@
             <div class="tab-pane fade" id="assignments" role="tabpanel" aria-labelledby="assignments-tab">
                 <div class="card">
                     <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="card-title mb-0">Медицинские назначения</h5>
-                            <div class="btn-group" role="group" aria-label="Добавить назначение">
-                                <a href="{% url 'treatment_assignments:medication_assignment_create' model_name='patientdepartmentstatus' object_id=patient_status.pk %}?next={{ request.get_full_path|urlencode }}"
-                                   class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i> Препарат</a>
-                                <a href="{% url 'treatment_assignments:general_assignment_create' model_name='patientdepartmentstatus' object_id=patient_status.pk %}?next={{ request.get_full_path|urlencode }}"
-                                   class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i> Общее</a>
-                                <a href="{% url 'treatment_assignments:lab_assignment_create' model_name='patientdepartmentstatus' object_id=patient_status.pk %}?next={{ request.get_full_path|urlencode }}"
-                                   class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i> Лаб.</a>
-                                <a href="{% url 'treatment_assignments:instrumental_assignment_create' model_name='patientdepartmentstatus' object_id=patient_status.pk %}?next={{ request.get_full_path|urlencode }}"
-                                   class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i> Инстр.</a>
-                            </div>
-                        </div>
-                        {% if assignments_page_obj %}
-                            <div class="accordion" id="assignmentsAccordion">
-                                {% for assignment in assignments_page_obj %}
-                                    <div class="accordion-item">
-                                        <h2 class="accordion-header" id="assignmentHeading{{ assignment.pk }}">
-                                            <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
-                                                    type="button"
-                                                    data-bs-toggle="collapse"
-                                                    data-bs-target="#assignmentCollapse{{ assignment.pk }}"
-                                                    aria-expanded="{% if forloop.first %}
-                                                      true
-                                                    {% else %}
-                                                      false
-                                                    {% endif %}"
-                                                    aria-controls="assignmentCollapse{{ assignment.pk }}">
-                                                <strong>{{ assignment.start_date|date:'d.m.Y H:i' }}</strong>
-                                                — {{ assignment.assigning_doctor.get_full_name|default:assignment.assigning_doctor.username }}
-                                                <span class="ms-auto text-muted small">{{ assignment.treatment_name }}</span>
-                                                {% if assignment.status == 'active' %}
-                                                    <i class="fas fa-check-circle text-success ms-2" title="Активно"></i>
-                                                {% elif assignment.status == 'completed' %}
-                                                    <i class="fas fa-circle-check text-primary ms-2" title="Завершено"></i>
-                                                {% elif assignment.status == 'paused' %}
-                                                    <i class="fas fa-pause-circle text-warning ms-2" title="Приостановлено"></i>
-                                                {% elif assignment.status == 'canceled' %}
-                                                    <i class="fas fa-times-circle text-danger ms-2" title="Отменено"></i>
-                                                {% endif %}
-                                            </button>
-                                        </h2>
-                                        <div id="assignmentCollapse{{ assignment.pk }}"
-                                             class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
-                                             aria-labelledby="assignmentHeading{{ assignment.pk }}"
-                                             data-bs-parent="#assignmentsAccordion">
-                                            <div class="accordion-body">
-                                                <strong>Название лечения:</strong> {{ assignment.medication }}<br/>
-                                                <strong>Дата начала:</strong> {{ assignment.start_date|date:'d.m.Y H:i' }}<br/>
-                                                {% if assignment.end_date %}
-                                                <strong>Дата завершения:</strong> {{ assignment.end_date|date:'d.m.Y H:i' }}<br/>
-                                                {% endif %}
-                                                <strong>Статус:</strong> {{ assignment.get_status_display }}
-                                                <div class="mt-3 d-flex justify-content-end gap-2">
-                                                    <a href="{{ assignment.get_update_url }}?next={{ request.get_full_path|urlencode }}"
-                                                       class="btn btn-sm btn-outline-primary"><i
-                                                            class="fas fa-edit me-1"></i> Редактировать</a>
-                                                    <a href="{{ assignment.get_update_url }}?next={{ request.get_full_path|urlencode }}"
-                                                       class="btn btn-sm btn-outline-info"><i
-                                                            class="fas fa-info-circle me-1"></i> Детали</a>
+                        <h5 class="card-title mb-3">Медицинские назначения</h5>
+                        
+                        <ul class="nav nav-tabs mb-3 flex-row" id="assignmentSubTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="medication-assignments-tab" data-bs-toggle="tab" data-bs-target="#medication-assignments" type="button" role="tab" aria-controls="medication-assignments" aria-selected="true">Препараты</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="general-assignments-tab" data-bs-toggle="tab" data-bs-target="#general-assignments" type="button" role="tab" aria-controls="general-assignments" aria-selected="false">Общие</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="lab-assignments-tab" data-bs-toggle="tab" data-bs-target="#lab-assignments" type="button" role="tab" aria-controls="lab-assignments" aria-selected="false">Лаб. исследования</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="instrumental-assignments-tab" data-bs-toggle="tab" data-bs-target="#instrumental-assignments" type="button" role="tab" aria-controls="instrumental-assignments" aria-selected="false">Инстр. исследования</button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="assignmentSubTabsContent">
+                            {# Препараты #}
+                            <div class="tab-pane fade show active" id="medication-assignments" role="tabpanel" aria-labelledby="medication-assignments-tab">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="card-title mb-0">Назначения препаратов</h6>
+                                    <a href="{% url 'treatment_assignments:medication_assignment_create' model_name='patientdepartmentstatus' object_id=patient_status.pk %}?next={{ request.get_full_path|urlencode }}"
+                                       class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i> Добавить препарат</a>
+                                </div>
+                                {% if medication_assignments_page_obj %}
+                                    <div class="accordion" id="medicationAssignmentsAccordion">
+                                        {% for assignment in medication_assignments_page_obj %}
+                                            <div class="accordion-item">
+                                                <h2 class="accordion-header" id="medicationAssignmentHeading{{ assignment.pk }}">
+                                                    <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#medicationAssignmentCollapse{{ assignment.pk }}" aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="medicationAssignmentCollapse{{ assignment.pk }}">
+                                                        <strong>{{ assignment.start_date|date:'d.m.Y H:i' }}</strong>
+                                                        — {{ assignment.assigning_doctor.get_full_name|default:assignment.assigning_doctor.username }}
+                                                        <span class="ms-auto text-muted small">{{ assignment.treatment_name }}</span>
+                                                        {% if assignment.status == 'active' %}
+                                                            <i class="fas fa-check-circle text-success ms-2" title="Активно"></i>
+                                                        {% elif assignment.status == 'completed' %}
+                                                            <i class="fas fa-circle-check text-primary ms-2" title="Завершено"></i>
+                                                        {% elif assignment.status == 'paused' %}
+                                                            <i class="fas fa-pause-circle text-warning ms-2" title="Приостановлено"></i>
+                                                        {% elif assignment.status == 'canceled' %}
+                                                            <i class="fas fa-times-circle text-danger ms-2" title="Отменено"></i>
+                                                        {% endif %}
+                                                    </button>
+                                                </h2>
+                                                <div id="medicationAssignmentCollapse{{ assignment.pk }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" aria-labelledby="medicationAssignmentHeading{{ assignment.pk }}" data-bs-parent="#medicationAssignmentsAccordion">
+                                                    <div class="accordion-body">
+                                                        <ul class="list-group list-group-flush">
+                                                            <li class="list-group-item"><strong>Дозировка:</strong> {{ assignment.dosage|default:"-" }}</li>
+                                                            <li class="list-group-item"><strong>Частота:</strong> {{ assignment.frequency|default:"-" }}</li>
+                                                            <li class="list-group-item"><strong>Путь введения:</strong> {{ assignment.route|default:"-" }}</li>
+                                                            <li class="list-group-item"><strong>Назначивший врач:</strong> {{ assignment.assigning_doctor.get_full_name|default:assignment.assigning_doctor.username }}</li>
+                                                            {% if assignment.notes %}
+                                                                <li class="list-group-item"><strong>Примечания:</strong> {{ assignment.notes|linebreaksbr }}</li>
+                                                            {% endif %}
+                                                            <li class="list-group-item"><strong>Дата начала:</strong> {{ assignment.start_date|date:'d.m.Y H:i' }}</li>
+                                                            {% if assignment.end_date %}
+                                                                <li class="list-group-item"><strong>Дата выполнения:</strong> {{ assignment.end_date|date:'d.m.Y H:i' }}</li>
+                                                            {% endif %}
+                                                            <li class="list-group-item"><strong>Статус:</strong> {{ assignment.get_status_display }}</li>
+                                                        </ul>
+                                                        <div class="mt-3 d-flex justify-content-end gap-2">
+                                                            <a href="{{ assignment.get_update_url }}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-edit me-1"></i> Редактировать</a>
+                                                            <a href="{{ assignment.get_absolute_url }}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-info"><i class="fas fa-info-circle me-1"></i> Детали</a>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        {% endfor %}
                                     </div>
-                                {% endfor %}
+                                    <nav aria-label="Навигация по препаратам" class="mt-3">
+                                        <ul class="pagination justify-content-center">
+                                            {% if medication_assignments_page_obj.has_previous %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?medication_assignments_page={{ medication_assignments_page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'medication_assignments_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Предыдущая</a>
+                                                </li>
+                                            {% else %}
+                                                <li class="page-item disabled"><span class="page-link">Предыдущая</span></li>
+                                            {% endif %}
+                                            {% for i in medication_assignments_page_obj.paginator.page_range %}
+                                                {% if medication_assignments_page_obj.number == i %}
+                                                    <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                                                {% else %}
+                                                    <li class="page-item"><a class="page-link" href="?medication_assignments_page={{ i }}{% for key, value in request.GET.items %}{% if key != 'medication_assignments_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ i }}</a></li>
+                                                {% endif %}
+                                            {% endfor %}
+                                            {% if medication_assignments_page_obj.has_next %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?medication_assignments_page={{ medication_assignments_page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'medication_assignments_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Следующая</a>
+                                                </li>
+                                            {% else %}
+                                                <li class="page-item disabled"><span class="page-link">Следующая</span></li>
+                                            {% endif %}
+                                        </ul>
+                                    </nav>
+                                {% else %}
+                                    <p class="text-muted">Нет назначений препаратов для отображения по заданным фильтрам.</p>
+                                {% endif %}
                             </div>
-                            <nav aria-label="Навигация по назначениям" class="mt-3">
-                                <ul class="pagination justify-content-center">
-                                    {% if assignments_page_obj.has_previous %}
-                                        <li class="page-item">
-                                            <a class="page-link"
-                                               href="?assignments_page=
-                                                       {{ assignments_page_obj.previous_page_number }}{% for key, value in request.GET.items %}
-                          {% if key != 'assignments_page' %}
-                            &{{ key }}={{ value }}
-                          {% endif %}
-                        {% endfor %}">
-                                                Предыдущая
-                                            </a>
-                                        </li>
-                                    {% else %}
-                                        <li class="page-item disabled">
-                                            <span class="page-link">Предыдущая</span>
-                                        </li>
-                                    {% endif %}
-                                    {% for i in assignments_page_obj.paginator.page_range %}
-                                        {% if assignments_page_obj.number == i %}
-                                            <li class="page-item active">
-                                                <span class="page-link">{{ i }}</span>
-                                            </li>
-                                        {% else %}
-                                            <li class="page-item">
-                                                <a class="page-link"
-                                                   href="?assignments_page=
-                                                           {{ i }}{% for key, value in request.GET.items %}
-                            {% if key != 'assignments_page' %}
-                              &{{ key }}={{ value }}
-                            {% endif %}
-                          {% endfor %}">
-                                                    {{ i }}
-                                                </a>
-                                            </li>
-                                        {% endif %}
-                                    {% endfor %}
-                                    {% if assignments_page_obj.has_next %}
-                                        <li class="page-item">
-                                            <a class="page-link"
-                                               href="?assignments_page=
-                                                       {{ assignments_page_obj.next_page_number }}{% for key, value in request.GET.items %}
-                          {% if key != 'assignments_page' %}
-                            &{{ key }}={{ value }}
-                          {% endif %}
-                        {% endfor %}">
-                                                Следующая
-                                            </a>
-                                        </li>
-                                    {% else %}
-                                        <li class="page-item disabled">
-                                            <span class="page-link">Следующая</span>
-                                        </li>
-                                    {% endif %}
-                                </ul>
-                            </nav>
-                        {% else %}
-                            <p class="text-muted">Нет назначений для отображения по заданным фильтрам.</p>
-                        {% endif %}
+
+                            {# Общие назначения #}
+                            <div class="tab-pane fade" id="general-assignments" role="tabpanel" aria-labelledby="general-assignments-tab">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="card-title mb-0">Общие назначения</h6>
+                                    <a href="{% url 'treatment_assignments:general_assignment_create' model_name='patientdepartmentstatus' object_id=patient_status.pk %}?next={{ request.get_full_path|urlencode }}"
+                                       class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i> Добавить общее</a>
+                                </div>
+                                {% if general_treatment_assignments_page_obj %}
+                                    <div class="accordion" id="generalAssignmentsAccordion">
+                                        {% for assignment in general_treatment_assignments_page_obj %}
+                                            <div class="accordion-item">
+                                                <h2 class="accordion-header" id="generalAssignmentHeading{{ assignment.pk }}">
+                                                    <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#generalAssignmentCollapse{{ assignment.pk }}" aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="generalAssignmentCollapse{{ assignment.pk }}">
+                                                        <strong>{{ assignment.start_date|date:'d.m.Y H:i' }}</strong>
+                                                        — {{ assignment.assigning_doctor.get_full_name|default:assignment.assigning_doctor.username }}
+                                                        <span class="ms-auto text-muted small">{{ assignment.treatment_name }}</span>
+                                                        {% if assignment.status == 'active' %}
+                                                            <i class="fas fa-check-circle text-success ms-2" title="Активно"></i>
+                                                        {% elif assignment.status == 'completed' %}
+                                                            <i class="fas fa-circle-check text-primary ms-2" title="Завершено"></i>
+                                                        {% elif assignment.status == 'paused' %}
+                                                            <i class="fas fa-pause-circle text-warning ms-2" title="Приостановлено"></i>
+                                                        {% elif assignment.status == 'canceled' %}
+                                                            <i class="fas fa-times-circle text-danger ms-2" title="Отменено"></i>
+                                                        {% endif %}
+                                                    </button>
+                                                </h2>
+                                                <div id="generalAssignmentCollapse{{ assignment.pk }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" aria-labelledby="generalAssignmentHeading{{ assignment.pk }}" data-bs-parent="#generalAssignmentsAccordion">
+                                                    <div class="accordion-body">
+                                                        <ul class="list-group list-group-flush">
+                                                            <li class="list-group-item"><strong>Назначивший врач:</strong> {{ assignment.assigning_doctor.get_full_name|default:assignment.assigning_doctor.username }}</li>
+                                                            {% if assignment.notes %}
+                                                                <li class="list-group-item"><strong>Примечания:</strong> {{ assignment.notes|linebreaksbr }}</li>
+                                                            {% endif %}
+                                                            <li class="list-group-item"><strong>Дата начала:</strong> {{ assignment.start_date|date:'d.m.Y H:i' }}</li>
+                                                            {% if assignment.end_date %}
+                                                                <li class="list-group-item"><strong>Дата выполнения:</strong> {{ assignment.end_date|date:'d.m.Y H:i' }}</li>
+                                                            {% endif %}
+                                                            <li class="list-group-item"><strong>Статус:</strong> {{ assignment.get_status_display }}</li>
+                                                        </ul>
+                                                        <div class="mt-3 d-flex justify-content-end gap-2">
+                                                            <a href="{{ assignment.get_update_url }}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-edit me-1"></i> Редактировать</a>
+                                                            <a href="{{ assignment.get_absolute_url }}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-info"><i class="fas fa-info-circle me-1"></i> Детали</a>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                    <nav aria-label="Навигация по общим назначениям" class="mt-3">
+                                        <ul class="pagination justify-content-center">
+                                            {% if general_treatment_assignments_page_obj.has_previous %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?general_treatment_assignments_page={{ general_treatment_assignments_page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'general_treatment_assignments_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Предыдущая</a>
+                                                </li>
+                                            {% else %}
+                                                <li class="page-item disabled"><span class="page-link">Предыдущая</span></li>
+                                            {% endif %}
+                                            {% for i in general_treatment_assignments_page_obj.paginator.page_range %}
+                                                {% if general_treatment_assignments_page_obj.number == i %}
+                                                    <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                                                {% else %}
+                                                    <li class="page-item"><a class="page-link" href="?general_treatment_assignments_page={{ i }}{% for key, value in request.GET.items %}{% if key != 'general_treatment_assignments_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ i }}</a></li>
+                                                {% endif %}
+                                            {% endfor %}
+                                            {% if general_treatment_assignments_page_obj.has_next %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?general_treatment_assignments_page={{ general_treatment_assignments_page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'general_treatment_assignments_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Следующая</a>
+                                                </li>
+                                            {% else %}
+                                                <li class="page-item disabled"><span class="page-link">Следующая</span></li>
+                                            {% endif %}
+                                        </ul>
+                                    </nav>
+                                {% else %}
+                                    <p class="text-muted">Нет общих назначений для отображения по заданным фильтрам.</p>
+                                {% endif %}
+                            </div>
+
+                            {# Лабораторные исследования #}
+                            <div class="tab-pane fade" id="lab-assignments" role="tabpanel" aria-labelledby="lab-assignments-tab">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="card-title mb-0">Назначения лабораторных исследований</h6>
+                                    <a href="{% url 'treatment_assignments:lab_assignment_create' model_name='patientdepartmentstatus' object_id=patient_status.pk %}?next={{ request.get_full_path|urlencode }}"
+                                       class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i> Добавить лаб.</a>
+                                </div>
+                                {% if lab_test_assignments_page_obj %}
+                                    <div class="accordion" id="labAssignmentsAccordion">
+                                        {% for assignment in lab_test_assignments_page_obj %}
+                                            <div class="accordion-item">
+                                                <h2 class="accordion-header" id="labAssignmentHeading{{ assignment.pk }}">
+                                                    <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#labAssignmentCollapse{{ assignment.pk }}" aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="labAssignmentCollapse{{ assignment.pk }}">
+                                                        <strong>{{ assignment.start_date|date:'d.m.Y H:i' }}</strong>
+                                                        — {{ assignment.assigning_doctor.get_full_name|default:assignment.assigning_doctor.username }}
+                                                        <span class="ms-auto text-muted small">{{ assignment.treatment_name }}</span>
+                                                        {% if assignment.status == 'active' %}
+                                                            <i class="fas fa-check-circle text-success ms-2" title="Активно"></i>
+                                                        {% elif assignment.status == 'completed' %}
+                                                            <i class="fas fa-circle-check text-primary ms-2" title="Завершено"></i>
+                                                        {% elif assignment.status == 'paused' %}
+                                                            <i class="fas fa-pause-circle text-warning ms-2" title="Приостановлено"></i>
+                                                        {% elif assignment.status == 'canceled' %}
+                                                            <i class="fas fa-times-circle text-danger ms-2" title="Отменено"></i>
+                                                        {% endif %}
+                                                    </button>
+                                                </h2>
+                                                <div id="labAssignmentCollapse{{ assignment.pk }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" aria-labelledby="labAssignmentHeading{{ assignment.pk }}" data-bs-parent="#labAssignmentsAccordion">
+                                                    <div class="accordion-body">
+                                                        <ul class="list-group list-group-flush">
+                                                            <li class="list-group-item"><strong>Назначивший врач:</strong> {{ assignment.assigning_doctor.get_full_name|default:assignment.assigning_doctor.username }}</li>
+                                                            {% if assignment.notes %}
+                                                                <li class="list-group-item"><strong>Примечания:</strong> {{ assignment.notes|linebreaksbr }}</li>
+                                                            {% endif %}
+                                                            <li class="list-group-item"><strong>Дата начала:</strong> {{ assignment.start_date|date:'d.m.Y H:i' }}</li>
+                                                            {% if assignment.end_date %}
+                                                                <li class="list-group-item"><strong>Дата выполнения:</strong> {{ assignment.end_date|date:'d.m.Y H:i' }}</li>
+                                                            {% endif %}
+                                                            <li class="list-group-item"><strong>Статус:</strong> {{ assignment.get_status_display }}</li>
+                                                        </ul>
+                                                        <div class="mt-3 d-flex justify-content-end gap-2">
+                                                            <a href="{{ assignment.get_update_url }}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-edit me-1"></i> Редактировать</a>
+                                                            <a href="{{ assignment.get_absolute_url }}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-info"><i class="fas fa-info-circle me-1"></i> Детали</a>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                    <nav aria-label="Навигация по лабораторным исследованиям" class="mt-3">
+                                        <ul class="pagination justify-content-center">
+                                            {% if lab_test_assignments_page_obj.has_previous %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?lab_test_assignments_page={{ lab_test_assignments_page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'lab_test_assignments_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Предыдущая</a>
+                                                </li>
+                                            {% else %}
+                                                <li class="page-item disabled"><span class="page-link">Предыдущая</span></li>
+                                            {% endif %}
+                                            {% for i in lab_test_assignments_page_obj.paginator.page_range %}
+                                                {% if lab_test_assignments_page_obj.number == i %}
+                                                    <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                                                {% else %}
+                                                    <li class="page-item"><a class="page-link" href="?lab_test_assignments_page={{ i }}{% for key, value in request.GET.items %}{% if key != 'lab_test_assignments_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ i }}</a></li>
+                                                {% endif %}
+                                            {% endfor %}
+                                            {% if lab_test_assignments_page_obj.has_next %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?lab_test_assignments_page={{ lab_test_assignments_page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'lab_test_assignments_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Следующая</a>
+                                                </li>
+                                            {% else %}
+                                                <li class="page-item disabled"><span class="page-link">Следующая</span></li>
+                                            {% endif %}
+                                        </ul>
+                                    </nav>
+                                {% else %}
+                                    <p class="text-muted">Нет назначений лабораторных исследований для отображения по заданным фильтрам.</p>
+                                {% endif %}
+                            </div>
+
+                            {# Инструментальные исследования #}
+                            <div class="tab-pane fade" id="instrumental-assignments" role="tabpanel" aria-labelledby="instrumental-assignments-tab">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="card-title mb-0">Назначения инструментальных исследований</h6>
+                                    <a href="{% url 'treatment_assignments:instrumental_assignment_create' model_name='patientdepartmentstatus' object_id=patient_status.pk %}?next={{ request.get_full_path|urlencode }}"
+                                       class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i> Добавить инстр.</a>
+                                </div>
+                                {% if instrumental_procedure_assignments_page_obj %}
+                                    <div class="accordion" id="instrumentalAssignmentsAccordion">
+                                        {% for assignment in instrumental_procedure_assignments_page_obj %}
+                                            <div class="accordion-item">
+                                                <h2 class="accordion-header" id="instrumentalAssignmentHeading{{ assignment.pk }}">
+                                                    <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#instrumentalAssignmentCollapse{{ assignment.pk }}" aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="instrumentalAssignmentCollapse{{ assignment.pk }}">
+                                                        <strong>{{ assignment.start_date|date:'d.m.Y H:i' }}</strong>
+                                                        — {{ assignment.assigning_doctor.get_full_name|default:assignment.assigning_doctor.username }}
+                                                        <span class="ms-auto text-muted small">{{ assignment.treatment_name }}</span>
+                                                        {% if assignment.status == 'active' %}
+                                                            <i class="fas fa-check-circle text-success ms-2" title="Активно"></i>
+                                                        {% elif assignment.status == 'completed' %}
+                                                            <i class="fas fa-circle-check text-primary ms-2" title="Завершено"></i>
+                                                        {% elif assignment.status == 'paused' %}
+                                                            <i class="fas fa-pause-circle text-warning ms-2" title="Приостановлено"></i>
+                                                        {% elif assignment.status == 'canceled' %}
+                                                            <i class="fas fa-times-circle text-danger ms-2" title="Отменено"></i>
+                                                        {% endif %}
+                                                    </button>
+                                                </h2>
+                                                <div id="instrumentalAssignmentCollapse{{ assignment.pk }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" aria-labelledby="instrumentalAssignmentHeading{{ assignment.pk }}" data-bs-parent="#instrumentalAssignmentsAccordion">
+                                                    <div class="accordion-body">
+                                                        <ul class="list-group list-group-flush">
+                                                            <li class="list-group-item"><strong>Назначивший врач:</strong> {{ assignment.assigning_doctor.get_full_name|default:assignment.assigning_doctor.username }}</li>
+                                                            {% if assignment.notes %}
+                                                                <li class="list-group-item"><strong>Примечания:</strong> {{ assignment.notes|linebreaksbr }}</li>
+                                                            {% endif %}
+                                                            <li class="list-group-item"><strong>Дата начала:</strong> {{ assignment.start_date|date:'d.m.Y H:i' }}</li>
+                                                            {% if assignment.end_date %}
+                                                                <li class="list-group-item"><strong>Дата выполнения:</strong> {{ assignment.end_date|date:'d.m.Y H:i' }}</li>
+                                                            {% endif %}
+                                                            <li class="list-group-item"><strong>Статус:</strong> {{ assignment.get_status_display }}</li>
+                                                        </ul>
+                                                        <div class="mt-3 d-flex justify-content-end gap-2">
+                                                            <a href="{{ assignment.get_update_url }}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-edit me-1"></i> Редактировать</a>
+                                                            <a href="{{ assignment.get_absolute_url }}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-info"><i class="fas fa-info-circle me-1"></i> Детали</a>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                    <nav aria-label="Навигация по инструментальным исследованиям" class="mt-3">
+                                        <ul class="pagination justify-content-center">
+                                            {% if instrumental_procedure_assignments_page_obj.has_previous %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?instrumental_procedure_assignments_page={{ instrumental_procedure_assignments_page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'instrumental_procedure_assignments_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Предыдущая</a>
+                                                </li>
+                                            {% else %}
+                                                <li class="page-item disabled"><span class="page-link">Предыдущая</span></li>
+                                            {% endif %}
+                                            {% for i in instrumental_procedure_assignments_page_obj.paginator.page_range %}
+                                                {% if instrumental_procedure_assignments_page_obj.number == i %}
+                                                    <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                                                {% else %}
+                                                    <li class="page-item"><a class="page-link" href="?instrumental_procedure_assignments_page={{ i }}{% for key, value in request.GET.items %}{% if key != 'instrumental_procedure_assignments_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ i }}</a></li>
+                                                {% endif %}
+                                            {% endfor %}
+                                            {% if instrumental_procedure_assignments_page_obj.has_next %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?instrumental_procedure_assignments_page={{ instrumental_procedure_assignments_page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'instrumental_procedure_assignments_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Следующая</a>
+                                                </li>
+                                            {% else %}
+                                                <li class="page-item disabled"><span class="page-link">Следующая</span></li>
+                                            {% endif %}
+                                        </ul>
+                                    </nav>
+                                {% else %}
+                                    <p class="text-muted">Нет назначений инструментальных исследований для отображения по заданным фильтрам.</p>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

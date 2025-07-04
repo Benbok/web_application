@@ -1,5 +1,6 @@
 # treatment_assignments/views.py
 import re
+import copy
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse, reverse_lazy
 from django.views.generic import DetailView, CreateView, UpdateView, DeleteView, ListView, View
@@ -234,8 +235,9 @@ class DailyTreatmentPlanView(LoginRequiredMixin, View):
         next_start_date = end_date + timedelta(days=1)
         prev_start_date = start_date - timedelta(days=duration_days + 1)
 
-        q_active_in_range = Q(start_date__date__lte=end_date) & (
-                Q(end_date__date__gte=start_date) | Q(end_date__isnull=True))
+        q_active_in_range = Q(start_date__date__lte=end_date) & \
+                            (Q(end_date__date__gte=start_date) | Q(end_date__isnull=True)) & \
+                            ~Q(status='paused')
         med_qs = MedicationAssignment.objects.filter(Q(patient=patient) & q_active_in_range).select_related(
             'medication')
         gen_qs = GeneralTreatmentAssignment.objects.filter(Q(patient=patient) & q_active_in_range).select_related(
@@ -250,41 +252,49 @@ class DailyTreatmentPlanView(LoginRequiredMixin, View):
                                              'instrumental_procedures': []} for i in
             range((end_date - start_date).days + 1)}
 
-        # --- НАЧАЛО ИЗМЕНЕНИЙ В ЛОГИКЕ ---
         for assignment in all_assignments:
-            assignment_start = assignment.start_date.date()
-            assignment_end = None
+            # --- НОВАЯ ЛОГИКА ДЛЯ ИНСТРУМЕНТАЛЬНЫХ ИССЛЕДОВАНИЙ ---
+            if isinstance(assignment, InstrumentalProcedureAssignment):
+                assignment_start_date = assignment.start_date.date()
+                # 1. Показываем назначение ТОЛЬКО в день его создания
+                if start_date <= assignment_start_date <= end_date:
+                    assignment.display_type = 'order'  # Добавляем флаг "заказ"
+                    daily_plan_dict[assignment_start_date]['instrumental_procedures'].append(assignment)
 
-            # Новая логика: если это медикамент и у него есть длительность...
-            if isinstance(assignment, MedicationAssignment) and assignment.duration:
-                try:
-                    # Ищем первое число в строке "Длительность"
-                    days_match = re.search(r'\d+', str(assignment.duration))
-                    if days_match:
-                        duration_in_days = int(days_match.group(0))
-                        # ...рассчитываем дату окончания на основе длительности.
-                        assignment_end = assignment_start + timedelta(days=duration_in_days - 1)
-                except (ValueError, TypeError):
-                    pass  # Игнорируем ошибки парсинга
+                # 2. Если исследование завершено, добавляем отметку о результате
+                if assignment.status == 'completed' and assignment.end_date:
+                    assignment_end_date = assignment.end_date.date()
+                    if start_date <= assignment_end_date <= end_date:
+                        # Создаем копию, чтобы не изменять исходный объект
+                        result_marker = copy.copy(assignment)
+                        result_marker.display_type = 'result'  # Добавляем флаг "результат"
+                        # Добавляем в словарь, только если это не тот же день, что и начало
+                        if assignment_end_date != assignment_start_date:
+                            daily_plan_dict[assignment_end_date]['instrumental_procedures'].append(result_marker)
+            else:
+                # --- СТАРАЯ ЛОГИКА для всех остальных назначений ---
+                assignment_start = assignment.start_date.date()
+                assignment_end = None
+                if isinstance(assignment, MedicationAssignment) and assignment.duration:
+                    try:
+                        days_match = re.search(r'\d+', str(assignment.duration))
+                        if days_match:
+                            duration_in_days = int(days_match.group(0))
+                            assignment_end = assignment_start + timedelta(days=duration_in_days - 1)
+                    except (ValueError, TypeError):
+                        pass
+                if not assignment_end:
+                    assignment_end = assignment.end_date.date() if assignment.end_date else end_date
 
-            # Если дату окончания не удалось рассчитать по длительности,
-            # используем поле end_date, как и раньше.
-            if not assignment_end:
-                assignment_end = assignment.end_date.date() if assignment.end_date else end_date
-
-            # Распределяем назначение по дням в календаре
-            current_date = max(assignment_start, start_date)
-            while current_date <= min(assignment_end, end_date):
-                if isinstance(assignment, MedicationAssignment):
-                    daily_plan_dict[current_date]['medications'].append(assignment)
-                elif isinstance(assignment, GeneralTreatmentAssignment):
-                    daily_plan_dict[current_date]['general_treatments'].append(assignment)
-                elif isinstance(assignment, LabTestAssignment):
-                    daily_plan_dict[current_date]['lab_tests'].append(assignment)
-                elif isinstance(assignment, InstrumentalProcedureAssignment):
-                    daily_plan_dict[current_date]['instrumental_procedures'].append(assignment)
-                current_date += timedelta(days=1)
-        # --- КОНЕЦ ИЗМЕНЕНИЙ В ЛОГИКЕ ---
+                current_date = max(assignment_start, start_date)
+                while current_date <= min(assignment_end, end_date):
+                    if isinstance(assignment, MedicationAssignment):
+                        daily_plan_dict[current_date]['medications'].append(assignment)
+                    elif isinstance(assignment, GeneralTreatmentAssignment):
+                        daily_plan_dict[current_date]['general_treatments'].append(assignment)
+                    elif isinstance(assignment, LabTestAssignment):
+                        daily_plan_dict[current_date]['lab_tests'].append(assignment)
+                    current_date += timedelta(days=1)
 
         daily_plan_list = sorted(daily_plan_dict.items())
 
@@ -293,11 +303,11 @@ class DailyTreatmentPlanView(LoginRequiredMixin, View):
             'daily_plan_list': daily_plan_list, 'start_date': start_date, 'end_date': end_date,
             'title': f'Лист назначений для {patient.full_name}',
             'next_url': get_treatment_assignment_back_url(parent_obj),
+            'today': timezone.localdate(),
             'next_start_date': next_start_date.strftime('%Y-%m-%d'),
             'next_end_date': (next_start_date + timedelta(days=duration_days)).strftime('%Y-%m-%d'),
             'prev_start_date': prev_start_date.strftime('%Y-%m-%d'),
             'prev_end_date': (prev_start_date + timedelta(days=duration_days)).strftime('%Y-%m-%d'),
-            'today': timezone.localdate(),
         }
         return render(request, self.template_name, context)
 

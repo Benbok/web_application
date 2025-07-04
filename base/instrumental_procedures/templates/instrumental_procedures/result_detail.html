@@ -1,0 +1,28 @@
+{% extends 'patients/base.html' %}
+
+{% block title %}Детали результата исследования{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Детали результата для {{ result.instrumental_procedure_assignment.instrumental_procedure.name }}</h1>
+
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <p><strong>Пациент:</strong> {{ result.instrumental_procedure_assignment.patient.full_name }}</p>
+            <p><strong>Тип исследования:</strong> {{ result.instrumental_procedure_assignment.instrumental_procedure.name }}</p>
+            <p><strong>Дата начала назначения:</strong> {{ result.instrumental_procedure_assignment.start_date|date:"d.m.Y H:i" }}</p>
+            <p><strong>Дата выполнения назначения:</strong> {{ result.instrumental_procedure_assignment.end_date|date:"d.m.Y H:i" }}</p>
+            <p><strong>Дата и время выполнения:</strong> {{ result.datetime_result|date:"d.m.Y H:i" }}</p>
+            <p><strong>Автор:</strong> {{ result.author.get_full_name|default:result.author.username }}</p>
+
+            <hr>
+            <h4>Результаты:</h4>
+            {% for key, value in result.data.items %}
+                <p><strong>{{ key|capfirst }}:</strong> {{ value }}</p>
+            {% endfor %}
+
+            <a href="{% url 'instrumental_procedures:assignment_list' %}" class="btn btn-secondary">Назад к списку</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

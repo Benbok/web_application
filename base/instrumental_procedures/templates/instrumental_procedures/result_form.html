@@ -1,0 +1,39 @@
+{% extends 'patients/base.html' %}
+{% load widget_tweaks %}
+
+{% block title %}Добавить результат исследования{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Добавить результат для {{ assignment.instrumental_procedure.name }}</h1>
+
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="result_type_pk" value="{{ result_type_pk }}">
+
+                {% for field in form %}
+                    <div class="form-group">
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {% if field.field.widget.input_type == 'checkbox' %}
+                            {{ field|add_class:"form-check-input" }}
+                        {% else %}
+                            {{ field|add_class:"form-control" }}
+                        {% endif %}
+                        {% if field.help_text %}
+                            <small class="form-text text-muted">{{ field.help_text }}</small>
+                        {% endif %}
+                        {% for error in field.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+
+                <button type="submit" class="btn btn-primary">Сохранить результат</button>
+                <a href="{% url 'instrumental_procedures:assignment_list' %}" class="btn btn-secondary">Отмена</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

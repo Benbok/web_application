@@ -17,9 +17,10 @@ class BaseAssignment(models.Model):
 
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, verbose_name="Пациент")
     assigning_doctor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Назначивший врач")
-    start_date = models.DateTimeField("Дата начала", null=False, blank=False)
-    end_date = models.DateTimeField("Дата завершения", null=True, blank=True)
+    start_date = models.DateTimeField("Дата и время назначения", null=False, blank=False)
+    end_date = models.DateTimeField("Дата и время завершения", null=True, blank=True)
     notes = models.TextField("Примечания", blank=True, null=True)
+    cancellation_reason = models.TextField("Причина отмены", blank=True, null=True)
 
     STATUS_CHOICES = [
         ('active', 'Активно'),

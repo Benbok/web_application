@@ -1,6 +1,7 @@
 # treatment_assignments/forms.py
 from django import forms
-from .models import MedicationAssignment, GeneralTreatmentAssignment, LabTestAssignment, InstrumentalProcedureAssignment
+from .models import MedicationAssignment, GeneralTreatmentAssignment, LabTestAssignment, InstrumentalProcedureAssignment, BaseAssignment
+from instrumental_procedures.models import InstrumentalProcedureResult
 from pharmacy.models import Medication
 from django.contrib.auth import get_user_model
 from django_select2.forms import Select2Widget
@@ -10,6 +11,7 @@ User = get_user_model()
 
 # Базовая форма для всех типов назначений
 class BaseAssignmentForm(forms.ModelForm):
+
     def __init__(self, *args, **kwargs):
         self.request_user = kwargs.pop('request_user', None)
         self.content_object = kwargs.pop('content_object', None)
@@ -27,6 +29,10 @@ class BaseAssignmentForm(forms.ModelForm):
         if self.instance.pk:
             self.fields['patient'].widget = forms.HiddenInput()
 
+        self.fields['end_date'].disabled = True
+        self.fields['cancellation_reason'].widget = forms.Textarea(attrs={'rows': 2, 'style': 'display:none;'})
+        self.fields['cancellation_reason'].required = False
+
     def save(self, commit=True):
         """
         Переопределяем метод сохранения для добавления кастомной логики
@@ -37,24 +43,37 @@ class BaseAssignmentForm(forms.ModelForm):
 
         # Получаем значения из проверенных данных формы.
         status = self.cleaned_data.get('status')
-        end_date = self.cleaned_data.get('end_date')
 
-        # ЛОГИКА 1: Если пользователь установил статус "Завершено",
-        # а дату завершения оставил пустой, то устанавливаем текущее время.
-        if status == 'active':
-            instance.end_date = None
-
-            # ПРАВИЛО 2: Если статус НЕ "Активно" и пользователь указал дату завершения,
-            # то мы принудительно устанавливаем статус "Завершено".
-        elif end_date:
-            instance.status = 'completed'
-
-            # ПРАВИЛО 3 (на всякий случай): Если пользователь выбрал "Завершено",
-            # но не указал дату, подставим текущую.
-        elif status == 'completed':
-            # instance.end_date тут будет пустым, т.к. мы прошли проверку 'elif end_date'
-            instance.end_date = timezone.now()
-
+        # Логика для InstrumentalProcedureAssignment
+        if isinstance(instance, InstrumentalProcedureAssignment):
+            if status == 'completed':
+                # Пытаемся получить последний результат для этого назначения
+                latest_result = InstrumentalProcedureResult.objects.filter(
+                    instrumental_procedure_assignment=instance
+                ).order_by('-datetime_result').first()
+                if latest_result:
+                    instance.end_date = latest_result.datetime_result
+                else:
+                    # Если результата нет, но статус завершен, ставим текущее время
+                    instance.end_date = timezone.now()
+            elif status == 'active' or status == 'paused':
+                instance.end_date = None
+            elif status == 'canceled':
+                instance.end_date = timezone.now()
+                if not self.cleaned_data.get('cancellation_reason'):
+                    self.add_error('cancellation_reason', 'Пожалуйста, укажите причину отмены.')
+        else:
+            # Общая логика для других типов назначений
+            if status == 'canceled':
+                instance.end_date = timezone.now()
+                if not self.cleaned_data.get('cancellation_reason'):
+                    self.add_error('cancellation_reason', 'Пожалуйста, укажите причину отмены.')
+            elif status == 'paused' or status == 'active':
+                instance.end_date = None
+            elif status == 'completed':
+                # Если статус завершен, но дата не указана, ставим текущее время
+                if not self.cleaned_data.get('end_date'):
+                    instance.end_date = timezone.now()
 
         # Если commit=True, сохраняем измененный объект в базу данных.
         if commit:
@@ -88,7 +107,7 @@ class MedicationAssignmentForm(BaseAssignmentForm):
         fields = [
             'patient', 'assigning_doctor', 'patient_weight',
             'medication', 'frequency', 'duration', 'route',
-            'notes', 'status', 'start_date', 'end_date',
+            'notes', 'status', 'start_date', 'end_date', 'cancellation_reason',
         ]
         widgets = {
             'patient': forms.HiddenInput(),
@@ -167,7 +186,7 @@ class GeneralTreatmentAssignmentForm(BaseAssignmentForm):
         model = GeneralTreatmentAssignment
         fields = [
             'patient', 'assigning_doctor', 'general_treatment',
-            'notes', 'status', 'start_date', 'end_date',
+            'notes', 'status', 'start_date', 'end_date', 'cancellation_reason',
         ]
         widgets = {
             'patient': forms.HiddenInput(),
@@ -194,7 +213,7 @@ class LabTestAssignmentForm(BaseAssignmentForm):
         model = LabTestAssignment
         fields = [
             'patient', 'assigning_doctor', 'lab_test',
-            'notes', 'status', 'start_date', 'end_date',
+            'notes', 'status', 'start_date', 'end_date', 'cancellation_reason',
         ]
         widgets = {
             'patient': forms.HiddenInput(),
@@ -221,7 +240,7 @@ class InstrumentalProcedureAssignmentForm(BaseAssignmentForm):
         model = InstrumentalProcedureAssignment
         fields = [
             'patient', 'assigning_doctor', 'instrumental_procedure',
-            'notes', 'status', 'start_date', 'end_date',
+            'notes', 'status', 'start_date', 'end_date', 'cancellation_reason',
         ]
         widgets = {
             'patient': forms.HiddenInput(),

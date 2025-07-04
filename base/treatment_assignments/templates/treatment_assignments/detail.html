@@ -80,7 +80,7 @@
             </li>
         </ul>
 
-        {# --- БЛОК С КНОПКАМИ (ИСПРАВЛЕННЫЙ) --- #}
+        {# --- БЛОК С КНОПКАМИ (ОБНОВЛЕННЫЙ) --- #}
         <div class="d-flex gap-2 mt-3">
             <a href="{{ assignment.get_update_url }}?next={{ request.get_full_path|urlencode }}" class="btn btn-outline-primary">
                 <i class="fas fa-edit me-1"></i> Редактировать
@@ -88,6 +88,14 @@
             <a href="{% url 'treatment_assignments:assignment_delete' assignment_type=assignment.assignment_type pk=assignment.pk %}?next={{ next_url|urlencode }}" class="btn btn-outline-danger">
                 <i class="fas fa-trash-alt me-1"></i> Удалить
             </a>
+
+            {# --- НОВАЯ КНОПКА ДЛЯ ПРОСМОТРА РЕЗУЛЬТАТА --- #}
+            {% if assignment_type == 'instrumental' and assignment.results.first %}
+                <a href="{% url 'instrumental_procedures:result_detail' pk=assignment.results.first.pk %}" class="btn btn-info">
+                    <i class="fas fa-file-alt me-1"></i> Посмотреть результат
+                </a>
+            {% endif %}
+
             <a href="{{ next_url }}" class="btn btn-secondary ms-auto">
                 <i class="fas fa-arrow-left me-1"></i> Назад
             </a>

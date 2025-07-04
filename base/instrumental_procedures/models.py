@@ -1,4 +1,8 @@
 from django.db import models
+from django.conf import settings
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
+from django.utils import timezone
 
 class InstrumentalProcedureDefinition(models.Model):
     name = models.CharField("Название инструментального исследования", max_length=255, unique=True)
@@ -11,3 +15,41 @@ class InstrumentalProcedureDefinition(models.Model):
 
     def __str__(self):
         return self.name
+
+class InstrumentalProcedureResultType(models.Model):
+    name = models.CharField("Название типа результата исследования", max_length=255, unique=True)
+    schema = models.JSONField("Схема полей результата (JSON)", help_text="Описывает поля, их типы и метки")
+
+    class Meta:
+        verbose_name = "Тип результата инструментального исследования"
+        verbose_name_plural = "Типы результатов инструментальных исследований"
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+class InstrumentalProcedureResult(models.Model):
+    instrumental_procedure_assignment = models.ForeignKey(
+        'treatment_assignments.InstrumentalProcedureAssignment',
+        on_delete=models.CASCADE,
+        related_name='results',
+        verbose_name="Назначение инструментального исследования"
+    )
+    result_type = models.ForeignKey(
+        InstrumentalProcedureResultType,
+        on_delete=models.PROTECT,
+        verbose_name="Тип результата"
+    )
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, verbose_name="Автор")
+    datetime_result = models.DateTimeField("Дата результата", default=timezone.now)
+    data = models.JSONField("Данные результата", default=dict)
+    created_at = models.DateTimeField("Создан", auto_now_add=True)
+    updated_at = models.DateTimeField("Обновлён", auto_now=True)
+
+    class Meta:
+        verbose_name = "Результат инструментального исследования"
+        verbose_name_plural = "Результаты инструментальных исследований"
+        ordering = ["-datetime_result"]
+
+    def __str__(self):
+        return f"Результат {self.result_type.name} для {self.instrumental_procedure_assignment.patient} от {self.datetime_result.strftime('%d.%m.%Y')}"
