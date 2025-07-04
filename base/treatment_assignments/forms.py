@@ -29,7 +29,6 @@ class BaseAssignmentForm(forms.ModelForm):
         if self.instance.pk:
             self.fields['patient'].widget = forms.HiddenInput()
 
-        self.fields['end_date'].disabled = True
         self.fields['cancellation_reason'].widget = forms.Textarea(attrs={'rows': 2, 'style': 'display:none;'})
         self.fields['cancellation_reason'].required = False
 
@@ -142,6 +141,7 @@ class MedicationAssignmentForm(BaseAssignmentForm):
         self.fields['calculated_dosage'].disabled = True
         self.fields['default_dosage_per_kg_unit_display'].disabled = True
 
+
         # Если форма не отправлена (GET-запрос) и это существующий объект (для редактирования),
         # заполняем поля дозировки, частоты и длительности из Medication.
         if not self.data and self.instance.pk and self.instance.medication:
@@ -234,6 +234,10 @@ class LabTestAssignmentForm(BaseAssignmentForm):
             'end_date': 'Дата завершения',
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['end_date'].disabled = True
+
 
 class InstrumentalProcedureAssignmentForm(BaseAssignmentForm):
     class Meta:
@@ -260,3 +264,7 @@ class InstrumentalProcedureAssignmentForm(BaseAssignmentForm):
             'start_date': 'Дата начала',
             'end_date': 'Дата завершения',
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['end_date'].disabled = True
