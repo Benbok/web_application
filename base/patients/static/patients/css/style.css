@@ -633,8 +633,23 @@ body {
 }
 
 .app-container.sidebar-collapsed .nav-icon {
-    margin-right: 0;
-    font-size: 20px;
+    font-size: 18px;
+    margin-right: 10px;
+    width: 24px;
+    text-align: center;
+    transition: all var(--transition-speed) ease;
+}
+
+.nav-text {
+    transition: all var(--transition-speed) ease;
+}
+
+.badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    font-size: 10px;
+    padding: 3px 5px;
 }
 
 .app-container.sidebar-collapsed .sidebar-footer {
@@ -692,4 +707,21 @@ body {
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+.sidebar-menu .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nav-icon {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.nav-text {
+  flex: 1;
 }

@@ -69,37 +69,27 @@
         <div class="sidebar-menu">
           <ul class="nav flex-column">
             <li class="nav-item">
-              <a
-                href="{% url 'patients:home' %}"
-                class="nav-link {% block active_dashboard %} {% endblock %}"
-              >
+              <a href="{% url 'patients:home' %}" class="nav-link {% block active_dashboard %}{% endblock %}">
                 <i class="fas fa-home nav-icon"></i>
                 <span class="nav-text">Главная</span>
               </a>
             </li>
             <li class="nav-item">
-              <a
-                href="{% url 'patients:patient_list' %}"
-                class="nav-link {% block active_patients %} {% endblock %}"
-              >
+              <a href="{% url 'patients:patient_list' %}" class="nav-link {% block active_patients %}{% endblock %}">
                 <i class="fas fa-user-injured nav-icon"></i>
                 <span class="nav-text">Пациенты</span>
-                <span class="badge bg-primary rounded-pill ms-auto">14</span>
               </a>
             </li>
             <li class="nav-item">
-              <a
-                class="nav-link {% block active_departments %}{% endblock %}"
-                href="{% url 'departments:department_list' %}"
-              >
-                <i class="fas fa-hospital me-1"></i> Отделения
+              <a class="nav-link {% block active_departments %}{% endblock %}" href="{% url 'departments:department_list' %}">
+                <i class="fas fa-hospital nav-icon"></i>
+                <span class="nav-text">Отделения</span>
               </a>
             </li>
             <li class="nav-item">
               <a href="#" class="nav-link">
                 <i class="fas fa-calendar-check nav-icon"></i>
                 <span class="nav-text">Записи</span>
-                <span class="badge bg-danger rounded-pill ms-auto">3</span>
               </a>
             </li>
             <li class="nav-item">
@@ -115,19 +105,15 @@
               </a>
             </li>
             <li class="nav-item">
-              <a
-                class="nav-link {% block active_pharmacy %}{% endblock %}"
-                href="{% url 'pharmacy:medication_list' %}"
-              >
-                <i class="fas fa-pills me-1"></i> Аптека
+              <a class="nav-link {% block active_pharmacy %}{% endblock %}" href="{% url 'pharmacy:medication_list' %}">
+                <i class="fas fa-pills nav-icon"></i>
+                <span class="nav-text">Аптека</span>
               </a>
             </li>
             <li class="nav-item">
-              <a
-                class="nav-link {% block active_instrumental_procedures %}{% endblock %}"
-                href="{% url 'instrumental_procedures:assignment_list' %}"
-              >
-                <i class="fas fa-x-ray me-1"></i> Исследования
+              <a class="nav-link {% block active_instrumental_procedures %}{% endblock %}" href="{% url 'instrumental_procedures:assignment_list' %}">
+                <i class="fas fa-x-ray nav-icon"></i>
+                <span class="nav-text">Исследования</span>
               </a>
             </li>
             <li class="nav-item">
@@ -138,6 +124,7 @@
             </li>
           </ul>
         </div>
+
 
         <div class="sidebar-footer">
           <div class="user-profile">
