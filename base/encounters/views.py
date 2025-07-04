@@ -65,6 +65,46 @@ class EncounterUpdateView(UpdateView):
         context['title'] = 'Редактировать обращение'
         return context
 
+    def form_valid(self, form):
+        old_outcome = self.get_object().outcome
+        old_transfer_to_department = self.get_object().transfer_to_department
+
+        response = super().form_valid(form)
+
+        new_outcome = self.object.outcome
+        new_transfer_to_department = self.object.transfer_to_department
+
+        # Логика для PatientDepartmentStatus при изменении перевода
+        if old_outcome == 'transferred' and old_transfer_to_department:
+            # Если раньше был перевод, и он изменился или отменился
+            if new_outcome != 'transferred' or new_transfer_to_department != old_transfer_to_department:
+                # Отменяем старую запись PatientDepartmentStatus
+                patient_dept_status = PatientDepartmentStatus.objects.filter(
+                    patient=self.object.patient,
+                    department=old_transfer_to_department,
+                    source_encounter=self.object
+                ).order_by('-admission_date').first()
+                if patient_dept_status:
+                    if patient_dept_status.cancel_transfer():
+                        messages.info(self.request, f"Предыдущий перевод в отделение «{old_transfer_to_department.name}» отменен.")
+                    else:
+                        messages.warning(self.request, f"Не удалось отменить предыдущий перевод в отделение «{old_transfer_to_department.name}».")
+
+        if new_outcome == 'transferred' and new_transfer_to_department:
+            # Если сейчас перевод, и он новый или изменился
+            if old_outcome != 'transferred' or new_transfer_to_department != old_transfer_to_department:
+                # Создаем новую запись PatientDepartmentStatus
+                PatientDepartmentStatus.objects.create(
+                    patient=self.object.patient,
+                    department=new_transfer_to_department,
+                    status='pending',
+                    source_encounter=self.object
+                )
+                messages.success(self.request, f"Пациент переведен в отделение «{new_transfer_to_department.name}».")
+
+        messages.success(self.request, "Обращение успешно обновлено.")
+        return response
+
     def get_success_url(self):
         return reverse('encounters:encounter_detail', kwargs={'pk': self.object.pk})
 

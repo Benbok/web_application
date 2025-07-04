@@ -144,9 +144,9 @@
 
 {# Добавлен блок для вывода сообщений Django #}
 {% if messages %}
-<ul class="messages">
+<ul class="list-unstyled mt-3">
   {% for message in messages %}
-  <li {% if message.tags %} class="{{ message.tags }}" {% endif %}>
+  <li class="alert alert-{{ message.tags }} {% if message.tags %}{{ message.tags }}{% endif %}">
     {{ message }}
   </li>
   {% endfor %}

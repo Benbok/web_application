@@ -1,4 +1,5 @@
 {% extends 'patients/base.html' %} {# Или ваш базовый шаблон #}
+{% load widget_tweaks %}
 
 {% block title %}{{ title }}{% endblock %}
 
@@ -8,7 +9,22 @@
 
     <form method="post">
         {% csrf_token %}
-        {{ form.as_p }}
+        {% for field in form %}
+            <div class="mb-3">
+                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                {% if field.name == 'outcome' or field.name == 'transfer_to_department' %}
+                    {{ field|add_class:"form-select" }}
+                {% else %}
+                    {{ field|add_class:"form-control" }}
+                {% endif %}
+                {% if field.help_text %}
+                    <div class="form-text">{{ field.help_text }}</div>
+                {% endif %}
+                {% for error in field.errors %}
+                    <div class="text-danger small">{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endfor %}
         <button type="submit" class="btn btn-primary">Завершить</button>
         <a href="{% url 'encounters:encounter_detail' pk=encounter.pk %}" class="btn btn-secondary">Отмена</a>
     </form>

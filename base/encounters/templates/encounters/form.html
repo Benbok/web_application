@@ -1,4 +1,5 @@
 {% extends "patients/base.html" %}
+{% load widget_tweaks %}
 {% block title %}{{ title }}{% endblock %}
 {% block content %}
 <div class="card mt-4">
@@ -9,7 +10,11 @@
             {% for field in form %}
                 <div class="mb-3">
                     <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                    {{ field }}
+                    {% if field.name == 'transfer_to_department' %}
+                        {{ field|add_class:"form-select" }}
+                    {% else %}
+                        {{ field|add_class:"form-control" }}
+                    {% endif %}
                     {% if field.help_text %}
                         <div class="form-text">{{ field.help_text }}</div>
                     {% endif %}
@@ -19,8 +24,27 @@
                 </div>
             {% endfor %}
             <button type="submit" class="btn btn-primary">Сохранить</button>
-            <a href="{% url 'patients:patient_detail' patient.pk %}" class="btn btn-secondary">Отмена</a>
+            <a href="{% if encounter %}{% url 'encounters:encounter_detail' encounter.pk %}{% else %}{% url 'patients:patient_detail' patient.pk %}{% endif %}" class="btn btn-secondary">Отмена</a>
         </form>
     </div>
 </div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const outcomeSelect = document.getElementById('id_outcome');
+        const transferToDepartmentField = document.getElementById('id_transfer_to_department');
+
+        function toggleTransferField() {
+            if (outcomeSelect.value === 'transferred') {
+                transferToDepartmentField.closest('.mb-3').style.display = 'block';
+            } else {
+                transferToDepartmentField.closest('.mb-3').style.display = 'none';
+            }
+        }
+
+        if (outcomeSelect && transferToDepartmentField) {
+            outcomeSelect.addEventListener('change', toggleTransferField);
+            toggleTransferField(); // Вызываем при загрузке страницы для установки начального состояния
+        }
+    });
+</script>
 {% endblock %}

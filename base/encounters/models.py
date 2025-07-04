@@ -40,8 +40,8 @@ class Encounter(models.Model):
 
     def __str__(self):
         if self.outcome:
-            return f"{self.get_type_display()} от {self.date_start.strftime('%d.%m.%Y')} — {self.patient.full_name} ({self.get_outcome_display()})"
-        return f"{self.get_type_display()} от {self.date_start.strftime('%d.%m.%Y')} — {self.patient.full_name}"
+            return f"Случай от {self.date_start.strftime('%d.%m.%Y')} — {self.patient.full_name} ({self.get_outcome_display()})"
+        return f"Случай от {self.date_start.strftime('%d.%m.%Y')} — {self.patient.full_name}"
 
     def save(self, *args, **kwargs):
         if self.date_end and self.outcome:

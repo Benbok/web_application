@@ -6,7 +6,13 @@ from .forms import PatientForm
 from encounters.models import Encounter
 
 def home(request):
-    return render(request, 'patients/home.html')
+    latest_patients = Patient.objects.order_by('-created_at')[:5]
+    total_patients = Patient.objects.count()
+    context = {
+        'latest_patients': latest_patients,
+        'total_patients': total_patients,
+    }
+    return render(request, 'patients/home.html', context)
 
 def patient_list(request):
     query = request.GET.get('q')

@@ -11,14 +11,38 @@ class EncounterForm(forms.ModelForm):
         }
 
 class EncounterUpdateForm(forms.ModelForm):
+    transfer_to_department = forms.ModelChoiceField(
+        queryset=Department.objects.all(),
+        required=False,
+        label="Переведен в отделение"
+    )
+
     class Meta:
         model = Encounter
-        fields = ['date_start', 'date_end', 'doctor']
+        fields = ['date_start', 'date_end', 'outcome', 'transfer_to_department']
         widgets = {
             'date_start': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
             'date_end': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
-            'doctor': forms.Select(attrs={'class': 'form-select'}),
+            'outcome': forms.Select(attrs={'class': 'form-select'}),
+            'transfer_to_department': forms.Select(attrs={'class': 'form-select'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Изначально скрываем поле transfer_to_department, если outcome не 'transferred'
+        if self.instance and self.instance.outcome != 'transferred':
+            self.fields['transfer_to_department'].widget.attrs['style'] = 'display:none;'
+
+    def clean(self):
+        cleaned_data = super().clean()
+        outcome = cleaned_data.get('outcome')
+        transfer_to_department = cleaned_data.get('transfer_to_department')
+
+        if outcome == 'transferred' and not transfer_to_department:
+            self.add_error('transfer_to_department', "Для перевода необходимо выбрать отделение.")
+        elif outcome != 'transferred' and transfer_to_department:
+            self.add_error('transfer_to_department', "Отделение для перевода может быть выбрано только при исходе 'Переведён'.")
+        return cleaned_data
       
 class EncounterCloseForm(forms.ModelForm):
     transfer_to_department = forms.ModelChoiceField(
