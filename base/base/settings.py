@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'lab_tests',
     'instrumental_procedures',
     'profiles',
+    'newborns',
 ]
 
 MIDDLEWARE = [

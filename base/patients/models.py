@@ -6,6 +6,26 @@ from django.core.validators import RegexValidator
 from datetime import date
 
 class Patient(models.Model):
+    PATIENT_TYPE_CHOICES = [
+        ('adult', 'Взрослый'),
+        ('newborn', 'Новорожденный'),
+        ('child', 'Ребенок'),
+        ('teen', 'Подросток')
+    ]
+    patient_type = models.CharField(
+        "Тип пациента",
+        max_length=10,
+        choices=PATIENT_TYPE_CHOICES,
+        default='adult',
+    )
+    parents = models.ManyToManyField(
+        'self',
+        symmetrical=False,
+        blank=True,
+        related_name='children',
+        verbose_name="Родители"
+    )
+
     # FHIR: name
     last_name = models.CharField("Фамилия", max_length=100)
     first_name = models.CharField("Имя", max_length=100)
@@ -68,4 +88,10 @@ class Patient(models.Model):
         if self.birth_date:
             today = date.today()
             return today.year - self.birth_date.year - ((today.month, today.day) < (self.birth_date.month, self.birth_date.day))
+        return None
+
+    @property
+    def newborn_profile(self):
+        if self.patient_type == 'newborn':
+            return getattr(self, '_newborn_profile', None)
         return None
