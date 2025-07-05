@@ -1,5 +1,5 @@
 from django.db.models import Q
-from django.views.generic import ListView, DetailView, View, CreateView
+from django.views.generic import ListView, DetailView, View, UpdateView
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.contrib import messages
@@ -7,10 +7,10 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.contenttypes.models import ContentType
 from django.core.paginator import Paginator
 
+
 from .models import Department, PatientDepartmentStatus 
 from documents.models import ClinicalDocument
-from .forms import DocumentAndAssignmentFilterForm # Импортируем новую форму
-
+from .forms import DocumentAndAssignmentFilterForm, PatientAcceptanceForm
 from treatment_assignments.models import MedicationAssignment, GeneralTreatmentAssignment, LabTestAssignment, InstrumentalProcedureAssignment
 
 class DepartmentListView(ListView):
@@ -208,6 +208,38 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
 
         return context
 
+
+class PatientAcceptanceView(LoginRequiredMixin, UpdateView):
+    model = PatientDepartmentStatus
+    form_class = PatientAcceptanceForm
+    template_name = 'departments/acceptance_form.html' # Мы создадим этот шаблон
+    context_object_name = 'patient_status'
+
+    def form_valid(self, form):
+        """Переопределяем метод, чтобы обновить статус при сохранении."""
+        patient_status = form.save(commit=False)
+        patient_status.status = 'accepted'
+        patient_status.accepted_by = self.request.user
+        patient_status.save()
+        messages.success(self.request, f"Пациент {patient_status.patient.full_name} успешно принят в отделение.")
+        return redirect(self.get_success_url())
+
+    def get_success_url(self):
+        """
+        Перенаправляет на URL из параметра 'next', если он есть.
+        В противном случае - на страницу отделения.
+        """
+        return self.request.GET.get('next', reverse('departments:department_detail', kwargs={'pk': self.object.department.pk}))
+
+    def get_context_data(self, **kwargs):
+        """
+        Передаем URL для возврата в контекст шаблона для кнопки "Отмена".
+        """
+        context = super().get_context_data(**kwargs)
+        context['title'] = f"Принятие пациента: {self.object.patient.full_name}"
+        # Используем тот же метод, что и для get_success_url
+        context['next_url'] = self.get_success_url()
+        return context
 
 class PatientDepartmentDischargeView(LoginRequiredMixin, View):
     """

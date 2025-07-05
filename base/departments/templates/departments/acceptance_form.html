@@ -1,0 +1,24 @@
+{% extends 'patients/base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="card mt-4">
+    <div class="card-body">
+        <h4 class="card-title mb-4">{{ title }}</h4>
+        <p>Отделение: <strong>{{ patient_status.department.name }}</strong></p>
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+                {{ form.acceptance_date.label_tag }}
+                {{ form.acceptance_date }}
+                {% if form.acceptance_date.errors %}
+                    <div class="text-danger small mt-1">{{ form.acceptance_date.errors|join:", " }}</div>
+                {% endif %}
+            </div>
+            <button type="submit" class="btn btn-primary">Подтвердить принятие</button>
+            <a href="{{ next_url }}" class="btn btn-secondary ms-2">Отмена</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

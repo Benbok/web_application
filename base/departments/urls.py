@@ -10,4 +10,5 @@ urlpatterns = [
     path('<int:department_pk>/patient_status/<int:pk>/accept/', views.PatientDepartmentAcceptView.as_view(), name='patient_status_accept'),
     path('<int:department_pk>/patient_status/<int:pk>/discharge/', views.PatientDepartmentDischargeView.as_view(), name='patient_status_discharge'),
     path('patient_status/<int:pk>/history/', views.PatientDepartmentHistoryView.as_view(), name='patient_history'),
+    path('patient_status/<int:pk>/accept/', views.PatientAcceptanceView.as_view(), name='patient_accept_form'),
 ]

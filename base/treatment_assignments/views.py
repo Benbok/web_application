@@ -277,39 +277,34 @@ class DailyTreatmentPlanView(LoginRequiredMixin, View):
                         result_marker.display_type = 'result'
                         daily_plan_dict[assignment_end_date]['instrumental_procedures'].append(result_marker)
 
-            # ПРАВИЛО 2: Общая логика для всех остальных назначений
+            # --- НАЧАЛО НОВОГО БЛОКА ---
+            # ПРАВИЛО 2: Такая же логика для лабораторных анализов
+            elif isinstance(assignment, LabTestAssignment):
+                assignment_start_date = assignment.start_date.date()
+                # Показываем назначение ТОЛЬКО в день его создания
+                if start_date <= assignment_start_date <= end_date:
+                    assignment.display_type = 'order'
+                    daily_plan_dict[assignment_start_date]['lab_tests'].append(assignment)
+
+                # Если анализ выполнен, добавляем отметку о результате
+                if assignment.status == 'completed' and assignment.end_date:
+                    assignment_end_date = assignment.end_date.date()
+                    if start_date <= assignment_end_date <= end_date and assignment_end_date != assignment_start_date:
+                        result_marker = copy.copy(assignment)
+                        result_marker.display_type = 'result'
+                        daily_plan_dict[assignment_end_date]['lab_tests'].append(result_marker)
+            # --- КОНЕЦ НОВОГО БЛОКА ---
+
+            # ПРАВИЛО 3: Общая логика для всех остальных назначений (медикаменты, общие)
             else:
                 assignment_start = assignment.start_date.date()
                 assignment_end = None
 
-                if isinstance(assignment, MedicationAssignment):
-                    effective_end_date = None
-                    # Calculate end date based on duration_days if available
-                    if assignment.duration_days:
-                        duration_based_end_date = assignment_start + timedelta(days=assignment.duration_days - 1)
-                        effective_end_date = duration_based_end_date
+                if isinstance(assignment, MedicationAssignment) and assignment.duration_days:
+                    assignment_end = assignment_start + timedelta(days=assignment.duration_days - 1)
 
-                    # If end_date is explicitly set, compare it with duration_based_end_date
-                    if assignment.end_date:
-                        explicit_end_date = assignment.end_date.date()
-                        if effective_end_date:
-                            # Choose the earlier of the two
-                            effective_end_date = min(effective_end_date, explicit_end_date)
-                        else:
-                            # If no duration_days, use explicit_end_date
-                            effective_end_date = explicit_end_date
-                    
-                    # If no effective_end_date determined yet (e.g., no duration_days and no explicit end_date),
-                    # then it should probably run until the end of the displayed period or indefinitely.
-                    # The original code used `end_date` (the view's end_date) if `assignment.end_date` was not set.
-                    if not effective_end_date:
-                        effective_end_date = end_date # This `end_date` is the view's `end_date` parameter.
-
-                    assignment_end = effective_end_date
-                else:
-                    # Original logic for other assignment types
-                    if not assignment_end:
-                        assignment_end = assignment.end_date.date() if assignment.end_date else end_date
+                if not assignment_end:
+                    assignment_end = assignment.end_date.date() if assignment.end_date else end_date
 
                 current_date = max(assignment_start, start_date)
                 while current_date <= min(assignment_end, end_date):
@@ -317,8 +312,6 @@ class DailyTreatmentPlanView(LoginRequiredMixin, View):
                         daily_plan_dict[current_date]['medications'].append(assignment)
                     elif isinstance(assignment, GeneralTreatmentAssignment):
                         daily_plan_dict[current_date]['general_treatments'].append(assignment)
-                    elif isinstance(assignment, LabTestAssignment):
-                        daily_plan_dict[current_date]['lab_tests'].append(assignment)
                     current_date += timedelta(days=1)
         # --- КОНЕЦ ИСПРАВЛЕННОЙ ЛОГИКИ ЦИКЛА ---
 

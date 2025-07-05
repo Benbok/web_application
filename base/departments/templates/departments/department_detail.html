@@ -95,18 +95,21 @@
                 <a href="{% url 'patients:patient_detail' patient_status.patient.pk %}">
                   {{ patient_status.patient.full_name }}
                 </a>
-                <br />
+                <br/>
                 <small class="text-muted">
-                  Принят: {{ patient_status.acceptance_date|date:'d.m.YH:i'}}
+                  Принят: {{ patient_status.acceptance_date|date:'d.m.Y H:i'}}
                   </small>
               </div>
               <div class="d-flex gap-2">
-                <a
-                  href="{% url 'departments:patient_history' patient_status.pk %}"
-                  class="btn btn-sm btn-outline-info"
-                >
-                  <i class="fas fa-user me-1"></i> Карточка пациента
-                </a>
+                {% if patient_status.acceptance_date %}
+                  <a href="{% url 'departments:patient_history' patient_status.pk %}" class="btn btn-sm btn-outline-info">
+                      <i class="fas fa-user me-1"></i> Карточка пациента
+                  </a>
+              {% else %}
+                  <a href="{% url 'departments:patient_accept_form' pk=patient_status.pk %}" class="btn btn-sm btn-warning">
+                      <i class="fas fa-calendar-check me-1"></i> Заполнить дату
+                  </a>
+              {% endif %}
               </div>
             </li>
             {% endfor %}

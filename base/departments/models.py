@@ -5,8 +5,6 @@ from django.conf import settings
 from django.utils import timezone
 from django.contrib.contenttypes.fields import GenericRelation
 
-from django.contrib.contenttypes.fields import GenericRelation
-
 class Department(models.Model):
     name = models.CharField("Наименование отделения", max_length=255)
     description = models.TextField("Описание", blank=True)
@@ -64,7 +62,6 @@ class PatientDepartmentStatus(models.Model):
         if self.status == 'pending':
             self.status = 'accepted'
             self.accepted_by = user
-            self.acceptance_date = timezone.now()
             self.save()
             return True
         return False

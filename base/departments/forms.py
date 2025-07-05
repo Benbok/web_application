@@ -1,10 +1,24 @@
 
 from django import forms
 from django.contrib.auth import get_user_model
-from datetime import date, timedelta
-from documents.models import DocumentType # Импортируем DocumentType
+from documents.models import DocumentType
+
+from .models import PatientDepartmentStatus
 
 User = get_user_model()
+
+class PatientAcceptanceForm(forms.ModelForm):
+    class Meta:
+        model = PatientDepartmentStatus
+        fields = ['acceptance_date']
+        widgets = {
+            'acceptance_date': forms.DateTimeInput(
+                attrs={'type': 'datetime-local', 'class': 'form-control'}
+            ),
+        }
+        labels = {
+            'acceptance_date': 'Укажите точную дату и время принятия'
+        }
 
 class DocumentAndAssignmentFilterForm(forms.Form):
     start_date = forms.DateField(
@@ -45,3 +59,4 @@ class DocumentAndAssignmentFilterForm(forms.Form):
         else:
             # Если отделение не передано, показываем все типы документов
             self.fields['document_type'].queryset = DocumentType.objects.all().order_by('name')
+

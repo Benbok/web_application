@@ -2,6 +2,25 @@
 
 <form id="assignmentModalForm" method="post" action="{{ action_url }}?next={{ next_url|urlencode }}">
     {% csrf_token %}
+<!--    Форма проверки на ошибки -->
+    {% if form.errors %}
+        <div class="alert alert-danger">
+            <p><strong>Пожалуйста, исправьте следующие ошибки:</strong></p>
+            <ul>
+                {% for field, error_list in form.errors.items %}
+                    {% for error in error_list %}
+                        <li>
+                            {% if field != '__all__' %}
+                                <strong>{{ form[field].label }}:</strong>
+                            {% endif %}
+                            {{ error }}
+                        </li>
+                    {% endfor %}
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
     <div class="modal-body">
         <div class="row g-3">
             {{ form.patient }}

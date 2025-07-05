@@ -28,8 +28,18 @@
                     <li class="list-group-item">
                         <strong>Отделение:</strong> {{ patient_status.department.name }}
                     </li>
-                    <li class="list-group-item">
-                        <strong>Дата поступления:</strong> {{ patient_status.admission_date|date:'d.m.Y H:i' }}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>Дата поступления:</strong>
+                            {% if patient_status.acceptance_date %}
+                                {{ patient_status.acceptance_date|date:'d.m.Y H:i' }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </div>
+                        <a href="{% url 'departments:patient_accept_form' pk=patient_status.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-outline-secondary" title="Редактировать дату принятия">
+                            <i class="fas fa-calendar-alt"></i>
+                        </a>
                     </li>
                     <li class="list-group-item">
                         <strong>Дата выписки:</strong>

@@ -81,19 +81,28 @@
                             <th scope="row">Лабораторные исследования</th>
                             {% for date, daily_data in daily_plan_list %}
                             <td data-date="{{ date|date:'Y-m-d' }}" class="{% if date == today %}table-success{% endif %}">
-                                    {% for assignment in daily_data.lab_tests %}
-                                        <div class="assignment-item {% if assignment.status == 'completed' %}completed-assignment{% endif %}">
-                                            <span class="assignment-badge">
-                                                <a href="{{ assignment.get_absolute_url }}?next={{ request.get_full_path|urlencode }}"
-                                                   data-bs-toggle="tooltip"
-                                                   title="{{ assignment.treatment_name }}">
-                                                    {{ assignment.treatment_name }}
-                                                </a>
-                                            </span>
-                                        </div>
-                                    {% endfor %}
-                                    <button class="btn btn-sm btn-light add-assignment-btn">+</button>
-                                </td>
+                                {% for assignment in daily_data.lab_tests %}
+                                     <div class="assignment-item {% if assignment.status == 'completed' and assignment.display_type == 'order' %}completed-assignment{% endif %}">
+
+                                        {# Добавляем условные классы для цвета в зависимости от статуса #}
+                                        <span class="assignment-badge
+                                                     {% if assignment.status != 'completed' %}badge-pending{% endif %}
+                                                     {% if assignment.status == 'completed' %}badge-completed{% endif %}">
+
+                                            <a href="{{ assignment.get_absolute_url }}?next={{ request.get_full_path|urlencode }}"
+                                               data-bs-toggle="tooltip"
+                                               title="{{ assignment.treatment_name }}{% if assignment.display_type == 'result' %} (Результат){% endif %}">
+
+                                                {{ assignment.treatment_name }}
+                                                {% if assignment.display_type == 'result' %}
+                                                    (Результат)
+                                                {% endif %}
+                                            </a>
+                                        </span>
+                                    </div>
+                                {% endfor %}
+                                <button class="btn btn-sm btn-light add-assignment-btn">+</button>
+                            </td>
                             {% endfor %}
                         </tr>
                         <tr data-assignment-type="instrumental">
