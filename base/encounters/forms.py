@@ -29,14 +29,13 @@ class EncounterUpdateForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Изначально скрываем поле transfer_to_department, если outcome не 'transferred'
-        if self.instance and self.instance.outcome != 'transferred':
-            self.fields['transfer_to_department'].widget.attrs['style'] = 'display:none;'
+        # Логика видимости поля transfer_to_department будет управляться JavaScript в шаблоне
 
     def clean(self):
         cleaned_data = super().clean()
         outcome = cleaned_data.get('outcome')
         transfer_to_department = cleaned_data.get('transfer_to_department')
+        date_end = cleaned_data.get('date_end')
 
         if outcome == 'transferred' and not transfer_to_department:
             self.add_error('transfer_to_department', "Для перевода необходимо выбрать отделение.")

@@ -89,7 +89,58 @@
                                     {% endfor %}
                                 </div>
                             </div>
-                            {# Остальные вкладки можно дописать аналогично #}
+                            <div class="tab-pane fade" id="passport" role="tabpanel">
+                                <div class="row">
+                                    {% for field in form.visible_fields %}
+                                        {% if field.name in 'passport_series,passport_number,passport_issued_by,passport_issued_date,passport_department_code' %}
+                                        <div class="col-md-6 mb-3">
+                                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                                            {{ field|add_class:"form-control" }}
+                                            {% if field.errors %}<div class="text-danger small">{{ field.errors|join:", " }}</div>{% endif %}
+                                        </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="idinfo" role="tabpanel">
+                                <div class="row">
+                                    {% for field in form.visible_fields %}
+                                        {% if field.name in 'snils,insurance_policy_number,insurance_company' %}
+                                        <div class="col-md-6 mb-3">
+                                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                                            {{ field|add_class:"form-control" }}
+                                            {% if field.errors %}<div class="text-danger small">{{ field.errors|join:", " }}</div>{% endif %}
+                                        </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="contacts" role="tabpanel">
+                                <div class="row">
+                                    {% for field in form.visible_fields %}
+                                        {% if field.name in 'registration_address,residential_address,phone,email' %}
+                                        <div class="col-md-6 mb-3">
+                                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                                            {{ field|add_class:"form-control" }}
+                                            {% if field.errors %}<div class="text-danger small">{{ field.errors|join:", " }}</div>{% endif %}
+                                        </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="representative" role="tabpanel">
+                                <div class="row">
+                                    {% for field in form.visible_fields %}
+                                        {% if field.name in 'legal_representative_full_name,legal_representative_relation,legal_representative_contacts' %}
+                                        <div class="col-md-6 mb-3">
+                                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                                            {{ field|add_class:"form-control" }}
+                                            {% if field.errors %}<div class="text-danger small">{{ field.errors|join:", " }}</div>{% endif %}
+                                        </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -99,7 +150,13 @@
                 <div>
                     <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> Сохранить</button>
                 </div>
+                {% if encounter_pk %}
+                <a href="{% url 'encounters:encounter_detail' pk=encounter_pk %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Отмена</a>
+                {% elif patient %}
+                <a href="{% url 'patients:patient_detail' pk=patient.pk %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Отмена</a>
+                {% else %}
                 <a href="{% url 'patients:patient_list' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Отмена</a>
+                {% endif %}
             </div>
         </form>
     </div>

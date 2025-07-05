@@ -35,7 +35,7 @@
                             {% endif %}
                             <td>{{ encounter.date_start|date:"d.m.Y H:i" }}</td>
                             <td>{{ encounter.date_end|date:"d.m.Y H:i" }}</td>
-                            <td>
+                            <td class="text-center align-middle">
                                 {% if encounter.is_active %}
                                     <span class="badge bg-success">Активен</span>
                                 {% else %}

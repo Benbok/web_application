@@ -5,6 +5,7 @@ from django.views.generic import DetailView, CreateView, UpdateView, DeleteView
 from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
 from django.http import HttpResponseForbidden
+from django.utils import timezone
 
 from .models import Encounter
 from patients.models import Patient
@@ -68,6 +69,23 @@ class EncounterUpdateView(UpdateView):
     def form_valid(self, form):
         old_outcome = self.get_object().outcome
         old_transfer_to_department = self.get_object().transfer_to_department
+
+        # Если исход пустой, очищаем дату завершения
+        if not form.cleaned_data.get('outcome'):
+            form.instance.date_end = None
+        # Если исход установлен, но дата завершения пуста, заполняем ее текущим временем
+        elif form.cleaned_data.get('outcome') and not form.cleaned_data.get('date_end'):
+            form.instance.date_end = timezone.now()
+
+        # НОВАЯ ЛОГИКА: Проверка наличия документов перед сохранением, если случай закрывается
+        # Случай считается закрытым, если outcome установлен и date_end установлен
+        if form.cleaned_data.get('outcome') and form.instance.date_end:
+            # Получаем актуальный объект Encounter, чтобы проверить его документы
+            # (form.instance может еще не быть сохраненным в базе данных)
+            current_encounter = self.get_object()
+            if not current_encounter.documents.exists():
+                messages.error(self.request, "Невозможно закрыть случай обращения: нет прикрепленных документов.")
+                return self.form_invalid(form) # Возвращаем форму с ошибкой
 
         response = super().form_valid(form)
 

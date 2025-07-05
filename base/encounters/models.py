@@ -55,6 +55,9 @@ class Encounter(models.Model):
         Метод для закрытия случая обращения.
         Позволяет инкапсулировать логику закрытия.
         """
+        if not self.documents.exists():
+            raise ValueError("Необходимо прикрепить хотя бы один документ для закрытия случая.")
+
         if self.is_active:
             self.date_end = timezone.now()
             self.outcome = outcome

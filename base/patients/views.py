@@ -142,6 +142,10 @@ def teen_create(request, parent_id):
 def patient_update(request, pk):
     patient = get_object_or_404(Patient, pk=pk)
     newborn_profile = getattr(patient, '_newborn_profile', None)
+    
+    # Получаем encounter_pk из GET-параметров, если он есть
+    encounter_pk = request.GET.get('encounter_pk') 
+
     if request.method == 'POST':
         form = PatientForm(request.POST, instance=patient)
         profile_form = NewbornProfileForm(request.POST, instance=newborn_profile) if newborn_profile else None
@@ -152,17 +156,28 @@ def patient_update(request, pk):
                     profile = profile_form.save(commit=False)
                     profile.patient = patient
                     profile.save()
-            return redirect('patients:patient_detail', pk=patient.pk)
+            
+            # Если encounter_pk был передан, перенаправляем на страницу приема
+            if encounter_pk:
+                return redirect('encounters:encounter_detail', pk=encounter_pk)
+            else:
+                return redirect('patients:patient_detail', pk=patient.pk)
     else:
         form = PatientForm(instance=patient)
         profile_form = NewbornProfileForm(instance=newborn_profile) if newborn_profile else None
-    return render(request, 'patients/form.html', {
+    
+    context = {
         'form': form,
         'newborn_form': profile_form,
         'title': 'Редактировать пациента',
         'is_newborn_creation_flow': patient.patient_type == 'newborn',
-        'patient': patient
-    })
+        'patient': patient,
+    }
+    # Передаем encounter_pk в контекст шаблона
+    if encounter_pk:
+        context['encounter_pk'] = encounter_pk
+
+    return render(request, 'patients/form.html', context)
 
 def patient_delete(request, pk):
     patient = get_object_or_404(Patient, pk=pk)

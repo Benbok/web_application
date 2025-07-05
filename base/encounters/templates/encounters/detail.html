@@ -48,7 +48,7 @@
         <strong>Переведен в отделение:</strong> <a href="{% url 'departments:department_detail' encounter.transfer_to_department.pk %}">{{ encounter.transfer_to_department.name }}</a>
       </li>
       {% endif %}
-      <li class="list-group-item">
+      <li class="list-group-item d-flex justify-content-start align-items-center">
         <strong>Статус:</strong>
         {% if encounter.is_active %}
         <span class="badge bg-success">Активен</span>
@@ -117,7 +117,7 @@
       >
         <span>
           <strong>Тип документа:</strong> {{ doc.document_type.name }}<br />
-          <strong>Автор:</strong> 
+          <strong>Врач:</strong>
           {% if doc.author.doctor_profile %}
               {{ doc.author.doctor_profile.full_name }}
           {% else %}
@@ -144,13 +144,14 @@
 
 {# Добавлен блок для вывода сообщений Django #}
 {% if messages %}
-<ul class="list-unstyled mt-3">
+<div class="messages mt-3">
   {% for message in messages %}
-  <li class="alert alert-{{ message.tags }} {% if message.tags %}{{ message.tags }}{% endif %}">
+  <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
     {{ message }}
-  </li>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
   {% endfor %}
-</ul>
+</div>
 {% endif %}
 
 {% endblock %}

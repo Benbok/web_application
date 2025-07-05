@@ -328,13 +328,13 @@ body {
     color: var(--primary-color);
 }
 
-.notification-dropdown .badge {
-    position: absolute;
-    top: 0;
-    right: 0;
-    font-size: 10px;
-    padding: 3px 5px;
-}
+/*.notification-dropdown .badge {*/
+/*    position: absolute;*/
+/*    top: 0;*/
+/*    right: 0;*/
+/*    font-size: 10px;*/
+/*    padding: 3px 5px;*/
+/*}*/
 
 .user-avatar-sm {
     width: 36px;
@@ -644,13 +644,13 @@ body {
     transition: all var(--transition-speed) ease;
 }
 
-.badge {
-    position: absolute;
-    top: 0;
-    right: 0;
-    font-size: 10px;
-    padding: 3px 5px;
-}
+/*.badge {*/
+/*    position: absolute;*/
+/*    top: 0;*/
+/*    right: 0;*/
+/*    font-size: 10px;*/
+/*    padding: 3px 5px;*/
+/*}*/
 
 .app-container.sidebar-collapsed .sidebar-footer {
     padding: 15px 0;
