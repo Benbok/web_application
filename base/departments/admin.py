@@ -1,16 +1,20 @@
 from django.contrib import admin
 from .models import Department, PatientDepartmentStatus
 
+from .models import Department
+from .forms import DepartmentForm
+
 @admin.register(Department)
 class DepartmentAdmin(admin.ModelAdmin):
-    list_display = ('name', 'number', 'description')
-    search_fields = ('name', 'number')
+    form = DepartmentForm
+    list_display = ('name', 'slug', 'description')
+    search_fields = ('name', 'slug')
     list_filter = ('name',)
     ordering = ('name',)
 
     fieldsets = (
         (None, {
-            'fields': ('name', 'number', 'description')
+            'fields': ('name', 'slug', 'description')
         }),
     )
 

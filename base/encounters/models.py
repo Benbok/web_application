@@ -3,9 +3,10 @@ from django.conf import settings
 from patients.models import Patient
 from django.utils import timezone
 from django.contrib.contenttypes.fields import GenericRelation
+from django.core.exceptions import ValidationError
 
 from documents.models import ClinicalDocument
-from departments.models import PatientDepartmentStatus
+from departments.models import PatientDepartmentStatus, Department
 
 class Encounter(models.Model):
     OUTCOME_CHOICES = [
@@ -36,19 +37,15 @@ class Encounter(models.Model):
     class Meta:
         verbose_name = "Случай обращения"
         verbose_name_plural = "Случаи обращений"
+        indexes = [
+            models.Index(fields=['is_active']),
+        ]
         ordering = ["is_active", "-date_start"]
 
     def __str__(self):
         if self.outcome:
             return f"Случай от {self.date_start.strftime('%d.%m.%Y')} — {self.patient.full_name} ({self.get_outcome_display()})"
         return f"Случай от {self.date_start.strftime('%d.%m.%Y')} — {self.patient.full_name}"
-
-    def save(self, *args, **kwargs):
-        if self.date_end and self.outcome:
-            self.is_active = False
-        else:
-            self.is_active = True
-        super().save(*args, **kwargs)
         
     def close_encounter(self, outcome, transfer_department=None):
         """
@@ -118,3 +115,25 @@ class Encounter(models.Model):
 
 
         super().delete(*args, **kwargs)
+
+    def clean(self):
+        if self.date_end and self.date_start and self.date_end < self.date_start:
+            raise ValidationError("Дата завершения не может быть раньше даты начала.")
+
+    @property
+    def department(self):
+        return self.transfer_to_department
+
+    def save(self, *args, **kwargs):
+        if self.date_end and self.outcome:
+            self.is_active = False
+        else:
+            self.is_active = True
+
+        if not self.transfer_to_department:
+            try:
+                default_department = Department.objects.get(slug="admission")
+                self.transfer_to_department = default_department
+            except Department.DoesNotExist:
+                pass
+        super().save(*args, **kwargs)

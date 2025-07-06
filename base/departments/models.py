@@ -3,19 +3,22 @@ from django.db import models
 from patients.models import Patient 
 from django.conf import settings 
 from django.utils import timezone
+from django.utils.text import slugify
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
 from django.contrib.contenttypes.fields import GenericRelation
 
 class Department(models.Model):
     name = models.CharField("Наименование отделения", max_length=255)
+    slug = models.SlugField("Код отделения (slug)", unique=True, blank=True)
     description = models.TextField("Описание", blank=True)
-    number = models.CharField("Номер отделения", max_length=20, blank=True)
 
     class Meta:
         verbose_name = "Отделение"
         verbose_name_plural = "Отделения"
 
     def __str__(self):
-        return f"{self.number} - {self.name}" if self.number else self.name
+        return f"{self.slug} - {self.name}" if self.slug else self.name
 
 class PatientDepartmentStatus(models.Model):
     """

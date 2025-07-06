@@ -2,10 +2,22 @@
 from django import forms
 from django.contrib.auth import get_user_model
 from documents.models import DocumentType
+from django.utils.text import slugify
 
-from .models import PatientDepartmentStatus
+from .models import PatientDepartmentStatus, Department
 
 User = get_user_model()
+
+class DepartmentForm(forms.ModelForm):
+    class Meta:
+        model = Department
+        fields = '__all__'
+
+    def clean_slug(self):
+        slug = self.cleaned_data.get('slug')
+        if not slug:
+            slug = slugify(self.cleaned_data.get('name'))
+        return slug
 
 class PatientAcceptanceForm(forms.ModelForm):
     class Meta:

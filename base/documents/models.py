@@ -10,7 +10,7 @@ class DocumentType(models.Model):
     Определяет тип и структуру документа через JSON-схему.
     Заменяет старую модель DocumentCategory.
     """
-    name = models.CharField("Название типа документа", max_length=255, unique=True)
+    name = models.CharField("Название типа документа", max_length=255)
     department = models.ForeignKey(
         'departments.Department',
         on_delete=models.SET_NULL,

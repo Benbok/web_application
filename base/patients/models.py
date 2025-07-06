@@ -89,8 +89,8 @@ class PatientDocument(models.Model):
     passport_department_code = models.CharField(
         "Код подразделения", max_length=7, blank=True)
 
-    snils = models.CharField("СНИЛС", max_length=14, blank=True, unique=True)
-    insurance_policy_number = models.CharField("Полис ОМС/ДМС", max_length=30, blank=True, unique=True)
+    snils = models.CharField("СНИЛС", max_length=14, blank=True, null=True, unique=True)
+    insurance_policy_number = models.CharField("Полис ОМС/ДМС", max_length=30, blank=True, null=True, unique=True)
     insurance_company = models.CharField("Страховая компания", max_length=100, blank=True)
 
     class Meta:
