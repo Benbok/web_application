@@ -1,6 +1,8 @@
 {% extends "patients/base.html" %}
 {% load widget_tweaks %}
-{% block title %}{{ title }} | МедКарт{% endblock %}
+
+{% block title %}
+{{ title }} | МедКарт{% endblock %}
 {% block page_title %}{{ title }}{% endblock %}
 
 {% block content %}
@@ -17,10 +19,10 @@
 
             {% if is_newborn_creation_flow %}
                 <div class="alert alert-info">
-                    <i class="fas fa-baby me-2"></i> Создание карты новорожденного для родителя: <strong>{{ parent.full_name }}</strong>
+                    <i class="fas fa-baby me-2"></i> Создание карты новорождённого для родителя: <strong>{{ parent.full_name }}</strong>
                 </div>
 
-                <h5>Основные данные ребенка</h5>
+                <h5>Основные данные ребёнка</h5>
                 <div class="row">
                     {% for field in form.visible_fields %}
                         {% if field.name in 'last_name,first_name,middle_name' %}
@@ -45,7 +47,7 @@
                 </div>
 
                 <hr class="my-4">
-                <h5>Специфические данные новорожденного</h5>
+                <h5>Специфические данные новорождённого</h5>
                 {% for field in newborn_form.visible_fields %}
                     <div class="mb-3">
                         <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
@@ -55,15 +57,6 @@
                 {% endfor %}
 
             {% else %}
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <label for="{{ form.patient_type.id_for_label }}" class="form-label fw-bold">{{ form.patient_type.label }}</label>
-                        {{ form.patient_type|add_class:"form-select" }}
-                        <small class="form-text text-muted">Для создания карты родителя выберите "Взрослый/Ребенок".</small>
-                    </div>
-                </div>
-                <hr class="mb-4">
-
                 <div class="row">
                     <div class="col-md-3">
                         <div class="nav flex-column nav-pills me-3" id="patientTab" role="tablist" aria-orientation="vertical">
@@ -76,23 +69,11 @@
                     </div>
                     <div class="col-md-9">
                         <div class="tab-content" id="patientTabContent">
+                            <!-- Вкладка Личные данные -->
                             <div class="tab-pane fade show active" id="personal" role="tabpanel">
                                 <div class="row">
                                     {% for field in form.visible_fields %}
-                                        {% if field.name in 'last_name,first_name,middle_name,birth_date,gender' %}
-                                        <div class="col-md-4 mb-3">
-                                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                                            {{ field|add_class:"form-control" }}
-                                            {% if field.errors %}<div class="text-danger small">{{ field.errors|join:", " }}</div>{% endif %}
-                                        </div>
-                                        {% endif %}
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            <div class="tab-pane fade" id="passport" role="tabpanel">
-                                <div class="row">
-                                    {% for field in form.visible_fields %}
-                                        {% if field.name in 'passport_series,passport_number,passport_issued_by,passport_issued_date,passport_department_code' %}
+                                        {% if field.name in 'last_name,first_name,middle_name,birth_date,gender,parents' %}
                                         <div class="col-md-6 mb-3">
                                             <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
                                             {{ field|add_class:"form-control" }}
@@ -102,9 +83,26 @@
                                     {% endfor %}
                                 </div>
                             </div>
+
+                            <!-- Вкладка Паспортные данные -->
+                            <div class="tab-pane fade" id="passport" role="tabpanel">
+                                <div class="row">
+                                    {% for field in document_form.visible_fields %}
+                                        {% if field.name in 'document_type,passport_series,passport_number,passport_issued_by,passport_issued_date,passport_department_code,snils,insurance_policy_number,insurance_company' %}
+                                        <div class="col-md-6 mb-3">
+                                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                                            {{ field|add_class:"form-control" }}
+                                            {% if field.errors %}<div class="text-danger small">{{ field.errors|join:", " }}</div>{% endif %}
+                                        </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Вкладка Идентификация -->
                             <div class="tab-pane fade" id="idinfo" role="tabpanel">
                                 <div class="row">
-                                    {% for field in form.visible_fields %}
+                                    {% for field in document_form.visible_fields %}
                                         {% if field.name in 'snils,insurance_policy_number,insurance_company' %}
                                         <div class="col-md-6 mb-3">
                                             <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
@@ -115,10 +113,21 @@
                                     {% endfor %}
                                 </div>
                             </div>
+
+                            <!-- Вкладка Контакты и адреса -->
                             <div class="tab-pane fade" id="contacts" role="tabpanel">
                                 <div class="row">
-                                    {% for field in form.visible_fields %}
-                                        {% if field.name in 'registration_address,residential_address,phone,email' %}
+                                    {% for field in address_form.visible_fields %}
+                                        {% if field.name in 'registration_address,residential_address' %}
+                                        <div class="col-md-6 mb-3">
+                                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                                            {{ field|add_class:"form-control" }}
+                                            {% if field.errors %}<div class="text-danger small">{{ field.errors|join:", " }}</div>{% endif %}
+                                        </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% for field in contact_form.visible_fields %}
+                                        {% if field.name in 'phone,email' %}
                                         <div class="col-md-6 mb-3">
                                             <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
                                             {{ field|add_class:"form-control" }}
@@ -128,9 +137,10 @@
                                     {% endfor %}
                                 </div>
                             </div>
+                            <!-- Вкладка Представитель -->
                             <div class="tab-pane fade" id="representative" role="tabpanel">
                                 <div class="row">
-                                    {% for field in form.visible_fields %}
+                                    {% for field in contact_form.visible_fields %}
                                         {% if field.name in 'legal_representative_full_name,legal_representative_relation,legal_representative_contacts' %}
                                         <div class="col-md-6 mb-3">
                                             <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
@@ -162,4 +172,14 @@
     </div>
 </div>
 
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    Inputmask({"mask": "9999"}).mask(document.querySelectorAll('[name="passport_series"]'));
+    Inputmask({"mask": "999999"}).mask(document.querySelectorAll('[name="passport_number"]'));
+    Inputmask({"mask": "999-999"}).mask(document.querySelectorAll('[name="passport_department_code"]'));
+    Inputmask({"mask": "999-999-999 99"}).mask(document.querySelectorAll('[name="snils"]'));
+    Inputmask({"mask": "9999 9999 9999 9999"}).mask(document.querySelectorAll('[name="insurance_policy_number"]'));
+    Inputmask({"mask": "+7 (999) 999-99-99"}).mask(document.querySelectorAll('[name="phone"]'));
+  });
+</script>
 {% endblock %}

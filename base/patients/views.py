@@ -2,12 +2,43 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.shortcuts import render, get_object_or_404, redirect
 from django.db import transaction
-from django.urls import reverse
 
-from .models import Patient
-from .forms import PatientForm
+from .models import Patient, PatientContact, PatientAddress, PatientDocument
+from .forms import PatientForm, PatientContactForm, PatientAddressForm, PatientDocumentForm
 from newborns.forms import NewbornProfileForm
 from encounters.models import Encounter
+
+
+def save_patient_with_related(patient_form, contact_form, address_form, document_form,
+                              newborn_form=None, patient_type=None, parent=None):
+    """Сохраняет пациента и все связанные модели в одной транзакции."""
+    with transaction.atomic():
+        patient = patient_form.save(commit=False)
+        if patient_type:
+            patient.patient_type = patient_type  # Автоматически задаём тип пациента (при создании)
+        patient.save()
+
+        contact = contact_form.save(commit=False)
+        contact.patient = patient
+        contact.save()
+
+        address = address_form.save(commit=False)
+        address.patient = patient
+        address.save()
+
+        document = document_form.save(commit=False)
+        document.patient = patient
+        document.save()
+
+        if newborn_form:
+            profile = newborn_form.save(commit=False)
+            profile.patient = patient
+            profile.save()
+
+        if parent:
+            patient.parents.add(parent)
+
+        return patient
 
 def home(request):
     latest_patients = Patient.objects.order_by('-created_at')[:5]
@@ -16,6 +47,7 @@ def home(request):
         'latest_patients': latest_patients,
         'total_patients': total_patients,
     })
+
 
 def patient_list(request):
     query = request.GET.get('q')
@@ -38,146 +70,182 @@ def patient_list(request):
         'is_paginated': page_obj.has_other_pages(),
     })
 
+
 def patient_detail(request, pk):
     patient = get_object_or_404(Patient, pk=pk)
-    encounters = Encounter.objects.filter(patient=patient).order_by('-is_active', '-date_start')
+    encounters = patient.encounters.all().order_by('-is_active', '-date_start')
+
+    # Добавляем связанные данные:
+    contact = getattr(patient, 'contact', None)
+    address = getattr(patient, 'address', None)
+    document = getattr(patient, 'document', None)
+
     return render(request, 'patients/detail.html', {
         'patient': patient,
         'encounters': encounters,
+        'contact': contact,
+        'address': address,
+        'document': document,
     })
+
 
 def patient_create(request):
     if request.method == 'POST':
         form = PatientForm(request.POST)
-        if form.is_valid():
-            patient = form.save(commit=False)
-            patient.patient_type = 'adult'  # фиксируем тип
-            patient.save()
+        contact_form = PatientContactForm(request.POST)
+        address_form = PatientAddressForm(request.POST)
+        document_form = PatientDocumentForm(request.POST)
+        if all([form.is_valid(), contact_form.is_valid(), address_form.is_valid(), document_form.is_valid()]):
+            patient = save_patient_with_related(
+                form, contact_form, address_form, document_form,
+                patient_type=Patient.PatientType.ADULT
+            )
             return redirect('patients:patient_detail', pk=patient.pk)
     else:
         form = PatientForm()
+        contact_form = PatientContactForm()
+        address_form = PatientAddressForm()
+        document_form = PatientDocumentForm()
+
     return render(request, 'patients/form.html', {
         'form': form,
+        'contact_form': contact_form,
+        'address_form': address_form,
+        'document_form': document_form,
         'title': 'Добавить пациента',
-        'is_newborn_creation_flow': False
     })
+
 
 def newborn_create(request, parent_id):
     parent = get_object_or_404(Patient, pk=parent_id)
     if request.method == 'POST':
         form = PatientForm(request.POST)
         profile_form = NewbornProfileForm(request.POST)
-        if form.is_valid() and profile_form.is_valid():
-            with transaction.atomic():
-                newborn = form.save(commit=False)
-                newborn.patient_type = 'newborn'
-                newborn.save()
-                newborn.parents.add(parent)
-
-                profile = profile_form.save(commit=False)
-                profile.patient = newborn
-                profile.save()
-
-            return redirect('patients:patient_detail', pk=newborn.pk)
+        contact_form = PatientContactForm(request.POST)
+        address_form = PatientAddressForm(request.POST)
+        document_form = PatientDocumentForm(request.POST)
+        if all([form.is_valid(), profile_form.is_valid(), contact_form.is_valid(), address_form.is_valid(),
+                document_form.is_valid()]):
+            patient = save_patient_with_related(
+                form, contact_form, address_form, document_form,
+                newborn_form=profile_form,
+                patient_type=Patient.PatientType.NEWBORN,
+                parent=parent
+            )
+            return redirect('patients:patient_detail', pk=patient.pk)
     else:
         form = PatientForm(initial={'patient_type': 'newborn'})
         profile_form = NewbornProfileForm()
     return render(request, 'patients/form.html', {
         'form': form,
         'newborn_form': profile_form,
-        'title': f'Добавление новорожденного для {parent.full_name}',
+        'title': f'Добавление новорождённого для {parent.full_name}',
         'is_newborn_creation_flow': True,
-        'parent': parent
+        'parent': parent,
     })
 
 
 def child_create(request, parent_id):
-    """
-    Создание пациента-ребенка, связанного с родителем.
-    """
     parent = get_object_or_404(Patient, pk=parent_id)
     if request.method == 'POST':
-        # Используем полную форму, так как у ребенка могут быть любые данные
         form = PatientForm(request.POST)
         if form.is_valid():
-            child = form.save(commit=False)
-            child.patient_type = 'child'  # Устанавливаем соответствующий тип
-            child.save()
-            child.parents.add(parent)  # Устанавливаем связь с родителем
+            with transaction.atomic():
+                child = form.save(commit=False)
+                child.patient_type = 'child'
+                child.save()
+                child.parents.add(parent)
+                PatientContact.objects.create(patient=child)
+                PatientAddress.objects.create(patient=child)
+                PatientDocument.objects.create(patient=child)
             return redirect('patients:patient_detail', pk=child.pk)
     else:
-        # В начальных данных передаем фамилию родителя и тип
         form = PatientForm(initial={'last_name': parent.last_name, 'patient_type': 'child'})
-
     return render(request, 'patients/form.html', {
         'form': form,
-        'title': f'Добавление ребенка для {parent.full_name}',
-        'parent': parent
+        'title': f'Добавление ребёнка для {parent.full_name}',
+        'parent': parent,
     })
 
 
 def teen_create(request, parent_id):
-    """
-    Создание пациента-подростка, связанного с родителем.
-    Логика аналогична child_create.
-    """
     parent = get_object_or_404(Patient, pk=parent_id)
     if request.method == 'POST':
         form = PatientForm(request.POST)
         if form.is_valid():
-            teen = form.save(commit=False)
-            teen.patient_type = 'teen'  # Устанавливаем тип "подросток"
-            teen.save()
-            teen.parents.add(parent)  # Устанавливаем связь
+            with transaction.atomic():
+                teen = form.save(commit=False)
+                teen.patient_type = 'teen'
+                teen.save()
+                teen.parents.add(parent)
+                PatientContact.objects.create(patient=teen)
+                PatientAddress.objects.create(patient=teen)
+                PatientDocument.objects.create(patient=teen)
             return redirect('patients:patient_detail', pk=teen.pk)
     else:
         form = PatientForm(initial={'last_name': parent.last_name, 'patient_type': 'teen'})
-
     return render(request, 'patients/form.html', {
         'form': form,
         'title': f'Добавление подростка для {parent.full_name}',
-        'parent': parent
+        'parent': parent,
     })
+
 
 def patient_update(request, pk):
     patient = get_object_or_404(Patient, pk=pk)
     newborn_profile = getattr(patient, '_newborn_profile', None)
-    
-    # Получаем encounter_pk из GET-параметров, если он есть
-    encounter_pk = request.GET.get('encounter_pk') 
+    encounter_pk = request.GET.get('encounter_pk')
+
+    # Загружаем связанные данные (контакты, адреса, документы)
+    contact = getattr(patient, 'contact', None)
+    address = getattr(patient, 'address', None)
+    document = getattr(patient, 'document', None)
 
     if request.method == 'POST':
         form = PatientForm(request.POST, instance=patient)
+        contact_form = PatientContactForm(request.POST, instance=contact)
+        address_form = PatientAddressForm(request.POST, instance=address)
+        document_form = PatientDocumentForm(request.POST, instance=document)
         profile_form = NewbornProfileForm(request.POST, instance=newborn_profile) if newborn_profile else None
-        if form.is_valid() and (not newborn_profile or profile_form.is_valid()):
-            with transaction.atomic():
-                form.save()
-                if profile_form:
-                    profile = profile_form.save(commit=False)
-                    profile.patient = patient
-                    profile.save()
-            
-            # Если encounter_pk был передан, перенаправляем на страницу приема
+
+        forms = [form, contact_form, address_form, document_form]
+        if profile_form:
+            forms.append(profile_form)
+
+        if all(f.is_valid() for f in forms):
+            patient = save_patient_with_related(
+                form, contact_form, address_form, document_form,
+                newborn_form=profile_form
+            )
+
             if encounter_pk:
                 return redirect('encounters:encounter_detail', pk=encounter_pk)
             else:
                 return redirect('patients:patient_detail', pk=patient.pk)
+
     else:
         form = PatientForm(instance=patient)
+        contact_form = PatientContactForm(instance=contact)
+        address_form = PatientAddressForm(instance=address)
+        document_form = PatientDocumentForm(instance=document)
         profile_form = NewbornProfileForm(instance=newborn_profile) if newborn_profile else None
-    
+
     context = {
         'form': form,
+        'contact_form': contact_form,
+        'address_form': address_form,
+        'document_form': document_form,
         'newborn_form': profile_form,
         'title': 'Редактировать пациента',
         'is_newborn_creation_flow': patient.patient_type == 'newborn',
         'patient': patient,
     }
-    # Передаем encounter_pk в контекст шаблона
+
     if encounter_pk:
         context['encounter_pk'] = encounter_pk
 
     return render(request, 'patients/form.html', context)
+
 
 def patient_delete(request, pk):
     patient = get_object_or_404(Patient, pk=pk)

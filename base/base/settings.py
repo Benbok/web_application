@@ -31,20 +31,27 @@ ALLOWED_HOSTS = []
 
 # Application definition
 
-INSTALLED_APPS = [
+DJANGO_APPS = [
+    'rest_framework',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+]
+
+THIRD_PARTY_APPS = [
     'django_select2',
+    'widget_tweaks',
+]
+
+LOCAL_APPS = [
     'patients',
     'encounters',
     'documents',
     'departments',
     'treatment_assignments',
-    'widget_tweaks',
     'pharmacy',
     'general_treatments',
     'lab_tests',
@@ -52,6 +59,8 @@ INSTALLED_APPS = [
     'profiles',
     'newborns',
 ]
+
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

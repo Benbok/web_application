@@ -12,21 +12,11 @@
         <div class="row">
             <div class="col-md-3">
                 <div class="nav flex-column nav-pills me-3" id="patientTab" role="tablist" aria-orientation="vertical">
-                    <button class="nav-link active" id="tab-personal" data-bs-toggle="pill" data-bs-target="#personal"
-                            type="button" role="tab">Личные данные
-                    </button>
-                    <button class="nav-link" id="tab-passport" data-bs-toggle="pill" data-bs-target="#passport"
-                            type="button" role="tab">Паспортные данные
-                    </button>
-                    <button class="nav-link" id="tab-id" data-bs-toggle="pill" data-bs-target="#idinfo" type="button"
-                            role="tab">Идентификация
-                    </button>
-                    <button class="nav-link" id="tab-contacts" data-bs-toggle="pill" data-bs-target="#contacts"
-                            type="button" role="tab">Контакты и адреса
-                    </button>
-                    <button class="nav-link" id="tab-representative" data-bs-toggle="pill"
-                            data-bs-target="#representative" type="button" role="tab">Представитель
-                    </button>
+                    <button class="nav-link active" id="tab-personal" data-bs-toggle="pill" data-bs-target="#personal" type="button" role="tab">Личные данные</button>
+                    <button class="nav-link" id="tab-passport" data-bs-toggle="pill" data-bs-target="#passport" type="button" role="tab">Паспортные данные</button>
+                    <button class="nav-link" id="tab-id" data-bs-toggle="pill" data-bs-target="#idinfo" type="button" role="tab">Идентификация</button>
+                    <button class="nav-link" id="tab-contacts" data-bs-toggle="pill" data-bs-target="#contacts" type="button" role="tab">Контакты и адреса</button>
+                    <button class="nav-link" id="tab-representative" data-bs-toggle="pill" data-bs-target="#representative" type="button" role="tab">Представитель</button>
                 </div>
             </div>
             <div class="col-md-9">
@@ -34,108 +24,76 @@
                     <!-- Личные данные -->
                     <div class="tab-pane fade show active" id="personal" role="tabpanel">
                         <ul class="list-group list-group-flush mb-3">
-                            <li class="list-group-item"><strong>Фамилия:</strong> {{ patient.last_name }}</li>
-                            <li class="list-group-item"><strong>Имя:</strong> {{ patient.first_name }}</li>
-                            {% if patient.middle_name %}
-                            <li class="list-group-item"><strong>Отчество:</strong> {{ patient.middle_name }}</li>
-                            {% endif %}
-                            <li class="list-group-item"><strong>Дата рождения:</strong>
-                                {{ patient.birth_date|date:"d.m.Y" }}
-                            </li>
+                            <li class="list-group-item"><strong>ФИО:</strong> {{ patient.full_name }}</li>
+                            <li class="list-group-item"><strong>Дата рождения:</strong> {{ patient.birth_date|date:"d.m.Y" }}</li>
                             <li class="list-group-item"><strong>Пол:</strong> {{ patient.get_gender_display }}</li>
                         </ul>
                     </div>
+
                     <!-- Паспортные данные -->
                     <div class="tab-pane fade" id="passport" role="tabpanel">
+                        {% if document %}
                         <ul class="list-group list-group-flush mb-3">
-                            {% if patient.passport_series %}
-                            <li class="list-group-item"><strong>Серия паспорта:</strong> {{ patient.passport_series }}
-                            </li>
-                            {% endif %}
-                            {% if patient.passport_number %}
-                            <li class="list-group-item"><strong>Номер паспорта:</strong> {{ patient.passport_number }}
-                            </li>
-                            {% endif %}
-                            {% if patient.passport_issued_by %}
-                            <li class="list-group-item"><strong>Кем выдан:</strong> {{ patient.passport_issued_by }}
-                            </li>
-                            {% endif %}
-                            {% if patient.passport_issued_date %}
-                            <li class="list-group-item"><strong>Дата выдачи:</strong> {{
-                                patient.passport_issued_date|date:"d.m.Y" }}
-                            </li>
-                            {% endif %}
-                            {% if patient.passport_department_code %}
-                            <li class="list-group-item"><strong>Код подразделения:</strong> {{
-                                patient.passport_department_code }}
-                            </li>
-                            {% endif %}
+                            <li class="list-group-item"><strong>Тип документа:</strong> {{ document.document_type }}</li>
+                            <li class="list-group-item"><strong>Серия паспорта:</strong> {{ document.passport_series }}</li>
+                            <li class="list-group-item"><strong>Номер паспорта:</strong> {{ document.passport_number }}</li>
+                            <li class="list-group-item"><strong>Кем выдан:</strong> {{ document.passport_issued_by }}</li>
+                            <li class="list-group-item"><strong>Дата выдачи:</strong> {{ document.passport_issued_date|date:"d.m.Y" }}</li>
+                            <li class="list-group-item"><strong>Код подразделения:</strong> {{ document.passport_department_code }}</li>
                         </ul>
+                        {% else %}
+                        <p class="text-muted">Нет данных</p>
+                        {% endif %}
                     </div>
+
                     <!-- Идентификация -->
                     <div class="tab-pane fade" id="idinfo" role="tabpanel">
+                        {% if document %}
                         <ul class="list-group list-group-flush mb-3">
-                            {% if patient.snils %}
-                            <li class="list-group-item"><strong>СНИЛС:</strong> {{ patient.snils }}</li>
-                            {% endif %}
-                            {% if patient.insurance_policy_number %}
-                            <li class="list-group-item"><strong>Полис ОМС/ДМС:</strong> {{
-                                patient.insurance_policy_number }}
-                            </li>
-                            {% endif %}
-                            {% if patient.insurance_company %}
-                            <li class="list-group-item"><strong>Страховая компания:</strong> {{
-                                patient.insurance_company }}
-                            </li>
-                            {% endif %}
+                            <li class="list-group-item"><strong>СНИЛС:</strong> {{ document.snils }}</li>
+                            <li class="list-group-item"><strong>Полис ОМС/ДМС:</strong> {{ document.insurance_policy_number }}</li>
+                            <li class="list-group-item"><strong>Страховая компания:</strong> {{ document.insurance_company }}</li>
                         </ul>
+                        {% else %}
+                        <p class="text-muted">Нет данных</p>
+                        {% endif %}
                     </div>
+
                     <!-- Контакты и адреса -->
                     <div class="tab-pane fade" id="contacts" role="tabpanel">
+                        {% if contact or address %}
                         <ul class="list-group list-group-flush mb-3">
-                            {% if patient.phone %}
-                            <li class="list-group-item"><strong>Телефон:</strong> {{ patient.phone }}</li>
+                            {% if contact %}
+                            <li class="list-group-item"><strong>Телефон:</strong> {{ contact.phone }}</li>
+                            <li class="list-group-item"><strong>Email:</strong> {{ contact.email }}</li>
                             {% endif %}
-                            {% if patient.email %}
-                            <li class="list-group-item"><strong>Email:</strong> {{ patient.email }}</li>
-                            {% endif %}
-                            {% if patient.registration_address %}
-                            <li class="list-group-item"><strong>Адрес регистрации:</strong> {{
-                                patient.registration_address }}
-                            </li>
-                            {% endif %}
-                            {% if patient.residential_address %}
-                            <li class="list-group-item"><strong>Адрес проживания:</strong> {{
-                                patient.residential_address }}
-                            </li>
+                            {% if address %}
+                            <li class="list-group-item"><strong>Адрес регистрации:</strong> {{ address.registration_address }}</li>
+                            <li class="list-group-item"><strong>Адрес проживания:</strong> {{ address.residential_address }}</li>
                             {% endif %}
                         </ul>
+                        {% else %}
+                        <p class="text-muted">Нет данных</p>
+                        {% endif %}
                     </div>
+
                     <!-- Представитель -->
                     <div class="tab-pane fade" id="representative" role="tabpanel">
+                        {% if contact %}
                         <ul class="list-group list-group-flush mb-3">
-                            {% if patient.legal_representative_full_name %}
-                            <li class="list-group-item"><strong>ФИО представителя:</strong> {{
-                                patient.legal_representative_full_name }}
-                            </li>
-                            {% endif %}
-                            {% if patient.legal_representative_relation %}
-                            <li class="list-group-item"><strong>Степень родства:</strong> {{
-                                patient.legal_representative_relation }}
-                            </li>
-                            {% endif %}
-                            {% if patient.legal_representative_contacts %}
-                            <li class="list-group-item"><strong>Контакты представителя:</strong> {{
-                                patient.legal_representative_contacts }}
-                            </li>
-                            {% endif %}
+                            <li class="list-group-item"><strong>ФИО представителя:</strong> {{ contact.legal_representative_full_name }}</li>
+                            <li class="list-group-item"><strong>Степень родства:</strong> {{ contact.legal_representative_relation }}</li>
+                            <li class="list-group-item"><strong>Контакты представителя:</strong> {{ contact.legal_representative_contacts }}</li>
                         </ul>
+                        {% else %}
+                        <p class="text-muted">Нет данных</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
 
-        <!--        Блок с детьми и родителями-->
+        <!-- Блок с детьми и родителями -->
         {% if patient.patient_type != 'newborn' %}
         <div class="card mt-4">
             <div class="card-body">
@@ -177,29 +135,15 @@
             </a>
             {% if patient.patient_type != 'newborn' %}
             <div class="btn-group">
-                <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown"
-                        aria-expanded="false">
+                <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="fas fa-plus-circle me-1"></i> Добавить потомка
                 </button>
                 <ul class="dropdown-menu">
-                    <li>
-                        <a class="dropdown-item" href="{% url 'patients:newborn_create' parent_id=patient.pk %}">
-                            👶 Новорожденного
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item" href="{% url 'patients:child_create' parent_id=patient.pk %}">
-                            🧒 Ребёнка
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item" href="{% url 'patients:teen_create' parent_id=patient.pk %}">
-                            👦 Подростка
-                        </a>
-                    </li>
+                    <li><a class="dropdown-item" href="{% url 'patients:newborn_create' parent_id=patient.pk %}">👶 Новорожденного</a></li>
+                    <li><a class="dropdown-item" href="{% url 'patients:child_create' parent_id=patient.pk %}">🧒 Ребёнка</a></li>
+                    <li><a class="dropdown-item" href="{% url 'patients:teen_create' parent_id=patient.pk %}">👦 Подростка</a></li>
                 </ul>
             </div>
-
             {% endif %}
             <a href="{% url 'patients:patient_delete' patient.pk %}" class="btn btn-outline-danger">
                 <i class="fas fa-trash-alt me-1"></i> Удалить
