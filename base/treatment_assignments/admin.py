@@ -13,7 +13,7 @@ class MedicationAssignmentAdmin(admin.ModelAdmin):
 class GeneralTreatmentAssignmentAdmin(admin.ModelAdmin):
     list_display = ('patient', 'assigning_doctor', 'general_treatment', 'status', 'start_date', 'end_date')
     list_filter = ('status', 'assigning_doctor', 'general_treatment')
-    search_fields = ('patient__full_name', 'general_treatment__name', 'notes')
+    search_fields = ('patient__full_name', 'notes')
     ordering = ('-start_date',)
     readonly_fields = ('created_at', 'updated_at')
 

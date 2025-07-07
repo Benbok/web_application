@@ -11,13 +11,13 @@
                     <h4 class="mb-0">Подтверждение удаления</h4>
                 </div>
                 <div class="card-body">
-                    <p class="lead">Вы уверены, что хотите удалить результат исследования "{{ result.procedure_definition.name }}" для пациента {{ result.instrumental_procedure_assignment.patient.full_name }} от {{ result.datetime_result|date:"d.m.Y H:i" }}?</p>
+                    <p class="lead">Вы уверены, что хотите удалить результат исследования "{{ result.procedure_definition.name }}" для пациента {{ result.lab_test_assignment.patient.full_name }} от {{ result.datetime_result|date:"d.m.Y H:i" }}?</p>
                     <p class="text-muted">Это действие нельзя будет отменить.</p>
                     
                     <form method="post">
                         {% csrf_token %}
                         <div class="d-flex justify-content-end mt-4">
-                            <a href="{% url 'instrumental_procedures:result_detail' result.pk %}" class="btn btn-secondary me-2">Отмена</a>
+                            <a href="{% url 'lab_tests:result_detail' result.pk %}" class="btn btn-secondary me-2">Отмена</a>
                             <button type="submit" class="btn btn-danger">Удалить</button>
                         </div>
                     </form>

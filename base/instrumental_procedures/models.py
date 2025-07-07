@@ -7,22 +7,11 @@ from django.utils import timezone
 class InstrumentalProcedureDefinition(models.Model):
     name = models.CharField("Название инструментального исследования", max_length=255, unique=True)
     description = models.TextField("Описание", blank=True, null=True)
+    schema = models.JSONField("Схема полей результата (JSON)", help_text="Описывает поля, их типы и метки", blank=True, null=True)
 
     class Meta:
         verbose_name = "Инструментальное исследование (определение)"
         verbose_name_plural = "Инструментальные исследования (определения)"
-        ordering = ['name']
-
-    def __str__(self):
-        return self.name
-
-class InstrumentalProcedureResultType(models.Model):
-    name = models.CharField("Название типа результата исследования", max_length=255, unique=True)
-    schema = models.JSONField("Схема полей результата (JSON)", help_text="Описывает поля, их типы и метки")
-
-    class Meta:
-        verbose_name = "Тип результата инструментального исследования"
-        verbose_name_plural = "Типы результатов инструментальных исследований"
         ordering = ['name']
 
     def __str__(self):
@@ -35,10 +24,11 @@ class InstrumentalProcedureResult(models.Model):
         related_name='results',
         verbose_name="Назначение инструментального исследования"
     )
-    result_type = models.ForeignKey(
-        InstrumentalProcedureResultType,
+    procedure_definition = models.ForeignKey(
+        InstrumentalProcedureDefinition,
         on_delete=models.PROTECT,
-        verbose_name="Тип результата"
+        verbose_name="Тип исследования",
+        related_name='results'
     )
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, verbose_name="Автор")
     datetime_result = models.DateTimeField("Дата результата", default=timezone.now)
@@ -52,4 +42,4 @@ class InstrumentalProcedureResult(models.Model):
         ordering = ["-datetime_result"]
 
     def __str__(self):
-        return f"Результат {self.result_type.name} для {self.instrumental_procedure_assignment.patient} от {self.datetime_result.strftime('%d.%m.%Y')}"
+        return f"Результат {self.procedure_definition.name} для {self.instrumental_procedure_assignment.patient} от {self.datetime_result.strftime('%d.%m.%Y')}"

@@ -6,7 +6,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from patients.models import Patient
 from pharmacy.models import Medication, DosingRule
-from general_treatments.models import GeneralTreatmentDefinition
+ 
 from lab_tests.models import LabTestDefinition
 from instrumental_procedures.models import InstrumentalProcedureDefinition
 
@@ -74,14 +74,10 @@ class MedicationAssignment(BaseAssignment):
 
 
 class GeneralTreatmentAssignment(BaseAssignment):
-    general_treatment = models.ForeignKey(GeneralTreatmentDefinition, on_delete=models.PROTECT, related_name='general_assignments', verbose_name="Общее назначение")
+    general_treatment = models.TextField("Общее назначение")
 
     assigning_doctor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Назначивший врач", related_name='general_assigned_treatments')
     completed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Завершено кем", related_name='general_completed_treatments')
-
-    @property
-    def treatment_name(self):
-        return self.general_treatment.name
 
     @property
     def assignment_type(self):
@@ -98,7 +94,7 @@ class GeneralTreatmentAssignment(BaseAssignment):
         verbose_name_plural = "Общие назначения"
 
     def __str__(self):
-        return f"Общее назначение '{self.treatment_name}' от {self.start_date.strftime('%d.%m.%Y')}"
+        return f"Общее назначение '{self.general_treatment}' от {self.start_date.strftime('%d.%m.%Y')}"
 
 
 class LabTestAssignment(BaseAssignment):

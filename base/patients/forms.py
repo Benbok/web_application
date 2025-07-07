@@ -16,6 +16,20 @@ class PatientForm(forms.ModelForm):
             'birth_date': forms.DateInput(attrs={'type': 'date'}),
         }
 
+    def clean_last_name(self):
+        value = self.cleaned_data['last_name'].strip().title()
+        return value
+
+    def clean_first_name(self):
+        value = self.cleaned_data['first_name'].strip().title()
+        return value
+
+    def clean_middle_name(self):
+        value = self.cleaned_data.get('middle_name')
+        if value:
+            value = value.strip().title()
+        return value
+
 
 class NewbornPatientForm(forms.ModelForm):
     """

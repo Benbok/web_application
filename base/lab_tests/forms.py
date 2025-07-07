@@ -12,9 +12,9 @@ FIELD_TYPE_MAP = {
     'choice': forms.ChoiceField,
 }
 
-def build_instrumental_procedure_result_form(schema, user=None, initial=None):
+def build_lab_test_result_form(schema, user=None, initial=None):
     """
-    Динамически создает класс Django-формы на основе JSON-схемы для результатов инструментальных исследований.
+    Динамически создает класс Django-формы на основе JSON-схемы для результатов лабораторных исследований.
     """
     fields = {
         'datetime_result': forms.DateTimeField(
@@ -51,9 +51,9 @@ def build_instrumental_procedure_result_form(schema, user=None, initial=None):
 
             fields[field_name] = form_field_class(**field_kwargs)
 
-    DynamicInstrumentalProcedureResultForm = type('DynamicInstrumentalProcedureResultForm', (forms.Form,), fields)
+    DynamicLabTestResultForm = type('DynamicLabTestResultForm', (forms.Form,), fields)
 
-    class BaseForm(DynamicInstrumentalProcedureResultForm):
+    class BaseForm(DynamicLabTestResultForm):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
             if initial:

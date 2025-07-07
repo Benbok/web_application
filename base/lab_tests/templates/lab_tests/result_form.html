@@ -13,9 +13,9 @@
 <div class="container-fluid">
     <h1 class="h3 mb-4 text-gray-800">
         {% if result %}
-            Редактировать результат для {{ result.instrumental_procedure_assignment.instrumental_procedure.name }}
+            Редактировать результат для {{ result.lab_test_assignment.lab_test.name }}
         {% else %}
-            Добавить результат для {{ assignment.instrumental_procedure.name }}
+            Добавить результат для {{ assignment.lab_test.name }}
         {% endif %}
     </h1>
 
@@ -23,7 +23,6 @@
         <div class="card-body">
             <form method="post">
                 {% csrf_token %}
-                
 
                 {% for field in form %}
                     <div class="form-group">
@@ -43,7 +42,7 @@
                 {% endfor %}
 
                 <button type="submit" class="btn btn-primary">Сохранить результат</button>
-                <a href="{% if result %}{% url 'instrumental_procedures:result_detail' result.pk %}{% else %}{% url 'instrumental_procedures:assignment_list' %}{% endif %}" class="btn btn-secondary">Отмена</a>
+                <a href="{% if result %}{% url 'lab_tests:result_detail' result.pk %}{% else %}{% url 'lab_tests:assignment_list' %}{% endif %}" class="btn btn-secondary">Отмена</a>
             </form>
         </div>
     </div>

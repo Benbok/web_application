@@ -220,7 +220,7 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h5 class="card-title mb-0">Дневниковые записи</h5>
-                            <a href="{% url 'documents:document_type_selection' model_name='patientdepartmentstatus' object_id=patient_status.pk %}?next={{ request.get_full_path|urlencode }}"
+                            <a href="{% url 'documents:document_type_selection' model_name='patientdepartmentstatus' object_id=patient_status.pk %}?department_slug={{ DEPARTMENT_SLUGS.pediatrics }}&next={{ request.get_full_path|urlencode }}"
                                class="btn btn-primary btn-sm">
                                 <i class="fas fa-plus me-1"></i> Добавить запись
                             </a>

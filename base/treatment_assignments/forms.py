@@ -172,7 +172,7 @@ class GeneralTreatmentAssignmentForm(BaseAssignmentForm):
         widgets = {
             'patient': forms.HiddenInput(),
             'assigning_doctor': forms.Select(attrs={'class': 'form-select'}),
-            'general_treatment': Select2Widget(attrs={'class': 'form-select'}),
+            'general_treatment': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Поле для ввода назначений'}),
             'start_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
             'end_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Дополнительные примечания'}),

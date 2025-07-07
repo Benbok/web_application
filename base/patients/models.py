@@ -55,6 +55,7 @@ class Patient(models.Model):
         parts = [self.last_name, self.first_name, self.middle_name or '']
         return " ".join(part for part in parts if part)
 
+
 # FHIR: contact (представитель пациента)
 class PatientContact(models.Model):
     patient = models.OneToOneField(Patient, on_delete=models.CASCADE, related_name='contact')

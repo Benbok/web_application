@@ -5,13 +5,13 @@ from django.urls import reverse_lazy
 from django.http import JsonResponse
 from django.db.models import Q
 
-from treatment_assignments.models import InstrumentalProcedureAssignment
-from .models import InstrumentalProcedureResult
-from .forms import build_instrumental_procedure_result_form
+from treatment_assignments.models import LabTestAssignment
+from .models import LabTestResult
+from .forms import build_lab_test_result_form
 
-class InstrumentalProcedureAssignmentListView(LoginRequiredMixin, ListView):
-    model = InstrumentalProcedureAssignment
-    template_name = 'instrumental_procedures/assignment_list.html'
+class LabTestAssignmentListView(LoginRequiredMixin, ListView):
+    model = LabTestAssignment
+    template_name = 'lab_tests/assignment_list.html'
     context_object_name = 'assignments'
     paginate_by = 10
 
@@ -22,30 +22,30 @@ class InstrumentalProcedureAssignmentListView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(
                 Q(patient__first_name__icontains=query) |
                 Q(patient__last_name__icontains=query) |
-                Q(instrumental_procedure__name__icontains=query)
+                Q(lab_test__name__icontains=query)
             )
         return queryset
 
-class InstrumentalProcedureResultCreateView(LoginRequiredMixin, View):
+class LabTestResultCreateView(LoginRequiredMixin, View):
     def get(self, request, pk):
-        assignment = get_object_or_404(InstrumentalProcedureAssignment, pk=pk)
-        procedure_definition = assignment.instrumental_procedure
-        form = build_instrumental_procedure_result_form(procedure_definition.schema, user=request.user)
-        return render(request, 'instrumental_procedures/result_form.html', {
+        assignment = get_object_or_404(LabTestAssignment, pk=pk)
+        procedure_definition = assignment.lab_test
+        form = build_lab_test_result_form(procedure_definition.schema, user=request.user)
+        return render(request, 'lab_tests/result_form.html', {
             'form': form,
             'assignment': assignment,
             'procedure_definition': procedure_definition
         })
 
     def post(self, request, pk):
-        assignment = get_object_or_404(InstrumentalProcedureAssignment, pk=pk)
-        procedure_definition = assignment.instrumental_procedure
-        DynamicFormClass = build_instrumental_procedure_result_form(procedure_definition.schema, user=request.user)
+        assignment = get_object_or_404(LabTestAssignment, pk=pk)
+        procedure_definition = assignment.lab_test
+        DynamicFormClass = build_lab_test_result_form(procedure_definition.schema, user=request.user)
         form = DynamicFormClass(request.POST)
         
         if form.is_valid():
-            result = InstrumentalProcedureResult(
-                instrumental_procedure_assignment=assignment,
+            result = LabTestResult(
+                lab_test_assignment=assignment,
                 procedure_definition=procedure_definition,
                 author=request.user,
                 datetime_result=form.cleaned_data['datetime_result'],
@@ -58,17 +58,17 @@ class InstrumentalProcedureResultCreateView(LoginRequiredMixin, View):
             assignment.end_date = form.cleaned_data['datetime_result'] # Устанавливаем дату завершения
             assignment.save()
 
-            return redirect(reverse_lazy('instrumental_procedures:assignment_list'))
+            return redirect(reverse_lazy('lab_tests:assignment_list'))
         
-        return render(request, 'instrumental_procedures/result_form.html', {
+        return render(request, 'lab_tests/result_form.html', {
             'form': form,
             'assignment': assignment,
             'procedure_definition': procedure_definition
         })
 
-class InstrumentalProcedureResultDetailView(LoginRequiredMixin, DetailView):
-    model = InstrumentalProcedureResult
-    template_name = 'instrumental_procedures/result_detail.html'
+class LabTestResultDetailView(LoginRequiredMixin, DetailView):
+    model = LabTestResult
+    template_name = 'lab_tests/result_detail.html'
     context_object_name = 'result'
 
     def get_queryset(self):
@@ -76,23 +76,23 @@ class InstrumentalProcedureResultDetailView(LoginRequiredMixin, DetailView):
         # Дополнительная фильтрация, если нужно
         return queryset
 
-class InstrumentalProcedureResultUpdateView(LoginRequiredMixin, View):
-    template_name = 'instrumental_procedures/result_form.html'
+class LabTestResultUpdateView(LoginRequiredMixin, View):
+    template_name = 'lab_tests/result_form.html'
 
     def get(self, request, pk):
-        result = get_object_or_404(InstrumentalProcedureResult, pk=pk)
+        result = get_object_or_404(LabTestResult, pk=pk)
         initial_data = {'datetime_result': result.datetime_result, **result.data}
-        form = build_instrumental_procedure_result_form(result.procedure_definition.schema, user=request.user, initial=initial_data)
+        form = build_lab_test_result_form(result.procedure_definition.schema, user=request.user, initial=initial_data)
         return render(request, self.template_name, {
             'form': form,
-            'assignment': result.instrumental_procedure_assignment,
+            'assignment': result.lab_test_assignment,
             'procedure_definition': result.procedure_definition,
             'result': result
         })
 
     def post(self, request, pk):
-        result = get_object_or_404(InstrumentalProcedureResult, pk=pk)
-        DynamicFormClass = build_instrumental_procedure_result_form(result.procedure_definition.schema, user=request.user)
+        result = get_object_or_404(LabTestResult, pk=pk)
+        DynamicFormClass = build_lab_test_result_form(result.procedure_definition.schema, user=request.user)
         form = DynamicFormClass(request.POST)
 
         if form.is_valid():
@@ -100,20 +100,20 @@ class InstrumentalProcedureResultUpdateView(LoginRequiredMixin, View):
             result.data = {k: v for k, v in form.cleaned_data.items() if k != 'datetime_result'}
             result.author = request.user
             result.save()
-            return redirect(reverse_lazy('instrumental_procedures:result_detail', kwargs={'pk': result.pk}))
+            return redirect(reverse_lazy('lab_tests:result_detail', kwargs={'pk': result.pk}))
 
         return render(request, self.template_name, {
             'form': form,
-            'assignment': result.instrumental_procedure_assignment,
+            'assignment': result.lab_test_assignment,
             'procedure_definition': result.procedure_definition,
             'result': result
         })
 
-class InstrumentalProcedureResultDeleteView(LoginRequiredMixin, DeleteView):
-    model = InstrumentalProcedureResult
-    template_name = 'instrumental_procedures/result_confirm_delete.html'
+class LabTestResultDeleteView(LoginRequiredMixin, DeleteView):
+    model = LabTestResult
+    template_name = 'lab_tests/result_confirm_delete.html'
     context_object_name = 'result'
-    success_url = reverse_lazy('instrumental_procedures:assignment_list')
+    success_url = reverse_lazy('lab_tests:assignment_list')
 
     def get_queryset(self):
         queryset = super().get_queryset()

@@ -32,7 +32,6 @@ ALLOWED_HOSTS = []
 # Application definition
 
 DJANGO_APPS = [
-    'rest_framework',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -53,7 +52,6 @@ LOCAL_APPS = [
     'departments',
     'treatment_assignments',
     'pharmacy',
-    'general_treatments',
     'lab_tests',
     'instrumental_procedures',
     'profiles',
@@ -74,6 +72,12 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'base.urls'
 
+DEPARTMENT_SLUGS = {
+    'admission': 'admission', # Техническое отделение для приёма пациентов (соответствует Encounter)
+    'pediatrics': 'pediatrics',
+    'neonatology': 'neonatology',
+}
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -84,6 +88,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'base.context_processors.department_slugs',
             ],
         },
     },

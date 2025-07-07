@@ -120,20 +120,9 @@ class Encounter(models.Model):
         if self.date_end and self.date_start and self.date_end < self.date_start:
             raise ValidationError("Дата завершения не может быть раньше даты начала.")
 
-    @property
-    def department(self):
-        return self.transfer_to_department
-
     def save(self, *args, **kwargs):
         if self.date_end and self.outcome:
             self.is_active = False
         else:
             self.is_active = True
-
-        if not self.transfer_to_department:
-            try:
-                default_department = Department.objects.get(slug="admission")
-                self.transfer_to_department = default_department
-            except Department.DoesNotExist:
-                pass
         super().save(*args, **kwargs)

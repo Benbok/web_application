@@ -103,8 +103,7 @@
   <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="card-title mb-0">Прикреплённые документы</h5>
-            <a
-              href="{% url 'documents:document_type_selection' model_name='encounter' object_id=encounter.pk %}?next={{ request.get_full_path|urlencode }}"
+            <a href="{% url 'documents:document_type_selection' model_name='encounter' object_id=encounter.pk %}?department_slug={{ DEPARTMENT_SLUGS.admission }}&next={{ request.get_full_path|urlencode }}"
               class="btn btn-success btn-sm"
               ><i class="fas fa-plus me-1"></i> Добавить новый документ</a
             >

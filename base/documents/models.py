@@ -69,7 +69,6 @@ class DocumentTemplate(models.Model):
     Шаблон с предзаполненными данными для определенного типа документа.
     """
     name = models.CharField("Название шаблона", max_length=255)
-    # Шаблон теперь жестко привязан к типу документа
     document_type = models.ForeignKey(DocumentType, on_delete=models.CASCADE, related_name='templates')
     
     # Метаданные шаблона
@@ -93,6 +92,3 @@ class DocumentTemplate(models.Model):
 
     def __str__(self):
         return f"Шаблон '{self.name}' для '{self.document_type.name}'"
-
-# Модели DocumentCategory, NeonatalDailyNote и DocumentAttachment больше не нужны и удалены.
-# Если нужна загрузка файлов, ее можно будет реализовать отдельно.

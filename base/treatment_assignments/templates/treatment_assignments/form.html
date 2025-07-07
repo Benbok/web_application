@@ -1,162 +1,57 @@
-{% extends 'patients/base.html' %}
-{% load widget_tweaks %}
+{% extends "patients/base.html" %}
 {% load static %}
+{% load widget_tweaks %}
 
-{% block title %}{{ title }}{% endblock %}
+{% block title %}{{ title }} | МедКарт{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid p-4 bg-light min-vh-100">
-  <div class="card shadow-sm border-0">
-    <div class="card-body p-4">
-      <h2 class="card-title mb-4 fw-bold">{{ title }}</h2>
+<body data-assignment-type="{{ assignment_type }}">
+<div class="card">
+    <div class="card-body">
+        <h4 class="card-title mb-4">{{ title }}</h4>
 
-      <form method="post" id="assignment-form">
-        {% csrf_token %}
-        <div class="row g-3">
-          <div style="display:none;">{{ form.patient }}</div>
+        <form method="post" novalidate>
+            {% csrf_token %}
+            {{ form.media }}
 
-          <div class="col-12 col-md-6 mb-3">
-            <label for="{{ form.start_date.id_for_label }}" class="form-label fw-medium">{{ form.start_date.label }}</label>
-            {{ form.start_date|add_class:"form-control" }}
-          </div>
+            {% for field in form.visible_fields %}
+                {% if field.name != 'assigning_doctor' and field.name != 'notes' %}
+                    <div class="mb-3" id="{% if field.name == 'cancellation_reason' %}cancellation_reason_container{% endif %}"
+                         style="{% if field.name == 'cancellation_reason' and form.initial.status != 'canceled' %}display: none;{% endif %}">
+                        <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                        {{ field|add_class:"form-control" }}
+                        {% if field.errors %}
+                            <div class="text-danger small">{{ field.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
 
-          <div class="col-12 col-md-6 mb-3">
-            <label for="{{ form.end_date.id_for_label }}" class="form-label fw-medium">{{ form.end_date.label }}</label>
-            {{ form.end_date|add_class:"form-control" }}
-          </div>
-
-          <div class="col-12 col-md-6 mb-3">
-            <label for="{{ form.assigning_doctor.id_for_label }}" class="form-label fw-medium">{{ form.assigning_doctor.label }}</label>
-            {{ form.assigning_doctor|add_class:"form-select" }}
-          </div>
-
-          {% if assignment_type == 'medication' %}
-            <div class="col-12 mb-3">
-              <label for="{{ form.medication.id_for_label }}" class="form-label fw-medium">{{ form.medication.label }}</label>
-              {{ form.medication|add_class:"form-select" }}
+            <!-- Поле примечание переносим вниз -->
+            {% if form.notes %}
+            <div class="mb-3">
+                <label for="{{ form.notes.id_for_label }}" class="form-label">{{ form.notes.label }}</label>
+                {{ form.notes|add_class:"form-control" }}
+                {% if form.notes.errors %}
+                    <div class="text-danger small">{{ form.notes.errors|join:", " }}</div>
+                {% endif %}
             </div>
+            {% endif %}
 
-            <div class="col-12 mb-3">
-              <label for="{{ form.dosing_rule.id_for_label }}" class="form-label fw-medium">{{ form.dosing_rule.label }}</label>
-              {{ form.dosing_rule|add_class:"form-select" }}
+            <div class="d-flex justify-content-between align-items-center mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i> Сохранить
+                </button>
+                <a href="{{ next_url|default:'/' }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Отмена
+                </a>
             </div>
-
-            <div class="col-12 col-md-6 mb-3">
-              <label for="{{ form.patient_weight.id_for_label }}" class="form-label fw-medium">{{ form.patient_weight.label }}</label>
-              {{ form.patient_weight|add_class:"form-control" }}
-            </div>
-
-            {# --- НАЧАЛО ИСПРАВЛЕНИЯ: Добавлено недостающее поле --- #}
-            <div class="col-12 col-md-6 mb-3">
-              <label for="{{ form.duration_days.id_for_label }}" class="form-label fw-medium">{{ form.duration_days.label }}</label>
-              {{ form.duration_days|add_class:"form-control" }}
-              {% for error in form.duration_days.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-            </div>
-            {# --- КОНЕЦ ИСПРАВЛЕНИЯ --- #}
-
-          {% endif %}
-
-          {% if assignment_type == 'general' %}
-            <div class="col-12 mb-3">
-                <label for="{{ form.general_treatment.id_for_label }}" class="form-label fw-medium">{{ form.general_treatment.label }}</label>
-                {{ form.general_treatment|add_class:"form-select" }}
-            </div>
-          {% elif assignment_type == 'lab' %}
-            <div class="col-12 mb-3">
-                <label for="{{ form.lab_test.id_for_label }}" class="form-label fw-medium">{{ form.lab_test.label }}</label>
-                {{ form.lab_test|add_class:"form-select" }}
-            </div>
-          {% elif assignment_type == 'instrumental' %}
-            <div class="col-12 mb-3">
-                <label for="{{ form.instrumental_procedure.id_for_label }}" class="form-label fw-medium">{{ form.instrumental_procedure.label }}</label>
-                {{ form.instrumental_procedure|add_class:"form-select" }}
-            </div>
-          {% endif %}
-
-          <div class="col-12 col-md-6 mb-3">
-            <label for="{{ form.status.id_for_label }}" class="form-label fw-medium">{{ form.status.label }}</label>
-            {{ form.status|add_class:"form-select" }}
-          </div>
-
-          <div class="col-12 mb-3" id="cancellation_reason_container" style="display:none;">
-            <label for="{{ form.cancellation_reason.id_for_label }}" class="form-label fw-medium">{{ form.cancellation_reason.label }}</label>
-            {{ form.cancellation_reason|add_class:"form-control"|attr:"rows:2" }}
-          </div>
-
-          <div class="col-12 mb-3">
-            <label for="{{ form.notes.id_for_label }}" class="form-label fw-medium">{{ form.notes.label }}</label>
-            {{ form.notes|add_class:"form-control"|attr:"rows:3" }}
-          </div>
-        </div>
-
-        <div class="mt-4 d-flex justify-content-between">
-          <a href="{{ next_url }}" class="btn btn-outline-secondary">Отмена</a>
-          <button type="submit" class="btn btn-primary">Сохранить</button>
-        </div>
-      </form>
+        </form>
     </div>
-  </div>
 </div>
 
-{{ form.media }}
-
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-    const statusSelect = document.getElementById('id_status');
-    const reasonContainer = document.getElementById('cancellation_reason_container');
-
-    function toggleReasonField() {
-        if (!statusSelect || !reasonContainer) return;
-        if (statusSelect.value === 'canceled') {
-            reasonContainer.style.display = 'block';
-        } else {
-            reasonContainer.style.display = 'none';
-        }
-    }
-
-    if (statusSelect) {
-        toggleReasonField();
-        statusSelect.addEventListener('change', toggleReasonField);
-    }
-
-    if ('{{ assignment_type }}' === 'medication') {
-        const medicationSelect = document.getElementById('id_medication');
-        const dosingRuleSelect = document.getElementById('id_dosing_rule');
-
-        function updateDosingRules() {
-            const medicationId = medicationSelect.value;
-
-            dosingRuleSelect.innerHTML = '<option value="">Загрузка правил...</option>';
-            dosingRuleSelect.disabled = true;
-
-            if (medicationId) {
-                fetch(`{% url 'treatment_assignments:get_dosing_rules' %}?medication_id=${medicationId}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        dosingRuleSelect.innerHTML = '<option value="">Выберите правило</option>';
-                        data.forEach(rule => {
-                            const option = new Option(rule.name, rule.id);
-                            dosingRuleSelect.add(option);
-                        });
-                        dosingRuleSelect.disabled = false;
-                    })
-                    .catch(error => {
-                        console.error('Ошибка при загрузке правил дозирования:', error);
-                        dosingRuleSelect.innerHTML = '<option value="">Ошибка загрузки</option>';
-                    });
-            } else {
-                dosingRuleSelect.innerHTML = '<option value="">Сначала выберите препарат</option>';
-            }
-        }
-
-        if (medicationSelect) {
-            medicationSelect.addEventListener('change', updateDosingRules);
-            if (!medicationSelect.value) {
-                dosingRuleSelect.disabled = true;
-                dosingRuleSelect.innerHTML = '<option value="">Сначала выберите препарат</option>';
-            }
-        }
-    }
-});
-</script>
+<!-- Подключение JS -->
+<script src="{% static 'js/treatment_assignments_form.js' %}"></script>
+</body>
 {% endblock %}

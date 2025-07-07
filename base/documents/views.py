@@ -3,9 +3,10 @@ from django.views import View
 from django.urls import reverse
 from django.contrib.contenttypes.models import ContentType
 from .models import DocumentType, ClinicalDocument, DocumentTemplate
-from profiles.models import DoctorProfile # Импортируем DoctorProfile
-from .forms import build_document_form
 from decimal import Decimal
+
+from .forms import build_document_form
+from departments.models import Department
 
 def convert_decimals_to_str(data):
     """
@@ -27,23 +28,12 @@ class DocumentTypeSelectionView(View):
         content_type = get_object_or_404(ContentType, model=model_name)
         parent_object = get_object_or_404(content_type.model_class(), pk=object_id)
 
-        # Предполагаем, что parent_object является PatientDepartmentStatus
-        # или имеет атрибут department
-        department = None
-        if hasattr(parent_object, 'department'):
-            department = parent_object.department
-        elif hasattr(parent_object, 'patientdepartmentstatus'): # Если это Patient, ищем связанный PatientDepartmentStatus
-            # Это может быть более сложная логика, если у пациента несколько активных статусов
-            # Для простоты, возьмем первый активный статус, если он есть
-            from departments.models import PatientDepartmentStatus
-            patient_status = PatientDepartmentStatus.objects.filter(patient=parent_object, status='accepted').first()
-            if patient_status:
-                department = patient_status.department
+        department_slug = request.GET.get('department_slug')
+        if not department_slug:
+            raise ValueError("Не передан параметр department_slug!")
 
-        if department:
-            document_types = DocumentType.objects.filter(department=department) # Фильтруем по отделению
-        else:
-            document_types = DocumentType.objects.all() # Если отделение не найдено, показываем все
+        department = get_object_or_404(Department, slug=department_slug)
+        document_types = DocumentType.objects.filter(department=department)
 
         search_query = request.GET.get('q')
         if search_query:

@@ -1,0 +1,28 @@
+{% extends 'patients/base.html' %}
+
+{% block title %}Детали результата исследования{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Детали результата для {{ result.lab_test_assignment.lab_test.name }}</h1>
+
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <p><strong>Пациент:</strong> {{ result.lab_test_assignment.patient.full_name }}</p>
+            <p><strong>Тип исследования:</strong> {{ result.lab_test_assignment.lab_test.name }}</p>
+            <p><strong>Дата выполнения:</strong> {{ result.datetime_result|date:"d.m.Y H:i" }}</p>
+            <p><strong>Врач:</strong> {{ result.author.doctor_profile.full_name|default:result.author.username }}</p>
+
+            <hr>
+            <h4>Результаты:</h4>
+            {% for key, value in result.data.items %}
+                <p><strong>{{ key|capfirst }}:</strong> {{ value }}</p>
+            {% endfor %}
+
+            <a href="{% url 'lab_tests:assignment_list' %}" class="btn btn-secondary">Назад к списку</a>
+            <a href="{% url 'lab_tests:result_update' result.pk %}" class="btn btn-primary">Редактировать</a>
+            <a href="{% url 'lab_tests:result_delete' result.pk %}" class="btn btn-danger">Удалить</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

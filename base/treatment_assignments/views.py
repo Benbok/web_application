@@ -45,6 +45,21 @@ def get_treatment_assignment_back_url(obj_or_parent_obj):
     return reverse_lazy('patients:patient_list')
 
 
+
+# Универсальная функция для получения queryset с нужными связями
+def get_base_queryset(model):
+    base_qs = model.objects.all().select_related('patient')
+    if model == MedicationAssignment:
+        base_qs = base_qs.select_related('medication')
+    elif model == LabTestAssignment:
+        base_qs = base_qs.select_related('lab_test')
+    elif model == InstrumentalProcedureAssignment:
+        base_qs = base_qs.select_related('instrumental_procedure')
+    # GeneralTreatmentAssignment — без select_related (general_treatment = TextField)
+    return base_qs
+
+
+
 class BaseAssignmentCreateView(LoginRequiredMixin, CreateView):
     template_name = 'treatment_assignments/form.html'
     assignment_type = None
@@ -86,8 +101,26 @@ class BaseAssignmentCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         form.instance.content_type = ContentType.objects.get_for_model(self.parent_object)
         form.instance.object_id = self.parent_object.pk
-        if not form.instance.patient and self.patient_object: form.instance.patient = self.patient_object
-        # --- ИЗМЕНЕНИЕ: Удалена логика для AJAX (возврат JsonResponse) ---
+
+        # СРАЗУ устанавливаем пациента ДО вызова super().form_valid()
+        if self.patient_object:
+            form.instance.patient = self.patient_object
+        elif hasattr(self.parent_object, 'patient'):
+            form.instance.patient = self.parent_object.patient
+        else:
+            raise ValueError("Не удалось определить пациента для назначения")
+
+        form.instance.assigning_doctor = self.request.user
+        start_date = self.request.GET.get('start_date')
+        if start_date:
+            form.instance.start_date = start_date
+
+        # Сохраняем сразу без вызова super(), чтобы исключить риск повторного обращения к .patient
+        obj = form.save(commit=False)
+        obj.save()
+        form.save_m2m()
+        self.object = obj  # важно для дальнейшего выполнения метода
+
         return super().form_valid(form)
 
     # --- ИЗМЕНЕНИЕ: Удалена логика для AJAX из form_invalid ---
@@ -250,8 +283,7 @@ class DailyTreatmentPlanView(LoginRequiredMixin, View):
                             ~Q(status='paused')
         med_qs = MedicationAssignment.objects.filter(Q(patient=patient) & q_active_in_range).select_related(
             'medication', 'dosing_rule')
-        gen_qs = GeneralTreatmentAssignment.objects.filter(Q(patient=patient) & q_active_in_range).select_related(
-            'general_treatment')
+        gen_qs = GeneralTreatmentAssignment.objects.all().select_related('patient')
         lab_qs = LabTestAssignment.objects.filter(Q(patient=patient) & q_active_in_range).select_related('lab_test')
         inst_qs = InstrumentalProcedureAssignment.objects.filter(Q(patient=patient) & q_active_in_range).select_related(
             'instrumental_procedure')
@@ -337,10 +369,10 @@ class TreatmentAssignmentListView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        med_qs = MedicationAssignment.objects.all().select_related('patient', 'medication')
-        gen_qs = GeneralTreatmentAssignment.objects.all().select_related('patient', 'general_treatment')
-        lab_qs = LabTestAssignment.objects.all().select_related('patient', 'lab_test')
-        inst_qs = InstrumentalProcedureAssignment.objects.all().select_related('patient', 'instrumental_procedure')
+        med_qs = get_base_queryset(MedicationAssignment)
+        gen_qs = get_base_queryset(GeneralTreatmentAssignment)
+        lab_qs = get_base_queryset(LabTestAssignment)
+        inst_qs = get_base_queryset(InstrumentalProcedureAssignment)
         all_assignments = sorted(chain(med_qs, gen_qs, lab_qs, inst_qs), key=lambda x: x.start_date, reverse=True)
         return all_assignments
 
