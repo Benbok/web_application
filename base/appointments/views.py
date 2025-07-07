@@ -1,15 +1,37 @@
-from django.views.generic import ListView, CreateView, View, UpdateView
-from django.http import JsonResponse
+# appointments/views.py
 from django.urls import reverse_lazy
-from .models import Appointment
+from django.http import JsonResponse
+from django.views.generic import ListView, CreateView, UpdateView, View
+from .models import Appointment, AppointmentStatus
 from .forms import AppointmentForm
 
+
+class AppointmentEventsAPI(View):
+    """
+    API для FullCalendar. Возвращает записи в формате JSON.
+    """
+
+    def get(self, request, *args, **kwargs):
+        appointments = Appointment.objects.select_related('patient', 'doctor').filter(
+            status=AppointmentStatus.SCHEDULED)
+
+        events = []
+        for appt in appointments:
+            events.append({
+                'title': f"{appt.patient.full_name} -> Dr. {appt.doctor.last_name}",
+
+                # ИСПРАВЛЕНИЕ: Форматируем дату в строку без часового пояса
+                'start': appt.start_datetime.strftime('%Y-%m-%dT%H:%M:%S'),
+                'end': appt.end_datetime.strftime('%Y-%m-%dT%H:%M:%S'),
+
+                'url': reverse_lazy('appointments:edit', args=[appt.id]),
+            })
+        return JsonResponse(events, safe=False)
 
 class AppointmentListView(ListView):
     model = Appointment
     template_name = 'appointments/calendar.html'
-    context_object_name = 'appointments'
-
+    # Мы не передаем контекст, так как календарь получает данные через API
 
 class AppointmentCreateView(CreateView):
     model = Appointment
@@ -17,27 +39,25 @@ class AppointmentCreateView(CreateView):
     template_name = 'appointments/appointment_form.html'
     success_url = reverse_lazy('appointments:calendar')
 
-    def get_initial(self):
-        date = self.request.GET.get('date')
-        if date:
-            return {'start_time': date}
-        return super().get_initial()
-
-
-class AppointmentEventsAPI(View):
-    def get(self, request):
-        appointments = Appointment.objects.all()
-        events = []
-        for appt in appointments:
-            events.append({
-                'title': f"{appt.patient} (Врач: {appt.doctor})",
-                'start': appt.start_time.isoformat(),
-                'end': appt.end_time.isoformat(),
-            })
-        return JsonResponse(events, safe=False)
-
 class AppointmentUpdateView(UpdateView):
     model = Appointment
     form_class = AppointmentForm
     template_name = 'appointments/appointment_form.html'
     success_url = reverse_lazy('appointments:calendar')
+
+def appointment_data(request):
+    """
+    API для FullCalendar. Возвращает записи в формате JSON.
+    """
+    appointments = Appointment.objects.filter(status=AppointmentStatus.SCHEDULED)
+    events = []
+    for appointment in appointments:
+        events.append({
+            'title': f"{appointment.patient.last_name} -> Dr. {appointment.doctor.last_name}",
+            'start': appointment.start_datetime.isoformat(),
+            'end': appointment.end_datetime.isoformat(),
+            'url': reverse_lazy('appointments:edit', args=[appointment.id]), # Ссылка на редактирование
+            'backgroundColor': '#007bff', # Синий цвет для запланированных
+            'borderColor': '#007bff'
+        })
+    return JsonResponse(events, safe=False)
