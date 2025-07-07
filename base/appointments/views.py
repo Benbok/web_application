@@ -7,19 +7,10 @@ from .serializers import AppointmentEventSerializer
 from .forms import AppointmentEventForm
 
 class AppointmentEventViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet для управления событиями приемов.
-    Полностью поддерживает CRUD через Django REST Framework.
-    """
     queryset = AppointmentEvent.objects.all()
     serializer_class = AppointmentEventSerializer
 
     def get_queryset(self):
-        """
-        Здесь можно добавить фильтрацию по врачу, дате или статусу.
-        Например, фильтрация по доктору:
-        ?doctor=<id>
-        """
         queryset = super().get_queryset()
         doctor_id = self.request.query_params.get('doctor')
         if doctor_id:
@@ -28,9 +19,6 @@ class AppointmentEventViewSet(viewsets.ModelViewSet):
 
 
 class CalendarView(TemplateView):
-    """
-    Представление для отображения календаря через TemplateView.
-    """
     template_name = "appointments/calendar.html"
 
     def get_context_data(self, **kwargs):
