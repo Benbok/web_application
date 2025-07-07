@@ -1,6 +1,7 @@
 from django.db import models
 from datetime import timedelta
 
+
 class Appointment(models.Model):
     patient = models.ForeignKey('patients.Patient', on_delete=models.CASCADE, related_name='appointments')
     doctor = models.ForeignKey('profiles.DoctorProfile', on_delete=models.CASCADE, related_name='appointments')
@@ -14,7 +15,7 @@ class Appointment(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.end_time:
-            self.end_time = self.start_time + timedelta(minutes=30)  # авторасчет (+30 минут)
+            self.end_time = self.start_time + timedelta(minutes=30)
         super().save(*args, **kwargs)
 
     def __str__(self):

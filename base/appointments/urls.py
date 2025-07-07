@@ -6,4 +6,7 @@ app_name = 'appointments'
 urlpatterns = [
     path('', views.AppointmentListView.as_view(), name='calendar'),
     path('new/', views.AppointmentCreateView.as_view(), name='create'),
+    path('api/events/', views.AppointmentEventsAPI.as_view(), name='api_events'),
+    path('<int:pk>/edit/', views.AppointmentUpdateView.as_view(), name='edit'),
+
 ]

@@ -8,5 +8,4 @@ class AppointmentForm(forms.ModelForm):
         fields = ['patient', 'doctor', 'start_time', 'notes']
         widgets = {
             'start_time': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
-            # 'end_time': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
         }
