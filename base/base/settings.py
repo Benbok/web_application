@@ -43,6 +43,8 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     'django_select2',
     'widget_tweaks',
+    'recurrence',
+    'rest_framework',
 ]
 
 LOCAL_APPS = [

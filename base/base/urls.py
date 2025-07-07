@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-
+from appointments.views import AppointmentEventViewSet
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('select2/', include('django_select2.urls')), # Добавляем URL-адреса django-select2

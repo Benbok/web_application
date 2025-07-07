@@ -1,63 +1,53 @@
 # appointments/views.py
+from rest_framework import viewsets
+from django.views.generic import TemplateView, CreateView, UpdateView
 from django.urls import reverse_lazy
-from django.http import JsonResponse
-from django.views.generic import ListView, CreateView, UpdateView, View
-from .models import Appointment, AppointmentStatus
-from .forms import AppointmentForm
+from .models import AppointmentEvent
+from .serializers import AppointmentEventSerializer
+from .forms import AppointmentEventForm
 
-
-class AppointmentEventsAPI(View):
+class AppointmentEventViewSet(viewsets.ModelViewSet):
     """
-    API для FullCalendar. Возвращает записи в формате JSON.
+    ViewSet для управления событиями приемов.
+    Полностью поддерживает CRUD через Django REST Framework.
     """
+    queryset = AppointmentEvent.objects.all()
+    serializer_class = AppointmentEventSerializer
 
-    def get(self, request, *args, **kwargs):
-        appointments = Appointment.objects.select_related('patient', 'doctor').filter(
-            status=AppointmentStatus.SCHEDULED)
+    def get_queryset(self):
+        """
+        Здесь можно добавить фильтрацию по врачу, дате или статусу.
+        Например, фильтрация по доктору:
+        ?doctor=<id>
+        """
+        queryset = super().get_queryset()
+        doctor_id = self.request.query_params.get('doctor')
+        if doctor_id:
+            queryset = queryset.filter(doctor_id=doctor_id)
+        return queryset
 
-        events = []
-        for appt in appointments:
-            events.append({
-                'title': f"{appt.patient.full_name} -> Dr. {appt.doctor.last_name}",
 
-                # ИСПРАВЛЕНИЕ: Форматируем дату в строку без часового пояса
-                'start': appt.start_datetime.strftime('%Y-%m-%dT%H:%M:%S'),
-                'end': appt.end_datetime.strftime('%Y-%m-%dT%H:%M:%S'),
+class CalendarView(TemplateView):
+    """
+    Представление для отображения календаря через TemplateView.
+    """
+    template_name = "appointments/calendar.html"
 
-                'url': reverse_lazy('appointments:edit', args=[appt.id]),
-            })
-        return JsonResponse(events, safe=False)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['appointments'] = AppointmentEvent.objects.all()
+        return context
 
-class AppointmentListView(ListView):
-    model = Appointment
-    template_name = 'appointments/calendar.html'
-    # Мы не передаем контекст, так как календарь получает данные через API
 
 class AppointmentCreateView(CreateView):
-    model = Appointment
-    form_class = AppointmentForm
+    model = AppointmentEvent
+    form_class = AppointmentEventForm
     template_name = 'appointments/appointment_form.html'
     success_url = reverse_lazy('appointments:calendar')
+
 
 class AppointmentUpdateView(UpdateView):
-    model = Appointment
-    form_class = AppointmentForm
+    model = AppointmentEvent
+    form_class = AppointmentEventForm
     template_name = 'appointments/appointment_form.html'
     success_url = reverse_lazy('appointments:calendar')
-
-def appointment_data(request):
-    """
-    API для FullCalendar. Возвращает записи в формате JSON.
-    """
-    appointments = Appointment.objects.filter(status=AppointmentStatus.SCHEDULED)
-    events = []
-    for appointment in appointments:
-        events.append({
-            'title': f"{appointment.patient.last_name} -> Dr. {appointment.doctor.last_name}",
-            'start': appointment.start_datetime.isoformat(),
-            'end': appointment.end_datetime.isoformat(),
-            'url': reverse_lazy('appointments:edit', args=[appointment.id]), # Ссылка на редактирование
-            'backgroundColor': '#007bff', # Синий цвет для запланированных
-            'borderColor': '#007bff'
-        })
-    return JsonResponse(events, safe=False)

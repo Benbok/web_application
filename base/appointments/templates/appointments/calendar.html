@@ -14,19 +14,11 @@ document.addEventListener('DOMContentLoaded', function() {
   var calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
     initialView: 'dayGridMonth',
     locale: 'ru',
-    selectable: true,
-    events: '{% url "appointments:api_events" %}',
-    dateClick: function(info) {
-      var date = info.dateStr;
-      if (confirm('Добавить запись на ' + date + '?')) {
-        window.location.href = "{% url 'appointments:create' %}?date=" + date;
-      }
-    }
+    events: '{% url "appointments:appointmentevent-list" %}',
   });
   calendar.render();
 });
 </script>
-
 
 <h3 class="mt-4">Список записей</h3>
 <table class="table">
@@ -36,7 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <th>Врач</th>
       <th>Дата и время начала</th>
       <th>Заметки</th>
-      <th>Действия</th>
+      <th>Статус</th>
     </tr>
   </thead>
   <tbody>
@@ -44,16 +36,13 @@ document.addEventListener('DOMContentLoaded', function() {
     <tr>
       <td>{{ appointment.patient }}</td>
       <td>{{ appointment.doctor }}</td>
-      <td>{{ appointment.start_time|date:"d.m.Y H:i" }}</td>
+      <td>{{ appointment.start|date:"d.m.Y H:i" }}</td>
       <td>{{ appointment.notes|default:"—" }}</td>
-      <td>
-        <a href="{% url 'appointments:edit' appointment.pk %}" class="btn btn-sm btn-secondary">Редактировать</a>
-      </td>
-
+      <td>{{ appointment.status }}</td>
     </tr>
     {% empty %}
     <tr>
-      <td colspan="4">Записей пока нет.</td>
+      <td colspan="5">Записей пока нет.</td>
     </tr>
     {% endfor %}
   </tbody>
