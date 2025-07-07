@@ -46,7 +46,9 @@ THIRD_PARTY_APPS = [
 ]
 
 LOCAL_APPS = [
+    'profiles',
     'patients',
+    'appointments',
     'encounters',
     'documents',
     'departments',
@@ -54,7 +56,6 @@ LOCAL_APPS = [
     'pharmacy',
     'lab_tests',
     'instrumental_procedures',
-    'profiles',
     'newborns',
 ]
 

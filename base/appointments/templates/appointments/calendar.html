@@ -1,0 +1,53 @@
+{% extends 'patients/base.html' %}
+{% block content %}
+<h2>Календарь записей</h2>
+<a href="{% url 'appointments:create' %}" class="btn btn-primary">Создать запись</a>
+<div id='calendar'></div>
+<br/>
+<h3>Список записей</h3>
+<table class="table">
+  <thead>
+    <tr>
+      <th>Пациент</th>
+      <th>Врач</th>
+      <th>Дата и время начала</th>
+      <th>Заметки</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for appointment in appointments %}
+    <tr>
+      <td>{{ appointment.patient }}</td>
+      <td>{{ appointment.doctor }}</td>
+      <td>{{ appointment.start_time|date:"d.m.Y H:i" }}</td>
+      <td>{{ appointment.notes|default:"—" }}</td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="4">Записей пока нет.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css' rel='stylesheet' />
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.js'></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var calendarEl = document.getElementById('calendar');
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+      initialView: 'dayGridMonth',
+      events: [
+        {% for appointment in appointments %}
+        {
+          title: '{{ appointment.patient }} ({{ appointment.doctor }})',
+          start: '{{ appointment.start_time|date:"Y-m-d\TH:i:s" }}',
+          end: '{{ appointment.end_time|date:"Y-m-d\TH:i:s" }}'
+        },
+        {% endfor %}
+      ]
+    });
+    calendar.render();
+  });
+</script>
+{% endblock %}
