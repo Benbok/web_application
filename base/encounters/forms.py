@@ -45,7 +45,7 @@ class EncounterUpdateForm(forms.ModelForm):
       
 class EncounterCloseForm(forms.ModelForm):
     transfer_to_department = forms.ModelChoiceField(
-        queryset=Department.objects.all(),
+        queryset=Department.objects.exclude(slug='admission'),
         required=False,
         label="Перевести в отделение"
     )
