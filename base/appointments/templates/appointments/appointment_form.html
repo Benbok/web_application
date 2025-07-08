@@ -3,11 +3,37 @@
 
 {% block content %}
 <h2>{% if object %}Редактировать запись{% else %}Создать запись{% endif %}</h2>
-
+<a href="{% url 'patients:patient_create' %}" class="btn btn-secondary"
+   onclick="saveSessionParams(event)">+ Добавить пациента</a>
 <form method="post">
   {% csrf_token %}
   {{ form.as_p }}
   <button type="submit" class="btn btn-primary">Сохранить</button>
   <a href="{% url 'appointments:calendar' %}" class="btn btn-secondary">Отмена</a>
 </form>
+
+<script>
+function saveSessionParams(event) {
+    event.preventDefault();
+
+    const schedule = document.getElementById('id_schedule').value;
+    const start = document.getElementById('id_start').value;
+    const patientCreateUrl = event.target.getAttribute('href');
+
+    fetch("{% url 'appointments:save_session_params' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}',
+        },
+        body: JSON.stringify({
+            schedule: schedule,
+            start: start,
+        }),
+    })
+    .then(() => {
+        window.location.href = patientCreateUrl;
+    });
+}
+</script>
 {% endblock %}

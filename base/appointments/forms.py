@@ -9,7 +9,12 @@ User = get_user_model()
 class AppointmentEventForm(forms.ModelForm):
     class Meta:
         model = AppointmentEvent
-        fields = "__all__"
+        fields = ['schedule', 'patient', 'start', 'end', 'notes', 'status']
+        widgets = {
+            'start': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+            # другие поля
+        }
+
 
 class ScheduleAdminForm(forms.ModelForm):
     class Meta:

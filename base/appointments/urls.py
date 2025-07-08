@@ -6,7 +6,8 @@ from .views import (
     CalendarView,
     AppointmentCreateView,
     AppointmentUpdateView,
-    AvailableSlotsAPIView
+    AvailableSlotsAPIView,
+    save_session_params
 )
 
 router = DefaultRouter()
@@ -20,4 +21,4 @@ urlpatterns = [
     path('create/', AppointmentCreateView.as_view(), name='create'),
     path('edit/<int:pk>/', AppointmentUpdateView.as_view(), name='edit'),
     path('api/available-slots/', AvailableSlotsAPIView.as_view(), name='available_slots_api'),
-]
+    path('save-session-params/', save_session_params, name='save_session_params'),]

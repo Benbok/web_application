@@ -1,4 +1,6 @@
 # appointments/views.py
+import json
+
 from rest_framework import viewsets
 from django.http import JsonResponse
 from django.views.generic import TemplateView, CreateView, UpdateView, View
@@ -6,10 +8,11 @@ from django.urls import reverse_lazy
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from datetime import datetime, time, timedelta
-from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
 from .services import generate_available_slots
+from django.views.decorators.csrf import csrf_exempt
 
 from .models import Schedule, AppointmentEvent
 from .serializers import AppointmentEventSerializer
@@ -89,13 +92,32 @@ class AppointmentCreateView(CreateView):
 
     def get_initial(self):
         initial = super().get_initial()
-        schedule_id = self.request.GET.get('schedule_id')
-        start = self.request.GET.get('start')
 
-        if schedule_id:
-            initial['schedule'] = schedule_id  # Автоматически заполняем слот расписания
-        if start:
-            initial['start'] = start  # Можно сразу заполнить время начала (если нужно)
+        # ✅ Попытка прочитать параметры из сессии (после создания пациента)
+        params = self.request.session.pop('appointment_params', None)
+        if params:
+            initial['schedule'] = params.get('schedule')
+            start = params.get('start')
+            if start:
+                parsed_start = parse_datetime(start)
+                if parsed_start:
+                    initial['start'] = parsed_start
+
+        # ✅ Попытка прочитать параметры из URL (при первом заходе)
+        if 'schedule' not in initial:
+            schedule_id = self.request.GET.get('schedule_id')
+            start = self.request.GET.get('start')
+            if schedule_id:
+                initial['schedule'] = schedule_id
+            if start:
+                parsed_start = parse_datetime(start)
+                if parsed_start:
+                    initial['start'] = parsed_start
+
+        # ✅ Отдельно читаем patient_id (из URL после создания пациента)
+        patient_id = self.request.GET.get('patient_id')
+        if patient_id:
+            initial['patient'] = patient_id
 
         return initial
 
@@ -105,3 +127,12 @@ class AppointmentUpdateView(UpdateView):
     form_class = AppointmentEventForm
     template_name = 'appointments/appointment_form.html'
     success_url = reverse_lazy('appointments:calendar')
+
+
+@csrf_exempt
+def save_session_params(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        request.session['appointment_params'] = data
+        return JsonResponse({'status': 'ok'})
+    return JsonResponse({'error': 'invalid method'}, status=405)
