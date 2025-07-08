@@ -28,7 +28,7 @@ class AppointmentEventViewSet(viewsets.ModelViewSet):
         queryset = super().get_queryset()
         doctor_id = self.request.query_params.get('doctor')
         if doctor_id:
-            queryset = queryset.filter(doctor_id=doctor_id)
+            queryset = queryset.filter(schedule__doctor__id=doctor_id)
         return queryset
 
 

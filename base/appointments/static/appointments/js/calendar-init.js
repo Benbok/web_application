@@ -1,16 +1,4 @@
-// ✅ Сразу доступная логика кнопки "Создать запись" (не зависит от календаря)
-document.getElementById('createAppointmentBtn').addEventListener('click', function(e) {
-    e.preventDefault();
-    const doctorId = document.getElementById('doctorSelector').value;
-    if (!doctorId) {
-        alert("Пожалуйста, сначала выберите врача, чтобы увидеть его расписание.");
-    } else {
-        alert("Выберите свободный зеленый слот в календаре, чтобы записаться.");
-    }
-});
-
-// ✅ Функция для инициализации FullCalendar (Lazy)
-function initCalendar() {
+document.addEventListener('DOMContentLoaded', function() {
     const calendarEl = document.getElementById('calendar');
     const doctorSelector = document.getElementById('doctorSelector');
 
@@ -20,7 +8,6 @@ function initCalendar() {
         color: '#dc3545',
         textColor: 'white'
     };
-
     const availableSlotsSource = {
         id: 'available',
         url: ''
@@ -39,10 +26,9 @@ function initCalendar() {
         slotMaxTime: "20:00:00",
         allDaySlot: false,
         firstDay: 1,
+        eventSources: [ bookedAppointmentsSource ],
 
-        eventSources: [bookedAppointmentsSource],
-
-        eventClick: function(info) {
+        eventClick(info) {
             if (info.event.backgroundColor === '#28a745') {
                 const startTime = info.event.start.toISOString();
                 const scheduleId = info.event.extendedProps.schedule_id;
@@ -53,30 +39,37 @@ function initCalendar() {
     });
 
     calendar.render();
-    calendarEl.style.display = '';  // Показываем календарь после рендера
 
-    const savedDoctorId = localStorage.getItem('selectedDoctor');
-    if (savedDoctorId) {
-        doctorSelector.value = savedDoctorId;
-        loadAvailableSlots(savedDoctorId);
-    }
-
-    doctorSelector.addEventListener('change', function() {
-        const doctorId = this.value;
-        localStorage.setItem('selectedDoctor', doctorId);
-        loadAvailableSlots(doctorId);
-    });
-
-    function loadAvailableSlots(doctorId) {
+    function loadScheduleForDoctor(doctorId) {
         const oldSource = calendar.getEventSourceById('available');
-        if (oldSource) oldSource.remove();
-
+        if (oldSource) {
+            oldSource.remove();
+        }
         if (doctorId) {
             availableSlotsSource.url = `${window.availableSlotsBaseUrl}?doctor_id=${doctorId}`;
             calendar.addEventSource(availableSlotsSource);
         }
     }
-}
 
-// ✅ Инициализация календаря после полной загрузки страницы (Lazy Load)
-window.addEventListener('load', initCalendar);
+    doctorSelector.addEventListener('change', function() {
+        const doctorId = this.value;
+        localStorage.setItem('selectedDoctorId', doctorId);
+        loadScheduleForDoctor(doctorId);
+    });
+
+    const savedDoctorId = localStorage.getItem('selectedDoctorId');
+    if (savedDoctorId) {
+        doctorSelector.value = savedDoctorId;
+        loadScheduleForDoctor(savedDoctorId);
+    }
+
+    document.getElementById('createAppointmentBtn').addEventListener('click', function(e){
+        e.preventDefault();
+        const doctorId = doctorSelector.value;
+        if (!doctorId) {
+            alert("Пожалуйста, сначала выберите врача, чтобы увидеть его расписание.");
+        } else {
+            alert("Выберите свободный зеленый слот в календаре, чтобы записаться.");
+        }
+    });
+});

@@ -10,44 +10,20 @@
 
     <div class="mb-3">
         <label for="doctorSelector" class="form-label"><b>Выберите врача для просмотра расписания:</b></label>
-        <select class="form-select" id="doctorSelector" aria-label="Выбор врача">
+        <select class="form-select" id="doctorSelector">
             <option value="">-- Все врачи (только занятые слоты) --</option>
             {% for doctor in doctors %}
-                <option value="{{ doctor.id }}">
-                    {{ doctor.doctor_profile.full_name|default:doctor.username }}
-                    {% if doctor.doctor_profile.specialization %}
-                        ({{ doctor.doctor_profile.specialization }})
-                    {% endif %}
-                </option>
+                <option value="{{ doctor.id }}">{{ doctor.doctor_profile.full_name }}</option>
             {% endfor %}
         </select>
     </div>
 
     <div id="calendar"></div>
 </div>
-
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/4.2.0/bootstrap/main.min.css">
-<!-- Ядро FullCalendar -->
-<script src="{% static 'appointments/js/fullcalendar-6.1.18/packages/core/index.global.min.js' %}"></script>
-<!-- Плагины FullCalendar -->
-<script src="{% static 'appointments/js/fullcalendar-6.1.18/packages/daygrid/index.global.min.js' %}"></script>
-<script src="{% static 'appointments/js/fullcalendar-6.1.18/packages/timegrid/index.global.min.js' %}"></script>
-<script src="{% static 'appointments/js/fullcalendar-6.1.18/packages/core/locales-all.global.min.js' %}"></script>
-<script src="{% static 'appointments/js/calendar-init.js' %}"></script>
-<!-- Локализация -->
-<script src="{% static 'appointments/js/fullcalendar-6.1.18/packages/core/locales-all.global.min.js' %}"></script>
-<!-- Ваш инициализационный скрипт -->
-<script src="{% static 'appointments/js/calendar-init.js' %}"></script>
-
-
-
-
-
-
 <script>
 window.bookedAppointmentsUrl = "{% url 'appointments:appointmentevent-list' %}";
 window.availableSlotsBaseUrl = "{% url 'appointments:available_slots_api' %}";
 window.createAppointmentUrl = "{% url 'appointments:create' %}";
 </script>
-<script src="{% static 'appointments/js/calendar-init.js' %}" defer></script>
+<script src="{% static 'appointments/js/calendar-init.js' %}"></script>
 {% endblock %}
