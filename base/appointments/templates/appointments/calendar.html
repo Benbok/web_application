@@ -15,6 +15,9 @@
             {% for doctor in doctors %}
                 <option value="{{ doctor.id }}">
                     {{ doctor.doctor_profile.full_name|default:doctor.username }}
+                    {% if doctor.doctor_profile.specialization %}
+                        ({{ doctor.doctor_profile.specialization }})
+                    {% endif %}
                 </option>
             {% endfor %}
         </select>

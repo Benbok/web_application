@@ -15,7 +15,7 @@ class DoctorProfile(models.Model):
         verbose_name_plural = "Профили врачей"
 
     def __str__(self):
-        return f"{self.full_name}"
+        return f"{self.full_name} ({self.specialization})"
 
     def get_current_position(self, at_date=None):
         """
