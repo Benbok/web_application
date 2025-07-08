@@ -26,8 +26,13 @@ class ScheduleSerializer(serializers.ModelSerializer):
 class AppointmentEventSerializer(serializers.ModelSerializer):
     patient = PatientSerializer(read_only=True)
     schedule = ScheduleSerializer(read_only=True)
+    title = serializers.SerializerMethodField()
 
     class Meta:
         model = AppointmentEvent
+        fields = ('id', 'schedule', 'patient', 'start', 'end', 'notes', 'status', 'title')
 
-        fields = ('id', 'schedule', 'patient', 'start', 'end', 'notes', 'status')
+    def get_title(self, obj):
+        patient_name = obj.patient.full_name if obj.patient else "Неизвестный пациент"
+        doctor_name = obj.schedule.doctor.doctor_profile.full_name if obj.schedule and obj.schedule.doctor and hasattr(obj.schedule.doctor, 'doctor_profile') else "Неизвестный врач"
+        return f"{patient_name} - {doctor_name}"

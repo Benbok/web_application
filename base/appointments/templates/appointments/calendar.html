@@ -26,15 +26,20 @@
     <div id="calendar"></div>
 </div>
 
-<link rel="preload" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css"></noscript>
-<!-- ✅ 1. Ядро FullCalendar -->
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/4.2.0/bootstrap/main.min.css">
+<!-- Ядро FullCalendar -->
+<script src="{% static 'appointments/js/fullcalendar-6.1.18/packages/core/index.global.min.js' %}"></script>
+<!-- Плагины FullCalendar -->
+<script src="{% static 'appointments/js/fullcalendar-6.1.18/packages/daygrid/index.global.min.js' %}"></script>
+<script src="{% static 'appointments/js/fullcalendar-6.1.18/packages/timegrid/index.global.min.js' %}"></script>
+<script src="{% static 'appointments/js/fullcalendar-6.1.18/packages/core/locales-all.global.min.js' %}"></script>
+<script src="{% static 'appointments/js/calendar-init.js' %}"></script>
+<!-- Локализация -->
+<script src="{% static 'appointments/js/fullcalendar-6.1.18/packages/core/locales-all.global.min.js' %}"></script>
+<!-- Ваш инициализационный скрипт -->
+<script src="{% static 'appointments/js/calendar-init.js' %}"></script>
 
-<!-- ✅ 2. Плагины (обязательно после ядра) -->
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/daygrid.global.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/timegrid.global.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/locales-all.global.min.js"></script>
+
 
 
 

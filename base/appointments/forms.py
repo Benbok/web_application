@@ -1,5 +1,8 @@
 # appointments/forms.py
+
 from django import forms
+from django.utils import timezone
+
 from .models import AppointmentEvent
 from .models import Schedule
 from django.contrib.auth import get_user_model
@@ -9,11 +12,21 @@ User = get_user_model()
 class AppointmentEventForm(forms.ModelForm):
     class Meta:
         model = AppointmentEvent
-        fields = ['schedule', 'patient', 'start', 'end', 'notes', 'status']
+        fields = ['schedule', 'patient', 'start', 'notes', 'status']
         widgets = {
             'start': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
-            # другие поля
         }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        start = cleaned_data.get('start')
+        schedule = cleaned_data.get('schedule')
+
+        if start and schedule:
+            self.instance.end = start + timezone.timedelta(minutes=schedule.duration)
+        return cleaned_data
+
+
 
 
 class ScheduleAdminForm(forms.ModelForm):

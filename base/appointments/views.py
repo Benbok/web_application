@@ -49,7 +49,7 @@ class AppointmentEventsAPI(View):
                 continue
 
             events.append({
-                'title': f"{appt.patient.full_name} -> Dr. {appt.schedule.doctor.last_name}",
+                'title': "Тестовое событие",
                 # Use strftime to avoid timezone issues on the front-end
                 'start': appt.start.strftime('%Y-%m-%dT%H:%M:%S'),
                 'end': appt.end.strftime('%Y-%m-%dT%H:%M:%S'),
