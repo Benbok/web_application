@@ -29,6 +29,23 @@ document.addEventListener('DOMContentLoaded', function() {
         firstDay: 1,
         eventSources: [ bookedAppointmentsSource ],
 
+        eventDidMount: function(info) {
+                const status = info.event.extendedProps.status;
+
+                if (status === 'completed') {
+                    info.el.style.backgroundColor = '#6c757d';
+                    info.el.style.textDecoration = 'line-through';
+                } else if (status === 'canceled') {
+                    info.el.style.backgroundColor = '#28a745';
+                    info.el.style.textDecoration = 'none';
+                } else if (status === 'scheduled') {
+                    info.el.style.backgroundColor = '#dc3545';
+                    info.el.style.textDecoration = 'none';
+                } else {
+                    console.warn('Неизвестный статус:', status);
+                }
+            },
+
         eventClick(info) {
             if (info.event.backgroundColor === '#28a745') {
                 // Свободный слот → открыть создание записи
