@@ -3,7 +3,7 @@ import json
 
 from rest_framework import viewsets
 from django.http import JsonResponse
-from django.views.generic import TemplateView, CreateView, UpdateView, View
+from django.views.generic import TemplateView, CreateView, UpdateView, View, DetailView, DeleteView
 from django.urls import reverse_lazy
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -129,6 +129,24 @@ class AppointmentUpdateView(UpdateView):
     success_url = reverse_lazy('appointments:calendar')
 
 
+class AppointmentEventUpdateView(UpdateView):
+    model = AppointmentEvent
+    form_class = AppointmentEventForm
+    template_name = 'appointments/appointment_form.html'
+
+    def get_success_url(self):
+        return reverse_lazy('appointments:detail', kwargs={'pk': self.object.pk})
+
+class AppointmentEventDetailView(DetailView):
+    model = AppointmentEvent
+    template_name = 'appointments/appointment_detail.html'
+    context_object_name = 'appointment'
+
+class AppointmentEventDeleteView(DeleteView):
+    model = AppointmentEvent
+    template_name = 'appointments/appointment_confirm_delete.html'
+    success_url = reverse_lazy('appointments:calendar')
+
 @csrf_exempt
 def save_session_params(request):
     if request.method == 'POST':
@@ -136,3 +154,4 @@ def save_session_params(request):
         request.session['appointment_params'] = data
         return JsonResponse({'status': 'ok'})
     return JsonResponse({'error': 'invalid method'}, status=405)
+

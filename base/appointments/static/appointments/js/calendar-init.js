@@ -31,10 +31,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
         eventClick(info) {
             if (info.event.backgroundColor === '#28a745') {
+                // Свободный слот → открыть создание записи
                 const startTime = info.event.start.toISOString();
                 const scheduleId = info.event.extendedProps.schedule_id;
                 const createUrl = `${window.createAppointmentUrl}?start=${startTime}&schedule_id=${scheduleId}`;
                 window.location.href = createUrl;
+            } else {
+                // Занятая запись → открыть детальную информацию
+                const detailUrl = window.detailAppointmentUrl.replace('__ID__', info.event.id);
+                window.location.href = detailUrl;
             }
         }
     });

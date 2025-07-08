@@ -27,6 +27,7 @@
 window.bookedAppointmentsUrl = "{% url 'appointments:appointmentevent-list' %}";
 window.availableSlotsBaseUrl = "{% url 'appointments:available_slots_api' %}";
 window.createAppointmentUrl = "{% url 'appointments:create' %}";
+window.detailAppointmentUrl = "{% url 'appointments:detail' 0 %}".replace('/0/', '/__ID__/');
 </script>
 <script src="{% static 'appointments/js/calendar-init.js' %}"></script>
 {% endblock %}
