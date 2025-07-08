@@ -5,18 +5,17 @@
 <div class="container-fluid mt-3">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2>Календарь записей</h2>
-        {# Кнопка создания теперь может быть не так важна, но оставим ее #}
         <a href="#" class="btn btn-primary" id="createAppointmentBtn">Создать запись</a>
     </div>
 
-    {# Добавляем выпадающий список для выбора врача #}
     <div class="mb-3">
         <label for="doctorSelector" class="form-label"><b>Выберите врача для просмотра расписания:</b></label>
-        <select class="form-select" id="doctorSelector">
+        <select class="form-select" id="doctorSelector" aria-label="Выбор врача">
             <option value="">-- Все врачи (только занятые слоты) --</option>
-            {# Предполагаем, что вы передаете 'doctors' в контексте CalendarView #}
             {% for doctor in doctors %}
-                <option value="{{ doctor.id }}">{{ doctor.doctor_profile.full_name  }}</option>
+                <option value="{{ doctor.id }}">
+                    {{ doctor.doctor_profile.full_name|default:doctor.username }}
+                </option>
             {% endfor %}
         </select>
     </div>
@@ -24,94 +23,16 @@
     <div id="calendar"></div>
 </div>
 
-{# Подключаем CSS и JS для FullCalendar #}
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css" rel="stylesheet" />
 <script src="{% static 'appointments/js/index.global.min.js' %}"></script>
 <script src="{% static 'appointments/js/daygrid.global.min.js' %}"></script>
 <script src="{% static 'appointments/js/locales-all.global.min.js' %}"></script>
 <script src="{% static 'appointments/js/timegrid.index.global.min.js' %}"></script>
-
+<script src="{% static 'appointments/js/calendar-init.js' %}"></script>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const calendarEl = document.getElementById('calendar');
-    const doctorSelector = document.getElementById('doctorSelector');
-
-    // --- ИСТОЧНИКИ СОБЫТИЙ ---
-    // Мы будем управлять ими динамически
-    const bookedAppointmentsSource = {
-        id: 'booked',
-        url: "{% url 'appointments:appointmentevent-list' %}", // URL из вашего DRF роутера
-        color: '#dc3545', // Красный для занятых
-        textColor: 'white'
-    };
-
-    const availableSlotsSource = {
-        id: 'available',
-        // URL будет формироваться динамически
-        url: ''
-    };
-
-    const calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'timeGridWeek',
-        headerToolbar: {
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,timeGridWeek'
-        },
-        locale: 'ru',
-        selectable: true,
-        slotMinTime: "08:00:00",
-        slotMaxTime: "20:00:00",
-        allDaySlot: false, // Отключаем слот "весь день"
-
-        eventSources: [ bookedAppointmentsSource ], // По умолчанию показываем только занятые
-
-        eventClick: function(info) {
-            // Обрабатываем клик только на ЗЕЛЕНЫЕ (свободные) события
-            if (info.event.backgroundColor === '#28a745') {
-                const startTime = info.event.start.toISOString();
-                const scheduleId = info.event.extendedProps.schedule_id;
-
-                // Перенаправляем на форму создания, передав время и ID расписания
-                // Вам нужно будет создать view для создания записи, которая примет эти параметры
-                const createUrl = `{% url 'appointments:create' %}?start=${startTime}&schedule_id=${scheduleId}`;
-
-                window.location.href = createUrl;
-            }
-        }
-    });
-
-    calendar.render();
-
-    // --- ЛОГИКА ВЫБОРА ВРАЧА ---
-    doctorSelector.addEventListener('change', function() {
-        const doctorId = this.value;
-
-        // Удаляем старый источник свободных слотов, если он был
-        const oldSource = calendar.getEventSourceById('available');
-        if (oldSource) {
-            oldSource.remove();
-        }
-
-        if (doctorId) {
-            // Если врач выбран, формируем URL и добавляем новый источник
-            availableSlotsSource.url = `{% url 'appointments:available_slots_api' %}?doctor_id=${doctorId}`;
-            calendar.addEventSource(availableSlotsSource);
-        }
-        // Календарь автоматически запросит данные из нового источника
-    });
-
-    // Логика для кнопки "Создать запись" (может быть не нужна)
-    document.getElementById('createAppointmentBtn').addEventListener('click', function(e){
-        e.preventDefault();
-        const doctorId = doctorSelector.value;
-        if (!doctorId) {
-            alert("Пожалуйста, сначала выберите врача, чтобы увидеть его расписание.");
-        } else {
-            alert("Выберите свободный зеленый слот в календаре, чтобы записаться.");
-        }
-    });
-});
+window.bookedAppointmentsUrl = "{% url 'appointments:appointmentevent-list' %}";
+window.availableSlotsBaseUrl = "{% url 'appointments:available_slots_api' %}";
+window.createAppointmentUrl = "{% url 'appointments:create' %}";
 </script>
 {% endblock %}

@@ -9,6 +9,7 @@ from datetime import datetime, time, timedelta
 from django.utils import timezone
 from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
+from .services import generate_available_slots
 
 from .models import Schedule, AppointmentEvent
 from .serializers import AppointmentEventSerializer
@@ -57,10 +58,6 @@ class AppointmentEventsAPI(View):
 
 
 class AvailableSlotsAPIView(APIView):
-    """
-    Генерирует и возвращает список свободных слотов для записи.
-    """
-
     def get(self, request, *args, **kwargs):
         start_str = request.query_params.get('start')
         end_str = request.query_params.get('end')
@@ -69,64 +66,18 @@ class AvailableSlotsAPIView(APIView):
         if not all([start_str, end_str, doctor_id]):
             return Response({"error": "Необходимы параметры start, end и doctor_id"}, status=400)
 
-        # 1. Получаем "осведомленные" datetime из запроса
-        start_dt_aware = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
-        end_dt_aware = datetime.fromisoformat(end_str.replace('Z', '+00:00'))
+        start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+        end_dt = datetime.fromisoformat(end_str.replace('Z', '+00:00'))
 
-        schedules = Schedule.objects.filter(doctor_id=doctor_id)
-
-        # Занятые слоты получаем, используя "осведомленные" даты
-        booked_slots = set(AppointmentEvent.objects.filter(
-            schedule__doctor_id=doctor_id,
-            start__range=[start_dt_aware, end_dt_aware],
-            status="scheduled"
-        ).values_list('start', flat=True))
-
-        available_slots = []
-        for schedule in schedules:
-            # --- ОСНОВНОЕ ИСПРАВЛЕНИЕ ---
-            # 2. Передаем в метод .between() "НАИВНЫЕ" версии дат.
-            # Мы просто "отрезаем" информацию о часовом поясе.
-            occurrences = schedule.recurrences.between(
-                start_dt_aware.replace(tzinfo=None),
-                end_dt_aware.replace(tzinfo=None),
-                inc=True
-            )
-            # ---------------------------
-
-            for shift_start_date in occurrences:
-                # Генерируем "талоны" внутри одной смены
-                slot_start_naive = datetime.combine(shift_start_date.date(), schedule.start_time)
-                current_time = timezone.make_aware(
-                    slot_start_naive)  # Делаем их "осведомленными" для дальнейших сравнений
-
-                end_of_shift_naive = datetime.combine(shift_start_date.date(), schedule.end_time)
-                end_of_shift = timezone.make_aware(end_of_shift_naive)
-
-                while current_time < end_of_shift:
-                    if current_time not in booked_slots:
-                        available_slots.append({
-                            "title": "Свободно",
-                            "start": current_time.isoformat(),
-                            "end": (current_time + timedelta(minutes=schedule.duration)).isoformat(),
-                            "color": "#28a745",
-                            "extendedProps": {"schedule_id": schedule.id}
-                        })
-                    current_time += timedelta(minutes=schedule.duration)
-
-        return Response(available_slots)
+        slots = generate_available_slots(start_dt, end_dt, doctor_id)
+        return Response(slots)
 class CalendarView(TemplateView):
     template_name = "appointments/calendar.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # 2. Находим всех пользователей, у которых есть профиль врача
-        context['doctors'] = User.objects.filter(doctor_profile__isnull=False)
-
-        # Эту строку можно оставить, если она вам нужна для других целей
-        context['appointments'] = AppointmentEvent.objects.all()
-
+        context['doctors'] = User.objects.only('id', 'first_name', 'last_name').filter(doctor_profile__isnull=False)
         return context
 
 
