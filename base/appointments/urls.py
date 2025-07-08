@@ -5,7 +5,8 @@ from .views import (
     AppointmentEventViewSet,
     CalendarView,
     AppointmentCreateView,
-    AppointmentUpdateView
+    AppointmentUpdateView,
+    AvailableSlotsAPIView
 )
 
 router = DefaultRouter()
@@ -18,4 +19,5 @@ urlpatterns = [
     path('calendar/', CalendarView.as_view(), name='calendar'),
     path('create/', AppointmentCreateView.as_view(), name='create'),
     path('edit/<int:pk>/', AppointmentUpdateView.as_view(), name='edit'),
+    path('api/available-slots/', AvailableSlotsAPIView.as_view(), name='available_slots_api'),
 ]
