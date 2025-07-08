@@ -1,10 +1,22 @@
-document.addEventListener('DOMContentLoaded', function() {
+// ✅ Сразу доступная логика кнопки "Создать запись" (не зависит от календаря)
+document.getElementById('createAppointmentBtn').addEventListener('click', function(e) {
+    e.preventDefault();
+    const doctorId = document.getElementById('doctorSelector').value;
+    if (!doctorId) {
+        alert("Пожалуйста, сначала выберите врача, чтобы увидеть его расписание.");
+    } else {
+        alert("Выберите свободный зеленый слот в календаре, чтобы записаться.");
+    }
+});
+
+// ✅ Функция для инициализации FullCalendar (Lazy)
+function initCalendar() {
     const calendarEl = document.getElementById('calendar');
     const doctorSelector = document.getElementById('doctorSelector');
 
     const bookedAppointmentsSource = {
         id: 'booked',
-        url: window.bookedAppointmentsUrl,  // Передадим через контекст или data-* в будущем
+        url: window.bookedAppointmentsUrl,
         color: '#dc3545',
         textColor: 'white'
     };
@@ -26,6 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
         slotMinTime: "08:00:00",
         slotMaxTime: "20:00:00",
         allDaySlot: false,
+        firstDay: 1,
 
         eventSources: [bookedAppointmentsSource],
 
@@ -40,6 +53,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     calendar.render();
+    calendarEl.style.display = '';  // Показываем календарь после рендера
 
     const savedDoctorId = localStorage.getItem('selectedDoctor');
     if (savedDoctorId) {
@@ -62,14 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
             calendar.addEventSource(availableSlotsSource);
         }
     }
+}
 
-    document.getElementById('createAppointmentBtn').addEventListener('click', function(e) {
-        e.preventDefault();
-        const doctorId = doctorSelector.value;
-        if (!doctorId) {
-            alert("Пожалуйста, сначала выберите врача, чтобы увидеть его расписание.");
-        } else {
-            alert("Выберите свободный зеленый слот в календаре, чтобы записаться.");
-        }
-    });
-});
+// ✅ Инициализация календаря после полной загрузки страницы (Lazy Load)
+window.addEventListener('load', initCalendar);

@@ -87,6 +87,18 @@ class AppointmentCreateView(CreateView):
     template_name = 'appointments/appointment_form.html'
     success_url = reverse_lazy('appointments:calendar')
 
+    def get_initial(self):
+        initial = super().get_initial()
+        schedule_id = self.request.GET.get('schedule_id')
+        start = self.request.GET.get('start')
+
+        if schedule_id:
+            initial['schedule'] = schedule_id  # Автоматически заполняем слот расписания
+        if start:
+            initial['start'] = start  # Можно сразу заполнить время начала (если нужно)
+
+        return initial
+
 
 class AppointmentUpdateView(UpdateView):
     model = AppointmentEvent

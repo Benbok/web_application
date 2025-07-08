@@ -23,16 +23,23 @@
     <div id="calendar"></div>
 </div>
 
-<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css" rel="stylesheet" />
-<script src="{% static 'appointments/js/index.global.min.js' %}"></script>
-<script src="{% static 'appointments/js/daygrid.global.min.js' %}"></script>
-<script src="{% static 'appointments/js/locales-all.global.min.js' %}"></script>
-<script src="{% static 'appointments/js/timegrid.index.global.min.js' %}"></script>
-<script src="{% static 'appointments/js/calendar-init.js' %}"></script>
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css"></noscript>
+<!-- ✅ 1. Ядро FullCalendar -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
+<!-- ✅ 2. Плагины (обязательно после ядра) -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/daygrid.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/timegrid.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/locales-all.global.min.js"></script>
+
+
+
 
 <script>
 window.bookedAppointmentsUrl = "{% url 'appointments:appointmentevent-list' %}";
 window.availableSlotsBaseUrl = "{% url 'appointments:available_slots_api' %}";
 window.createAppointmentUrl = "{% url 'appointments:create' %}";
 </script>
+<script src="{% static 'appointments/js/calendar-init.js' %}" defer></script>
 {% endblock %}

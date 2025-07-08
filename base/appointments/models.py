@@ -30,7 +30,16 @@ class Schedule(models.Model):
         return None
 
     def __str__(self):
-        return f"Расписание для {self.doctor.get_full_name()}"
+        start = self.start_time.strftime('%H:%M')
+        end = self.end_time.strftime('%H:%M')
+
+        # Получаем ФИО врача из DoctorProfile
+        if self.doctor and hasattr(self.doctor, 'doctor_profile') and self.doctor.doctor_profile:
+            doctor_name = self.doctor.doctor_profile.full_name
+        else:
+            doctor_name = self.doctor.username if self.doctor else "Неизвестный врач"
+
+        return f"Расписание {doctor_name} ({start}—{end}, {self.duration} мин)"
 
     class Meta:
         verbose_name = "Расписание"
