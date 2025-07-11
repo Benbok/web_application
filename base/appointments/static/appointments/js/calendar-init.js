@@ -14,12 +14,12 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     const calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'timeGridWeek',
+        initialView: 'timeGridDay',
         headerToolbar: {
         timeZone: 'local',
             left: 'prev,next today',
             center: 'title',
-            right: 'dayGridMonth,timeGridWeek'
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
         },
         locale: 'ru',
         selectable: true,
@@ -27,6 +27,9 @@ document.addEventListener('DOMContentLoaded', function() {
         slotMaxTime: "20:00:00",
         allDaySlot: false,
         firstDay: 1,
+        height: 900,
+        slotDuration: '00:30:00',
+        slotMinHeight: 60,
         eventSources: [ bookedAppointmentsSource ],
 
         eventDidMount: function(info) {

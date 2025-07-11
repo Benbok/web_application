@@ -47,9 +47,8 @@ class AppointmentEventsAPI(View):
         for appt in appointments:
             if not appt.schedule or not appt.schedule.doctor:
                 continue
-
             events.append({
-                'title': "Тестовое событие",
+                'title': f"{appt.patient.full_name} ({appt.start.strftime('%H:%M')})",
                 # Use strftime to avoid timezone issues on the front-end
                 'start': appt.start.strftime('%Y-%m-%dT%H:%M:%S'),
                 'end': appt.end.strftime('%Y-%m-%dT%H:%M:%S'),
@@ -57,6 +56,7 @@ class AppointmentEventsAPI(View):
                 'textColor': 'white',
                 'id': appt.id
             })
+            
         return JsonResponse(events, safe=False)
 
 
