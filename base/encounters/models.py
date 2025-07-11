@@ -56,7 +56,11 @@ class Encounter(models.Model):
             raise ValueError("Необходимо прикрепить хотя бы один документ для закрытия случая.")
 
         if self.is_active:
-            self.date_end = timezone.now()
+            # Если есть связанный appointment — берем дату окончания из него
+            if hasattr(self, 'appointment') and self.appointment and self.appointment.end:
+                self.date_end = self.appointment.end
+            else:
+                self.date_end = timezone.now()
             self.outcome = outcome
             if outcome == 'transferred' and transfer_department:
                 self.transfer_to_department = transfer_department
@@ -93,6 +97,12 @@ class Encounter(models.Model):
             self.transfer_to_department = None
             self.is_active = True
             self.save()
+            # Синхронизация с AppointmentEvent
+            if hasattr(self, 'appointment') and self.appointment:
+                from appointments.models import AppointmentStatus
+                if self.appointment.status != AppointmentStatus.SCHEDULED:
+                    self.appointment.status = AppointmentStatus.SCHEDULED
+                    self.appointment.save(update_fields=['status'])
             return True
         return False 
     
@@ -126,3 +136,11 @@ class Encounter(models.Model):
         else:
             self.is_active = True
         super().save(*args, **kwargs)
+        # Синхронизация статуса AppointmentEvent
+        if hasattr(self, 'appointment'):
+            from appointments.models import AppointmentStatus
+            appointment = getattr(self, 'appointment', None)
+            if appointment:
+                if not self.is_active and appointment.status != AppointmentStatus.COMPLETED:
+                    appointment.status = AppointmentStatus.COMPLETED
+                    appointment.save(update_fields=['status'])

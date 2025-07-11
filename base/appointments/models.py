@@ -67,6 +67,7 @@ class AppointmentEvent(models.Model):
         choices=AppointmentStatus.choices,
         default=AppointmentStatus.SCHEDULED
     )
+    encounter = models.OneToOneField('encounters.Encounter', null=True, blank=True, on_delete=models.SET_NULL, related_name='appointment')
 
     @property
     def doctor(self):

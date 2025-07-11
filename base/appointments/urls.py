@@ -10,7 +10,8 @@ from .views import (
     AppointmentEventDetailView,
     AppointmentEventUpdateView,
     AppointmentEventDeleteView,
-    save_session_params
+    save_session_params,
+    CreateEncounterForAppointmentView
 )
 
 router = DefaultRouter()
@@ -28,6 +29,7 @@ urlpatterns = [
     path('appointments/<int:pk>/', AppointmentEventDetailView.as_view(), name='detail'),
     path('appointments/<int:pk>/edit/', AppointmentEventUpdateView.as_view(), name='edit'),
     path('appointments/<int:pk>/delete/', AppointmentEventDeleteView.as_view(), name='delete'),
-    ]
+    path('appointment/<int:pk>/create-encounter/', CreateEncounterForAppointmentView.as_view(), name='create_encounter_for_appointment'),
+]
 
 

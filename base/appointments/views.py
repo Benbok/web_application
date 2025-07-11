@@ -13,6 +13,8 @@ from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
 from .services import generate_available_slots
 from django.views.decorators.csrf import csrf_exempt
+from encounters.models import Encounter
+from django.shortcuts import get_object_or_404, redirect
 
 from .models import Schedule, AppointmentEvent
 from .serializers import AppointmentEventSerializer
@@ -164,4 +166,19 @@ def save_session_params(request):
         request.session['appointment_params'] = data
         return JsonResponse({'status': 'ok'})
     return JsonResponse({'error': 'invalid method'}, status=405)
+
+class CreateEncounterForAppointmentView(View):
+    def post(self, request, pk):
+        appointment = get_object_or_404(AppointmentEvent, pk=pk)
+        if appointment.encounter:
+            return redirect('encounters:encounter_detail', pk=appointment.encounter.pk)
+        # Создаём Encounter
+        encounter = Encounter.objects.create(
+            patient=appointment.patient,
+            doctor=appointment.schedule.doctor if appointment.schedule else None,
+            date_start=appointment.start,
+        )
+        appointment.encounter = encounter
+        appointment.save()
+        return redirect('encounters:encounter_detail', pk=encounter.pk)
 

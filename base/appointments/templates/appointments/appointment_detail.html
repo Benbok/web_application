@@ -9,4 +9,17 @@
 <a href="{% url 'appointments:calendar' %}" class="btn btn-secondary">Назад к календарю</a>
 <a href="{% url 'appointments:edit' appointment.pk %}" class="btn btn-warning">Редактировать запись</a>
 <a href="{% url 'appointments:delete' appointment.pk %}" class="btn btn-danger">Удалить запись</a>
+
+{% if appointment.encounter %}
+  <a href="{% url 'encounters:encounter_detail' appointment.encounter.pk %}" class="btn btn-outline-primary mb-3">
+    <i class="fas fa-notes-medical me-1"></i> Открыть консультирование
+  </a>
+{% else %}
+  <form method="post" action="{% url 'appointments:create_encounter_for_appointment' appointment.pk %}" style="display:inline;">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-success mb-3">
+      <i class="fas fa-plus-circle me-1"></i> Консультирование
+    </button>
+  </form>
+{% endif %}
 {% endblock %}
