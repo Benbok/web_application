@@ -90,6 +90,16 @@ class AppointmentEvent(models.Model):
     def is_completed(self):
         return self.status == AppointmentStatus.COMPLETED
 
+    def delete(self, *args, **kwargs):
+        """
+        Переопределяем метод delete() для удаления связанного encounter при удалении записи.
+        """
+        # Удаляем связанный encounter, если он существует
+        if self.encounter:
+            self.encounter.delete()
+
+        super().delete(*args, **kwargs)
+
     class Meta:
         verbose_name = "Запись на прием"
         verbose_name_plural = "Записи на прием"

@@ -110,19 +110,22 @@ class Encounter(models.Model):
         """
         Переопределяем метод delete() для каскадного удаления связанных ClinicalDocument.
         А также, опционально, для отмены связанных PatientDepartmentStatus.
+        И обнуления связи с AppointmentEvent.
         """
+        # Корректно обнуляем ссылку на encounter в AppointmentEvent, если она есть
+        appointment = getattr(self, 'appointment', None)
+        if appointment is not None:
+            appointment.encounter = None
+            appointment.save(update_fields=['encounter'])
+
         # Удаляем все связанные документы
         for document in self.documents.all():
             document.delete()
 
         # Отменяем связанные PatientDepartmentStatus (если их не удаляем полностью)
-        # Если вы хотите *удалять* PatientDepartmentStatus при удалении Encounter,
-        # то вместо cancel_transfer() используйте patient_status.delete().
-        # Но "отмена" обычно предпочтительнее "удаления" для истории.
         for patient_status in self.department_transfer_records.all(): # Используем related_name 'department_transfer_records'
             if patient_status.status not in ['discharged', 'transferred_out']: # Не отменяем уже завершенные статусы
                 patient_status.cancel_transfer()
-
 
         super().delete(*args, **kwargs)
 
