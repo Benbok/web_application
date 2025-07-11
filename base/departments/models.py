@@ -95,3 +95,8 @@ class PatientDepartmentStatus(ArchivableModel, models.Model):
             self.save()
             return True
         return False
+
+    def unarchive(self):
+        # Не делаем каскадное разархивирование source_encounter, 
+        # чтобы избежать рекурсии. Encounter сам управляет разархивированием связанных записей.
+        super().unarchive()

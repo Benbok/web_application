@@ -142,3 +142,15 @@ class Encounter(ArchivableModel, models.Model):
                 dept_status.archive()
 
         super().archive()
+
+    def unarchive(self):
+        # Восстанавливаем связанные AppointmentEvent
+        appointment = getattr(self, 'appointment', None)
+        if appointment is not None and getattr(appointment, 'is_archived', False):
+            appointment.unarchive()
+        # Восстанавливаем все связанные PatientDepartmentStatus (включая архивированные)
+        from departments.models import PatientDepartmentStatus
+        for dept_status in PatientDepartmentStatus.all_objects.filter(source_encounter=self):
+            if getattr(dept_status, 'is_archived', False):
+                dept_status.unarchive()
+        super().unarchive()

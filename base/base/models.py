@@ -16,6 +16,11 @@ class ArchivableModel(models.Model):
     def delete(self, *args, **kwargs):
         self.archive()
 
+    def unarchive(self):
+        self.is_archived = False
+        self.archived_at = None
+        self.save(update_fields=["is_archived", "archived_at"])
+
 class NotArchivedManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().filter(is_archived=False) 

@@ -98,6 +98,11 @@ class AppointmentEvent(ArchivableModel, models.Model):
             self.encounter.archive()
         super().archive()
 
+    def unarchive(self):
+        if self.encounter and getattr(self.encounter, 'is_archived', False):
+            self.encounter.unarchive()
+        super().unarchive()
+
     class Meta:
         verbose_name = "Запись на прием"
         verbose_name_plural = "Записи на прием"
