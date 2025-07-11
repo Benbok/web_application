@@ -26,7 +26,9 @@
                 <i class="fas fa-calendar-check fa-2x text-success me-3"></i>
                 <div>
                     <div class="card-title">Приемы сегодня</div>
-                    <div class="fs-4 fw-bold">8</div>
+                    <a href="{% url 'appointments:calendar' %}?doctor_id={{ request.user.id }}" class="stretched-link text-decoration-none">
+                        <div class="fs-4 fw-bold">{{ todays_appointments }}</div>
+                    </a>
                 </div>
             </div>
         </div>

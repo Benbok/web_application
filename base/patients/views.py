@@ -4,11 +4,13 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.db import transaction
 from urllib.parse import urlencode
 from django.urls import reverse
+from django.utils import timezone
 
 from .models import Patient, PatientContact, PatientAddress, PatientDocument
 from .forms import PatientForm, PatientContactForm, PatientAddressForm, PatientDocumentForm
 from newborns.forms import NewbornProfileForm
 from encounters.models import Encounter
+from appointments.models import AppointmentEvent
 
 
 def save_patient_with_related(patient_form, contact_form, address_form, document_form,
@@ -45,9 +47,20 @@ def save_patient_with_related(patient_form, contact_form, address_form, document
 def home(request):
     latest_patients = Patient.objects.order_by('-created_at')[:5]
     total_patients = Patient.objects.count()
+    # Подсчёт приёмов на сегодня для текущего врача
+    today = timezone.localdate()
+    user = request.user
+    todays_appointments = 0
+    if user.is_authenticated and hasattr(user, 'doctor_profile'):
+        todays_appointments = AppointmentEvent.objects.filter(
+            schedule__doctor=user,
+            start__date=today,
+            status='scheduled'
+        ).count()
     return render(request, 'patients/home.html', {
         'latest_patients': latest_patients,
         'total_patients': total_patients,
+        'todays_appointments': todays_appointments,
     })
 
 

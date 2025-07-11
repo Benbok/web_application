@@ -25,6 +25,15 @@ window.bookedAppointmentsUrl = "{% url 'appointments:appointmentevent-list' %}";
 window.availableSlotsBaseUrl = "{% url 'appointments:available_slots_api' %}";
 window.createAppointmentUrl = "{% url 'appointments:create' %}";
 window.detailAppointmentUrl = "{% url 'appointments:detail' 0 %}".replace('/0/', '/__ID__/');
+
+// Автовыбор врача из doctor_id в URL
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const doctorId = params.get('doctor_id');
+  if (doctorId) {
+    localStorage.setItem('selectedDoctorId', doctorId);
+  }
+})();
 </script>
 <script src="{% static 'appointments/js/calendar-init.js' %}"></script>
 {% endblock %}
