@@ -1,50 +1,29 @@
 {% extends 'patients/base.html' %}
 {% load static %}
+
 {% block content %}
-<h2>Календарь записей</h2>
-<a href="{% url 'appointments:create' %}" class="btn btn-primary mb-3">Создать запись</a>
-<div id="calendar"></div>
+<link rel="stylesheet" href="{% static 'appointments/css/calendar_style.css' %}">
 
-<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css" rel="stylesheet" />
-<script src="{% static 'appointments/js/index.global.min.js' %}"></script>
-<script src="{% static 'appointments/js/daygrid.global.min.js' %}"></script>
-<script src="{% static 'appointments/js/locales-all.global.min.js' %}"></script>
+
+<div class="container-fluid mt-3">
+
+    <div class="mb-3">
+        <label for="doctorSelector" class="form-label"><b>Выберите врача для просмотра расписания:</b></label>
+        <select class="form-select" id="doctorSelector">
+            <option value="">-- Все врачи (только занятые слоты) --</option>
+            {% for doctor in doctors %}
+                <option value="{{ doctor.id }}">{{ doctor.doctor_profile.full_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div id="calendar"></div>
+</div>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  var calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
-    initialView: 'dayGridMonth',
-    locale: 'ru',
-    events: '{% url "appointments:appointmentevent-list" %}',
-  });
-  calendar.render();
-});
+window.bookedAppointmentsUrl = "{% url 'appointments:appointmentevent-list' %}";
+window.availableSlotsBaseUrl = "{% url 'appointments:available_slots_api' %}";
+window.createAppointmentUrl = "{% url 'appointments:create' %}";
+window.detailAppointmentUrl = "{% url 'appointments:detail' 0 %}".replace('/0/', '/__ID__/');
 </script>
-
-<h3 class="mt-4">Список записей</h3>
-<table class="table">
-  <thead>
-    <tr>
-      <th>Пациент</th>
-      <th>Врач</th>
-      <th>Дата и время начала</th>
-      <th>Заметки</th>
-      <th>Статус</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for appointment in appointments %}
-    <tr>
-      <td>{{ appointment.patient }}</td>
-      <td>{{ appointment.doctor }}</td>
-      <td>{{ appointment.start|date:"d.m.Y H:i" }}</td>
-      <td>{{ appointment.notes|default:"—" }}</td>
-      <td>{{ appointment.status }}</td>
-    </tr>
-    {% empty %}
-    <tr>
-      <td colspan="5">Записей пока нет.</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<script src="{% static 'appointments/js/calendar-init.js' %}"></script>
 {% endblock %}

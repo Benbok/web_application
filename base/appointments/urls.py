@@ -5,7 +5,12 @@ from .views import (
     AppointmentEventViewSet,
     CalendarView,
     AppointmentCreateView,
-    AppointmentUpdateView
+    AppointmentUpdateView,
+    AvailableSlotsAPIView,
+    AppointmentEventDetailView,
+    AppointmentEventUpdateView,
+    AppointmentEventDeleteView,
+    save_session_params
 )
 
 router = DefaultRouter()
@@ -18,4 +23,11 @@ urlpatterns = [
     path('calendar/', CalendarView.as_view(), name='calendar'),
     path('create/', AppointmentCreateView.as_view(), name='create'),
     path('edit/<int:pk>/', AppointmentUpdateView.as_view(), name='edit'),
-]
+    path('api/available-slots/', AvailableSlotsAPIView.as_view(), name='available_slots_api'),
+    path('save-session-params/', save_session_params, name='save_session_params'),
+    path('appointments/<int:pk>/', AppointmentEventDetailView.as_view(), name='detail'),
+    path('appointments/<int:pk>/edit/', AppointmentEventUpdateView.as_view(), name='edit'),
+    path('appointments/<int:pk>/delete/', AppointmentEventDeleteView.as_view(), name='delete'),
+    ]
+
+

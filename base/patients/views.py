@@ -2,6 +2,8 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.shortcuts import render, get_object_or_404, redirect
 from django.db import transaction
+from urllib.parse import urlencode
+from django.urls import reverse
 
 from .models import Patient, PatientContact, PatientAddress, PatientDocument
 from .forms import PatientForm, PatientContactForm, PatientAddressForm, PatientDocumentForm
@@ -100,7 +102,9 @@ def patient_create(request):
                 form, contact_form, address_form, document_form,
                 patient_type=Patient.PatientType.ADULT
             )
-            return redirect('patients:patient_detail', pk=patient.pk)
+            # ✅ После создания пациента — редирект на форму записи, передавая patient_id в URL
+            redirect_url = f"{reverse('appointments:create')}?{urlencode({'patient_id': patient.pk})}"
+            return redirect(redirect_url)
     else:
         form = PatientForm()
         contact_form = PatientContactForm()

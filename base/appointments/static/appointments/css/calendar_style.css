@@ -1,0 +1,15 @@
+/* Ширина колонки timeGrid (часов) */
+.fc-timegrid-slot-label {
+  min-width: 100px;
+}
+
+/* Ширина ячеек в самом календаре */
+.fc-timegrid-col {
+  min-width: 120px;
+}
+
+/* Чтобы текст не обрезался в событиях */
+.fc-event-title, .fc-event-time {
+  white-space: normal;
+  word-break: break-word;
+}

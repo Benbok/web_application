@@ -1,0 +1,12 @@
+{% extends 'patients/base.html' %}
+{% block content %}
+<h2>Детали записи</h2>
+<p><strong>Врач:</strong> {{ appointment.schedule.doctor_full_name }}</p>
+<p><strong>Дата и время начала:</strong> {{ appointment.start|date:'d.m.Y H:i"' }}</p>
+<p><strong>Пациент:</strong> {{ appointment.patient }}</p>
+<!-- Добавь другие нужные поля -->
+
+<a href="{% url 'appointments:calendar' %}" class="btn btn-secondary">Назад к календарю</a>
+<a href="{% url 'appointments:edit' appointment.pk %}" class="btn btn-warning">Редактировать запись</a>
+<a href="{% url 'appointments:delete' appointment.pk %}" class="btn btn-danger">Удалить запись</a>
+{% endblock %}
