@@ -21,17 +21,27 @@ class ScheduleAdmin(admin.ModelAdmin):
 @admin.register(AppointmentEvent)
 class AppointmentEventAdmin(admin.ModelAdmin):
     """Админ-панель для модели Записи на прием (AppointmentEvent)."""
-    list_display = ('id', 'patient', 'doctor_full_name', 'start', 'end', 'status')
-    list_filter = ('status', 'schedule__doctor')
-    search_fields = ('patient__full_name', 'schedule__doctor__last_name')
-    list_editable = ('status',)
-    autocomplete_fields = ('patient', 'schedule')
-    date_hierarchy = 'start'
-    list_per_page = 20
+    list_display = ('__str__', 'patient', 'start', 'end', 'status', 'is_archived', 'archived_at')
+    list_filter = ('status', 'is_archived', 'start')
+    search_fields = ('patient__last_name', 'patient__first_name', 'patient__middle_name')
+    actions = ['archive_selected', 'unarchive_selected']
+
+    def archive_selected(self, request, queryset):
+        for obj in queryset:
+            obj.archive()
+        self.message_user(request, f"{queryset.count()} записей архивировано.")
+    archive_selected.short_description = "Архивировать выбранные"
+
+    def unarchive_selected(self, request, queryset):
+        for obj in queryset:
+            obj.is_archived = False
+            obj.archived_at = None
+            obj.save(update_fields=['is_archived', 'archived_at'])
+        self.message_user(request, f"{queryset.count()} записей восстановлено из архива.")
+    unarchive_selected.short_description = "Восстановить из архива"
 
     def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        return qs.select_related('patient', 'schedule__doctor', 'schedule__doctor__doctor_profile')
+        return self.model.all_objects.get_queryset()
 
     @admin.display(description='Врач')
     def doctor_full_name(self, obj):

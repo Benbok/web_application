@@ -7,6 +7,7 @@ from django.utils.text import slugify
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.contrib.contenttypes.fields import GenericRelation
+from base.models import ArchivableModel, NotArchivedManager
 
 class Department(models.Model):
     name = models.CharField("Наименование отделения", max_length=255)
@@ -20,7 +21,7 @@ class Department(models.Model):
     def __str__(self):
         return f"{self.slug} - {self.name}" if self.slug else self.name
 
-class PatientDepartmentStatus(models.Model):
+class PatientDepartmentStatus(ArchivableModel, models.Model):
     """
     Модель для отслеживания статуса пациента в конкретном отделении.
     Используется для управления переводом и принятием пациентов.
@@ -51,6 +52,9 @@ class PatientDepartmentStatus(models.Model):
         verbose_name="Случай обращения-источник перевода"
     )
     
+    objects = NotArchivedManager()
+    all_objects = models.Manager()
+
     class Meta:
         verbose_name = "Статус пациента в отделении"
         verbose_name_plural = "Статусы пациентов в отделениях"

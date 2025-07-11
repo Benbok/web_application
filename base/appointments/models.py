@@ -4,6 +4,7 @@ from django.utils import timezone
 from patients.models import Patient
 import recurrence.fields
 from datetime import datetime, timedelta
+from base.models import ArchivableModel, NotArchivedManager
 
 class AppointmentStatus(models.TextChoices):
     SCHEDULED = "scheduled", "Запланирован"
@@ -56,7 +57,7 @@ class Schedule(models.Model):
         verbose_name = "Расписание"
         verbose_name_plural = "Расписания"
 
-class AppointmentEvent(models.Model):
+class AppointmentEvent(ArchivableModel, models.Model):
     schedule = models.ForeignKey(Schedule, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Слот расписания")
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="appointment_events", verbose_name="Пациент")
     start = models.DateTimeField("Начало приема")
@@ -68,6 +69,8 @@ class AppointmentEvent(models.Model):
         default=AppointmentStatus.SCHEDULED
     )
     encounter = models.OneToOneField('encounters.Encounter', null=True, blank=True, on_delete=models.SET_NULL, related_name='appointment')
+    objects = NotArchivedManager()
+    all_objects = models.Manager()
 
     @property
     def doctor(self):
@@ -90,15 +93,10 @@ class AppointmentEvent(models.Model):
     def is_completed(self):
         return self.status == AppointmentStatus.COMPLETED
 
-    def delete(self, *args, **kwargs):
-        """
-        Переопределяем метод delete() для удаления связанного encounter при удалении записи.
-        """
-        # Удаляем связанный encounter, если он существует
-        if self.encounter:
-            self.encounter.delete()
-
-        super().delete(*args, **kwargs)
+    def archive(self):
+        if self.encounter and not self.encounter.is_archived:
+            self.encounter.archive()
+        super().archive()
 
     class Meta:
         verbose_name = "Запись на прием"

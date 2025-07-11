@@ -29,25 +29,27 @@ class DepartmentAdmin(admin.ModelAdmin):
     
 @admin.register(PatientDepartmentStatus)
 class PatientDepartmentStatusAdmin(admin.ModelAdmin):
-    list_display = ('patient', 'department', 'status', 'admission_date')
-    search_fields = ('patient__name', 'department__name', 'status')
-    list_filter = ('status', 'department')
-    ordering = ('-admission_date',)
+    list_display = ('__str__', 'patient', 'department', 'admission_date', 'status', 'is_archived', 'archived_at')
+    list_filter = ('status', 'is_archived', 'admission_date')
+    search_fields = ('patient__last_name', 'patient__first_name', 'patient__middle_name', 'department__name')
+    actions = ['archive_selected', 'unarchive_selected']
 
-    fieldsets = (
-        (None, {
-            'fields': ('patient', 'department', 'status')
-        }),
-    )
+    def archive_selected(self, request, queryset):
+        for obj in queryset:
+            obj.archive()
+        self.message_user(request, f"{queryset.count()} записей архивировано.")
+    archive_selected.short_description = "Архивировать выбранные"
 
-    def has_add_permission(self, request):
-        return request.user.is_superuser
+    def unarchive_selected(self, request, queryset):
+        for obj in queryset:
+            obj.is_archived = False
+            obj.archived_at = None
+            obj.save(update_fields=['is_archived', 'archived_at'])
+        self.message_user(request, f"{queryset.count()} записей восстановлено из архива.")
+    unarchive_selected.short_description = "Восстановить из архива"
 
-    def has_change_permission(self, request, obj=None):
-        return request.user.is_superuser
-
-    def has_delete_permission(self, request, obj=None):
-        return request.user.is_superuser
+    def get_queryset(self, request):
+        return self.model.all_objects.get_queryset()
     
  
  

@@ -7,8 +7,9 @@ from django.core.exceptions import ValidationError
 
 from documents.models import ClinicalDocument
 from departments.models import PatientDepartmentStatus, Department
+from base.models import ArchivableModel, NotArchivedManager
 
-class Encounter(models.Model):
+class Encounter(ArchivableModel, models.Model):
     OUTCOME_CHOICES = [
         ('consultation_end', 'Консультация'),
         ('transferred', 'Перевод в отделение'),
@@ -33,6 +34,9 @@ class Encounter(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = NotArchivedManager()
+    all_objects = models.Manager()
 
     class Meta:
         verbose_name = "Случай обращения"
@@ -106,29 +110,6 @@ class Encounter(models.Model):
             return True
         return False 
     
-    def delete(self, *args, **kwargs):
-        """
-        Переопределяем метод delete() для каскадного удаления связанных ClinicalDocument.
-        А также, опционально, для отмены связанных PatientDepartmentStatus.
-        И обнуления связи с AppointmentEvent.
-        """
-        # Корректно обнуляем ссылку на encounter в AppointmentEvent, если она есть
-        appointment = getattr(self, 'appointment', None)
-        if appointment is not None:
-            appointment.encounter = None
-            appointment.save(update_fields=['encounter'])
-
-        # Удаляем все связанные документы
-        for document in self.documents.all():
-            document.delete()
-
-        # Отменяем связанные PatientDepartmentStatus (если их не удаляем полностью)
-        for patient_status in self.department_transfer_records.all(): # Используем related_name 'department_transfer_records'
-            if patient_status.status not in ['discharged', 'transferred_out']: # Не отменяем уже завершенные статусы
-                patient_status.cancel_transfer()
-
-        super().delete(*args, **kwargs)
-
     def clean(self):
         if self.date_end and self.date_start and self.date_end < self.date_start:
             raise ValidationError("Дата завершения не может быть раньше даты начала.")
@@ -147,3 +128,17 @@ class Encounter(models.Model):
                 if not self.is_active and appointment.status != AppointmentStatus.COMPLETED:
                     appointment.status = AppointmentStatus.COMPLETED
                     appointment.save(update_fields=['status'])
+
+    def archive(self):
+        # Обнуляем ссылку на Encounter в AppointmentEvent, если есть
+        appointment = getattr(self, 'appointment', None)
+        if appointment is not None:
+            appointment.encounter = None
+            appointment.save(update_fields=['encounter'])
+
+        # Архивируем все связанные PatientDepartmentStatus
+        for dept_status in self.department_transfer_records.all():
+            if not getattr(dept_status, 'is_archived', False):
+                dept_status.archive()
+
+        super().archive()
