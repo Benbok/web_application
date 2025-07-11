@@ -16,6 +16,7 @@ class NewbornProfileForm(forms.ModelForm):
             'apgar_score_10_min',
             'notes',
             'obstetric_history',
+            'physical_development'
         ]
         widgets = {
             'birth_time': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
@@ -29,4 +30,5 @@ class NewbornProfileForm(forms.ModelForm):
             'apgar_score_10_min': forms.NumberInput(attrs={'class': 'form-control'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'obstetric_history': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'physical_development': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'readonly': True}),
         }
