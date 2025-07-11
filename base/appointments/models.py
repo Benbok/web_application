@@ -3,6 +3,7 @@ from django.conf import settings
 from django.utils import timezone
 from patients.models import Patient
 import recurrence.fields
+from datetime import datetime, timedelta
 
 class AppointmentStatus(models.TextChoices):
     SCHEDULED = "scheduled", "Запланирован"
@@ -40,6 +41,16 @@ class Schedule(models.Model):
             doctor_name = self.doctor.username if self.doctor else "Неизвестный врач"
 
         return f"Расписание {doctor_name} ({start}—{end}, {self.duration} мин)"
+
+    def clean(self):
+        super().clean()
+        if self.start_time and self.end_time and self.duration:
+            dt_start = datetime.combine(datetime.today(), self.start_time)
+            dt_end = datetime.combine(datetime.today(), self.end_time)
+            total_minutes = (dt_end - dt_start).total_seconds() // 60
+            slots = int(total_minutes // self.duration)
+            new_end = dt_start + timedelta(minutes=slots * self.duration)
+            self.end_time = new_end.time()
 
     class Meta:
         verbose_name = "Расписание"

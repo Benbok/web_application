@@ -12,8 +12,7 @@ def generate_available_slots(start_dt, end_dt, doctor_id):
 
     booked_slots = set(AppointmentEvent.objects.filter(
         schedule__doctor_id=doctor_id,
-        start__range=[start_dt, end_dt],
-        status="scheduled"
+        start__range=[start_dt, end_dt]
     ).values_list('start', flat=True))
 
     available_slots = []

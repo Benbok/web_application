@@ -33,6 +33,14 @@ class AppointmentEventSerializer(serializers.ModelSerializer):
         fields = ('id', 'schedule', 'patient', 'start', 'end', 'notes', 'status', 'title')
 
     def get_title(self, obj):
-        patient_name = obj.patient.full_name if obj.patient else "Неизвестный пациент"
-        doctor_name = obj.schedule.doctor.doctor_profile.full_name if obj.schedule and obj.schedule.doctor and hasattr(obj.schedule.doctor, 'doctor_profile') else "Неизвестный врач"
-        return f"{patient_name} - {doctor_name}"
+        if obj.patient and obj.patient.full_name:
+            parts = obj.patient.full_name.split()
+            if len(parts) >= 2:
+                fio = f"{parts[0]} {parts[1][0]}."
+                if len(parts) > 2:
+                    fio += f"{parts[2][0]}."
+            else:
+                fio = obj.patient.full_name
+        else:
+            fio = str(obj.patient)
+        return fio

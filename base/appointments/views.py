@@ -47,9 +47,19 @@ class AppointmentEventsAPI(View):
         for appt in appointments:
             if not appt.schedule or not appt.schedule.doctor:
                 continue
+            # Формируем Фамилия И.О.
+            if hasattr(appt.patient, 'full_name') and appt.patient.full_name:
+                parts = appt.patient.full_name.split()
+                if len(parts) >= 2:
+                    fio = f"{parts[0]} {parts[1][0]}."
+                    if len(parts) > 2:
+                        fio += f"{parts[2][0]}."
+                else:
+                    fio = appt.patient.full_name
+            else:
+                fio = str(appt.patient)
             events.append({
-                'title': f"{appt.patient.full_name} ({appt.start.strftime('%H:%M')})",
-                # Use strftime to avoid timezone issues on the front-end
+                'title': fio,
                 'start': appt.start.strftime('%Y-%m-%dT%H:%M:%S'),
                 'end': appt.end.strftime('%Y-%m-%dT%H:%M:%S'),
                 'color': '#dc3545',
