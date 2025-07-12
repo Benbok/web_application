@@ -8,8 +8,9 @@ from django.http import HttpResponseForbidden
 from django.utils import timezone
 
 from .models import Encounter
+from .services.encounter_service import EncounterService
 from patients.models import Patient
-from .forms import EncounterForm, EncounterCloseForm, EncounterUpdateForm
+from .forms import EncounterForm, EncounterCloseForm, EncounterUpdateForm, EncounterReopenForm, EncounterUndoForm
 from departments.models import Department, PatientDepartmentStatus
 
 class EncounterDetailView(DetailView):
@@ -21,11 +22,19 @@ class EncounterDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         encounter = self.get_object()
         
-        context['documents'] = encounter.documents.all()
-        context['encounter_number'] = Encounter.objects.filter(
-            patient_id=encounter.patient_id,
-            date_start__lt=encounter.date_start
-        ).count() + 1
+        # Используем сервис для получения деталей
+        service = EncounterService(encounter)
+        details = service.get_encounter_details()
+        
+        context['documents'] = details['documents']
+        context['encounter_number'] = details['encounter_number']
+        context['is_active'] = details['is_active']
+        context['has_documents'] = details['has_documents']
+        
+        # Добавляем информацию о командах
+        context['command_history'] = service.get_command_history()
+        context['last_command'] = service.get_last_command()
+        
         return context
 
 class EncounterCreateView(CreateView):
@@ -164,27 +173,13 @@ class EncounterCloseView(UpdateView):
 
     def form_valid(self, form):
         encounter = self.get_object()
-        outcome = form.cleaned_data['outcome']
-        transfer_department = form.cleaned_data.get('transfer_to_department')
-
+        
         try:
-            if encounter.close_encounter(outcome, transfer_department):
-                if outcome == 'transferred' and transfer_department:
-                    # Создаем запись PatientDepartmentStatus, связывая ее с этим Encounter
-                    PatientDepartmentStatus.objects.create(
-                        patient=encounter.patient,
-                        department=transfer_department,
-                        status='pending',
-                        source_encounter=encounter # СОХРАНЯЕМ ССЫЛКУ НА ЭТОТ ENCOUNTER
-                    )
-                    messages.success(self.request, f"Случай обращения успешно закрыт и пациент переведен в отделение «{transfer_department.name}».")
-                else:
-                    messages.success(self.request, "Случай обращения успешно закрыт.")
-                return redirect(self.get_success_url())
-            else:
-                messages.error(self.request, "Не удалось закрыть случай обращения: возможно, он уже закрыт.")
-                return self.form_invalid(form)
-        except ValueError as e:
+            # Используем новую форму с Command Pattern
+            form.save(user=self.request.user)
+            messages.success(self.request, "Случай обращения успешно закрыт.")
+            return redirect(self.get_success_url())
+        except Exception as e:
             messages.error(self.request, f"Ошибка при закрытии: {e}")
             return self.form_invalid(form)
 
@@ -208,9 +203,29 @@ class EncounterReopenView(View):
         #     messages.error(request, "У вас нет прав для активации случая обращения.")
         #     return HttpResponseForbidden()
 
-        if encounter.reopen_encounter(): # Метод reopen_encounter теперь обрабатывает PatientDepartmentStatus
+        # Используем сервис с Command Pattern
+        service = EncounterService(encounter)
+        if service.reopen_encounter(user=request.user):
             messages.success(request, "Случай обращения успешно возвращен в активное состояние.")
         else:
             messages.error(request, "Не удалось вернуть случай обращения в активное состояние.")
+
+        return redirect(reverse('encounters:encounter_detail', kwargs={'pk': pk}))
+
+
+class EncounterUndoView(View):
+    """
+    Представление для отмены последней операции.
+    Обрабатывает POST-запрос для отмены операции.
+    """
+    def post(self, request, pk, *args, **kwargs):
+        encounter = get_object_or_404(Encounter, pk=pk)
+
+        # Используем сервис для отмены операции
+        service = EncounterService(encounter)
+        if service.undo_last_operation():
+            messages.success(request, "Последняя операция успешно отменена.")
+        else:
+            messages.error(request, "Не удалось отменить последнюю операцию.")
 
         return redirect(reverse('encounters:encounter_detail', kwargs={'pk': pk}))

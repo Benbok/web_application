@@ -1,0 +1,1 @@
+# Events module for encounter-related events 

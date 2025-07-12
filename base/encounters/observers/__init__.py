@@ -1,0 +1,1 @@
+# Observer patterns for encounter events 

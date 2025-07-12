@@ -1,0 +1,83 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block extrahead %}{{ block.super }}
+<script type="text/javascript" src="{% url 'admin:jsi18n' %}"></script>
+{{ media }}
+{% endblock %}
+
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" type="text/css" href="{% static "admin/css/forms.css" %}">{% endblock %}
+
+{% block coltype %}colM{% endblock %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} change-form{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url 'admin:encounters_encounter_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; <a href="{% url 'admin:encounters_encounter_change' encounter.id %}">{{ encounter }}</a>
+&rsaquo; {% trans 'Reopen' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>{% trans 'Reopen Encounter' %}</h1>
+    
+    <div class="module aligned">
+        <h2>Информация о случае обращения</h2>
+        <div class="form-row">
+            <div>
+                <label>Пациент:</label>
+                <div>{{ encounter.patient.full_name }}</div>
+            </div>
+        </div>
+        <div class="form-row">
+            <div>
+                <label>Дата начала:</label>
+                <div>{{ encounter.date_start|date:"d.m.Y H:i" }}</div>
+            </div>
+        </div>
+        <div class="form-row">
+            <div>
+                <label>Статус:</label>
+                <div>{% if encounter.is_active %}Активен{% else %}Закрыт{% endif %}</div>
+            </div>
+        </div>
+        {% if encounter.outcome %}
+        <div class="form-row">
+            <div>
+                <label>Исход:</label>
+                <div>{{ encounter.get_outcome_display }}</div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <fieldset class="module aligned">
+            <h2>Подтверждение возврата</h2>
+            {% for field in form %}
+            <div class="form-row{% if field.errors %} errors{% endif %}">
+                <div>
+                    {{ field.errors }}
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% if field.help_text %}
+                    <div class="help">{{ field.help_text|safe }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </fieldset>
+        
+        <div class="submit-row">
+            <input type="submit" value="{% trans 'Reopen Encounter' %}" class="default" />
+            <a href="{% url 'admin:encounters_encounter_change' encounter.id %}" class="closelink">{% trans 'Cancel' %}</a>
+        </div>
+    </form>
+</div>
+{% endblock %} 

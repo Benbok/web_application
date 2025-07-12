@@ -1,0 +1,1 @@
+# Strategy patterns for encounter outcomes 

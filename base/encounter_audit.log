@@ -1,0 +1,9 @@
+2025-07-12T15:28:18.477441+00:00 | encounter_archived | Encounter 7 | User arty | Encounter 7 archived
+2025-07-12T15:28:32.827983+00:00 | encounter_reopened | Encounter 7 | User arty | Encounter 7 reopened
+2025-07-12T15:28:43.929830+00:00 | encounter_unarchived | Encounter 7 | User arty | Encounter 7 unarchived
+2025-07-12T15:30:09.362932+00:00 | encounter_unarchived | Encounter 7 | User arty | Encounter 7 unarchived
+2025-07-12T15:30:28.810615+00:00 | encounter_archived | Encounter 7 | User arty | Encounter 7 archived
+2025-07-12T15:30:50.131340+00:00 | encounter_unarchived | Encounter 7 | User arty | Encounter 7 unarchived
+2025-07-12T15:31:20.713325+00:00 | encounter_closed | Encounter 7 | User arty | Encounter 7 closed with outcome: transferred (transferred to Педиатрия)
+2025-07-12T15:31:44.640900+00:00 | encounter_archived | Encounter 7 | User arty | Encounter 7 archived
+2025-07-12T15:32:58.170406+00:00 | encounter_unarchived | Encounter 7 | User arty | Encounter 7 unarchived

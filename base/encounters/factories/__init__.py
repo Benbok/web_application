@@ -1,0 +1,1 @@
+# Factories package for encounters module 
