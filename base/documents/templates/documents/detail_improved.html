@@ -1,0 +1,389 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .document-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .document-status {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: bold;
+        margin-left: 10px;
+    }
+    
+    .status-signed {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .status-draft {
+        background-color: #ffc107;
+        color: #212529;
+    }
+    
+    .status-canceled {
+        background-color: #dc3545;
+        color: white;
+    }
+    
+    .status-archived {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .document-content {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .form-field {
+        margin-bottom: 15px;
+    }
+    
+    .form-field label {
+        font-weight: bold;
+        color: #495057;
+        margin-bottom: 5px;
+        display: block;
+    }
+    
+    .form-field input,
+    .form-field textarea,
+    .form-field select {
+        background-color: #f8f9fa;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        padding: 8px 12px;
+        width: 100%;
+    }
+    
+    .form-field input[readonly] {
+        background-color: #e9ecef;
+        color: #6c757d;
+    }
+    
+    .action-buttons {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #dee2e6;
+    }
+    
+    .versions-section,
+    .audit-section {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .version-item,
+    .audit-item {
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 15px;
+        margin-bottom: 10px;
+        background-color: #f8f9fa;
+    }
+    
+    .version-number {
+        font-weight: bold;
+        color: #495057;
+    }
+    
+    .audit-action {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+        margin-right: 10px;
+    }
+    
+    .action-created { background-color: #d4edda; color: #155724; }
+    .action-updated { background-color: #fff3cd; color: #856404; }
+    .action-deleted { background-color: #f8d7da; color: #721c24; }
+    .action-signed { background-color: #d1ecf1; color: #0c5460; }
+    .action-canceled { background-color: #f8d7da; color: #721c24; }
+    .action-archived { background-color: #e2e3e5; color: #383d41; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Заголовок документа -->
+            <div class="document-header">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h1 class="h2 mb-2">{{ document.document_type.name }}</h1>
+                        <p class="mb-1">
+                            <i class="fas fa-calendar"></i> {{ document.datetime_document|date:"d.m.Y H:i" }} |
+                            <i class="fas fa-user"></i> {{ document.author.get_full_name|default:document.author.username }}
+                            {% if document.author_position %}
+                                ({{ document.author_position }})
+                            {% endif %}
+                        </p>
+                        {% if document.document_type.department %}
+                        <p class="mb-0">
+                            <i class="fas fa-building"></i> {{ document.document_type.department.name }}
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <span class="document-status status-{{ document.status|lower }}">
+                            {{ document.status }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Содержимое документа -->
+            <div class="document-content">
+                <h3 class="h5 mb-3">Содержимое документа</h3>
+                
+                {% for field in form %}
+                    {% if field.name not in 'template_choice,change_description' %}
+                    <div class="form-field">
+                        <label>{{ field.label }}</label>
+                        {% if field.name == 'datetime_document' %}
+                            <input type="text" value="{{ field.value|date:'d.m.Y H:i' }}" readonly class="form-control">
+                        {% else %}
+                            {{ field }}
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            
+            <!-- Кнопки действий -->
+            <div class="action-buttons">
+                <div class="row">
+                    <div class="col-md-6">
+                        {% if user == document.author or user.is_superuser %}
+                            <a href="{% url 'documents:document_update' document.pk %}" class="btn btn-primary">
+                                <i class="fas fa-edit"></i> Редактировать
+                            </a>
+                        {% endif %}
+                        
+                        <a href="{% url 'documents:search' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Назад к поиску
+                        </a>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        {% if user == document.author or user.is_superuser %}
+                            {% if not document.is_signed %}
+                            <button class="btn btn-success" onclick="performAction('sign')">
+                                <i class="fas fa-signature"></i> Подписать
+                            </button>
+                            {% endif %}
+                            
+                            {% if not document.is_canceled %}
+                            <button class="btn btn-warning" onclick="performAction('cancel')">
+                                <i class="fas fa-ban"></i> Аннулировать
+                            </button>
+                            {% endif %}
+                            
+                            {% if not document.is_archived %}
+                            <button class="btn btn-info" onclick="performAction('archive')">
+                                <i class="fas fa-archive"></i> Архивировать
+                            </button>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Версии документа -->
+            {% if versions %}
+            <div class="versions-section">
+                <h3 class="h5 mb-3">
+                    <i class="fas fa-history"></i> История версий
+                </h3>
+                
+                {% for version in versions %}
+                <div class="version-item">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <span class="version-number">Версия {{ version.version_number }}</span>
+                        </div>
+                        <div class="col-md-3">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar"></i> {{ version.created_at|date:"d.m.Y H:i" }}
+                            </small>
+                        </div>
+                        <div class="col-md-3">
+                            <small class="text-muted">
+                                <i class="fas fa-user"></i> {{ version.author.get_full_name|default:version.author.username }}
+                            </small>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <button class="btn btn-sm btn-outline-primary" onclick="showVersionData({{ version.id }})">
+                                <i class="fas fa-eye"></i> Просмотр
+                            </button>
+                        </div>
+                    </div>
+                    {% if version.change_description %}
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <strong>Изменения:</strong> {{ version.change_description }}
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            <!-- Аудит -->
+            {% if audit_logs %}
+            <div class="audit-section">
+                <h3 class="h5 mb-3">
+                    <i class="fas fa-clipboard-list"></i> Журнал действий
+                </h3>
+                
+                {% for log in audit_logs %}
+                <div class="audit-item">
+                    <div class="row">
+                        <div class="col-md-2">
+                            <span class="audit-action action-{{ log.action }}">
+                                {{ log.get_action_display }}
+                            </span>
+                        </div>
+                        <div class="col-md-3">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar"></i> {{ log.timestamp|date:"d.m.Y H:i" }}
+                            </small>
+                        </div>
+                        <div class="col-md-3">
+                            <small class="text-muted">
+                                <i class="fas fa-user"></i> {{ log.user.get_full_name|default:log.user.username }}
+                            </small>
+                        </div>
+                        <div class="col-md-4">
+                            {% if log.ip_address %}
+                            <small class="text-muted">
+                                <i class="fas fa-network-wired"></i> {{ log.ip_address }}
+                            </small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if log.changes %}
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="showAuditChanges({{ log.id }})">
+                            <i class="fas fa-eye"></i> Показать изменения
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для просмотра версии -->
+<div class="modal fade" id="versionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Данные версии</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="versionModalBody">
+                <!-- Содержимое будет загружено через AJAX -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для просмотра изменений аудита -->
+<div class="modal fade" id="auditModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Изменения</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="auditModalBody">
+                <!-- Содержимое будет загружено через AJAX -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function performAction(action) {
+    let confirmMessage = '';
+    let buttonText = '';
+    
+    switch(action) {
+        case 'sign':
+            confirmMessage = 'Вы уверены, что хотите подписать этот документ?';
+            buttonText = 'Подписать';
+            break;
+        case 'cancel':
+            confirmMessage = 'Вы уверены, что хотите аннулировать этот документ?';
+            buttonText = 'Аннулировать';
+            break;
+        case 'archive':
+            confirmMessage = 'Вы уверены, что хотите архивировать этот документ?';
+            buttonText = 'Архивировать';
+            break;
+    }
+    
+    if (confirm(confirmMessage)) {
+        $.ajax({
+            url: '{% url "documents:document_api_action" document.pk %}',
+            method: 'POST',
+            data: {
+                action: action,
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            success: function(response) {
+                if (response.status === 'success') {
+                    location.reload();
+                } else {
+                    alert('Ошибка: ' + response.error);
+                }
+            },
+            error: function() {
+                alert('Произошла ошибка при выполнении действия');
+            }
+        });
+    }
+}
+
+function showVersionData(versionId) {
+    $.get(`/documents/version/${versionId}/data/`, function(data) {
+        $('#versionModalBody').html(data);
+        $('#versionModal').modal('show');
+    });
+}
+
+function showAuditChanges(logId) {
+    $.get(`/documents/audit/${logId}/changes/`, function(data) {
+        $('#auditModalBody').html(data);
+        $('#auditModal').modal('show');
+    });
+}
+</script>
+{% endblock %} 
