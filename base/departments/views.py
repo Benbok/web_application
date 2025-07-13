@@ -43,9 +43,11 @@ class DepartmentDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         department = self.get_object()
-        context['pending_patients'] = PatientDepartmentStatus.objects.filter(
+        # Удалены все отладочные print-выводы
+        pending_patients = PatientDepartmentStatus.all_objects.filter(
             department=department, status='pending'
         ).select_related('patient').order_by('admission_date')
+        context['pending_patients'] = pending_patients
         context['accepted_patients'] = PatientDepartmentStatus.objects.filter(
             department=department, status='accepted'
         ).select_related('patient').order_by('acceptance_date')

@@ -100,3 +100,6 @@ class PatientDepartmentStatus(ArchivableModel, models.Model):
         # Не делаем каскадное разархивирование source_encounter, 
         # чтобы избежать рекурсии. Encounter сам управляет разархивированием связанных записей.
         super().unarchive()
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)

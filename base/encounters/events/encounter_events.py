@@ -114,7 +114,7 @@ class PatientDepartmentStatusEventHandler(EventHandler):
                 department=event.transfer_department,
                 admission_date=event.encounter.date_end or timezone.now(),
                 source_encounter=event.encounter,
-                status='active'
+                status='pending'
             )
     
     def _handle_encounter_reopened(self, event: EncounterReopenedEvent) -> None:
