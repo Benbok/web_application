@@ -7,6 +7,8 @@ from django.forms import ValidationError
 from .models import AppointmentEvent
 from .models import Schedule
 from django.contrib.auth import get_user_model
+from django_select2.forms import ModelSelect2Widget
+from patients.models import Patient
 
 User = get_user_model()
 
@@ -16,6 +18,10 @@ class AppointmentEventForm(forms.ModelForm):
         fields = ['schedule', 'patient', 'start', 'notes', 'status']
         widgets = {
             'start': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+            'patient': ModelSelect2Widget(
+                model=Patient,
+                search_fields=['last_name__icontains', 'first_name__icontains', 'middle_name__icontains'],
+            ),
         }
 
     def clean(self):
