@@ -115,9 +115,12 @@ def patient_create(request):
                 form, contact_form, address_form, document_form,
                 patient_type=Patient.PatientType.ADULT
             )
-            # ✅ После создания пациента — редирект на форму записи, передавая patient_id в URL
-            redirect_url = f"{reverse('appointments:create')}?{urlencode({'patient_id': patient.pk})}"
-            return redirect(redirect_url)
+            action = request.POST.get('action')
+            if action == 'save_and_appointment':
+                redirect_url = f"{reverse('appointments:create')}?{urlencode({'patient_id': patient.pk})}"
+                return redirect(redirect_url)
+            else:
+                return redirect('patients:patient_detail', pk=patient.pk)
     else:
         form = PatientForm()
         contact_form = PatientContactForm()
@@ -254,7 +257,6 @@ def patient_update(request, pk):
         'document_form': document_form,
         'newborn_form': profile_form,
         'title': 'Редактировать пациента',
-        'is_newborn_creation_flow': patient.patient_type == 'newborn',
         'patient': patient,
     }
 
