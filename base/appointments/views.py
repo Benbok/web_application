@@ -84,7 +84,7 @@ class AvailableSlotsAPIView(APIView):
 
         from django.utils import timezone
         
-        # Обработка времени с учетом зоны
+        # Обработка времени с учетом зоны (московское время)
         if 'Z' in start_str:
             start_str = start_str.replace('Z', '+00:00')
         if 'Z' in end_str:
@@ -94,7 +94,7 @@ class AvailableSlotsAPIView(APIView):
         start_dt = datetime.fromisoformat(start_str)
         end_dt = datetime.fromisoformat(end_str)
         
-        # Делаем aware только если время наивное
+        # Делаем aware только если время наивное (преобразуем в московское время)
         if timezone.is_naive(start_dt):
             start_dt = timezone.make_aware(start_dt, timezone.get_current_timezone())
         if timezone.is_naive(end_dt):
@@ -129,10 +129,11 @@ class AppointmentCreateView(CreateView):
             if start:
                 parsed_start = parse_datetime(start)
                 if parsed_start:
-                    # Убеждаемся, что время в правильной зоне
+                    # Убеждаемся, что время в правильной зоне (московское время)
                     if timezone.is_naive(parsed_start):
                         parsed_start = timezone.make_aware(parsed_start, timezone.get_current_timezone())
-                    initial['start'] = parsed_start
+                    # Оставляем московское время для формы
+                    initial['start'] = parsed_start.strftime('%Y-%m-%dT%H:%M')
 
         # ✅ Попытка прочитать параметры из URL (при первом заходе)
         if 'schedule' not in initial:
@@ -143,10 +144,11 @@ class AppointmentCreateView(CreateView):
             if start:
                 parsed_start = parse_datetime(start)
                 if parsed_start:
-                    # Убеждаемся, что время в правильной зоне
+                    # Убеждаемся, что время в правильной зоне (московское время)
                     if timezone.is_naive(parsed_start):
                         parsed_start = timezone.make_aware(parsed_start, timezone.get_current_timezone())
-                    initial['start'] = parsed_start
+                    # Оставляем московское время для формы
+                    initial['start'] = parsed_start.strftime('%Y-%m-%dT%H:%M')
 
         # ✅ Отдельно читаем patient_id (из URL после создания пациента)
         patient_id = self.request.GET.get('patient_id')

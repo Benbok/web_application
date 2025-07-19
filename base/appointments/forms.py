@@ -27,6 +27,24 @@ class AppointmentEventForm(forms.ModelForm):
             ),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Если у нас есть начальные данные для поля start, оставляем их в московском времени
+        if self.initial and 'start' in self.initial:
+            start_time = self.initial['start']
+            if hasattr(start_time, 'astimezone'):
+                # Оставляем московское время как есть
+                self.initial['start'] = start_time.strftime('%Y-%m-%dT%H:%M')
+
+    def prepare_value(self, field_name):
+        """Подготавливаем значение для отображения в форме"""
+        if field_name == 'start' and self.instance.pk:
+            # Для существующих записей оставляем московское время
+            start_time = getattr(self.instance, field_name)
+            if start_time and hasattr(start_time, 'astimezone'):
+                return start_time.strftime('%Y-%m-%dT%H:%M')
+        return super().prepare_value(field_name)
+
     def clean(self):
         cleaned_data = super().clean()
         start = cleaned_data.get('start')
@@ -36,6 +54,8 @@ class AppointmentEventForm(forms.ModelForm):
         if start and schedule:
             # Убеждаемся, что время в правильной зоне
             if timezone.is_naive(start):
+                # Пользователь ввел время в московской зоне
+                # Делаем время aware в текущей зоне Django (московской)
                 start = timezone.make_aware(start, timezone.get_current_timezone())
                 cleaned_data['start'] = start
             

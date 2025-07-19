@@ -25,7 +25,7 @@ def generate_available_slots(start_dt, end_dt, doctor_id=None):
 
     for schedule in schedules:
         # Переход к наивному времени для RecurrenceField
-        # Используем timezone.localtime() для корректного преобразования
+        # Используем timezone.localtime() для корректного преобразования в московское время
         if timezone.is_aware(start_dt):
             start_dt_naive = timezone.localtime(start_dt).replace(tzinfo=None)
         else:
@@ -43,7 +43,7 @@ def generate_available_slots(start_dt, end_dt, doctor_id=None):
         )
 
         for shift_start_date in occurrences:
-            # Создаем datetime в локальной зоне времени
+            # Создаем datetime в московской зоне времени
             slot_start_naive = datetime.combine(shift_start_date.date(), schedule.start_time)
             if timezone.is_naive(slot_start_naive):
                 current_time = timezone.make_aware(slot_start_naive, timezone.get_current_timezone())

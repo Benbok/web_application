@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
             center: 'title',
             right: 'dayGridMonth,timeGridWeek,timeGridDay'
         },
-        timeZone: 'local',
+        timeZone: 'Europe/Moscow',
         locale: 'ru',
         selectable: true,
         slotMinTime: "08:00:00",
@@ -53,6 +53,7 @@ document.addEventListener('DOMContentLoaded', function() {
         eventClick(info) {
             if (info.event.backgroundColor === '#28a745') {
                 // Свободный слот → открыть создание записи
+                // Получаем время в московской зоне
                 const startTime = info.event.start.toISOString();
                 const scheduleId = info.event.extendedProps.schedule_id;
                 const createUrl = `${window.createAppointmentUrl}?start=${startTime}&schedule_id=${scheduleId}`;
