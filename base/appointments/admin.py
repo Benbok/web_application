@@ -9,6 +9,10 @@ class ScheduleAdmin(admin.ModelAdmin):
     list_filter = ('doctor',)
     search_fields = ('doctor__last_name', 'doctor__first_name')
     list_per_page = 20
+    
+    def save_model(self, request, obj, form, change):
+        """Переопределяем сохранение для корректной обработки времени"""
+        super().save_model(request, obj, form, change)
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -25,6 +29,15 @@ class AppointmentEventAdmin(admin.ModelAdmin):
     list_filter = ('status', 'is_archived', 'start')
     search_fields = ('patient__last_name', 'patient__first_name', 'patient__middle_name')
     actions = ['archive_selected', 'unarchive_selected']
+    
+    def save_model(self, request, obj, form, change):
+        """Переопределяем сохранение для корректной обработки времени"""
+        from django.utils import timezone
+        if obj.start and timezone.is_naive(obj.start):
+            obj.start = timezone.make_aware(obj.start, timezone.get_current_timezone())
+        if obj.end and timezone.is_naive(obj.end):
+            obj.end = timezone.make_aware(obj.end, timezone.get_current_timezone())
+        super().save_model(request, obj, form, change)
 
     def archive_selected(self, request, queryset):
         for obj in queryset:

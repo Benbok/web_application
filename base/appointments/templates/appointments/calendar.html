@@ -12,6 +12,7 @@
         <label for="doctorSelector" class="form-label"><b>Выберите врача для просмотра расписания:</b></label>
         <select class="form-select" id="doctorSelector">
             <option value="">-- Все врачи (только занятые слоты) --</option>
+            <option value="__all_free__">-- Все врачи (только свободные слоты) --</option>
             {% for doctor in doctors %}
                 <option value="{{ doctor.id }}">{{ doctor.doctor_profile.full_name }}</option>
             {% endfor %}

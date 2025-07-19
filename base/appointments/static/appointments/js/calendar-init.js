@@ -16,11 +16,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'timeGridDay',
         headerToolbar: {
-        timeZone: 'local',
             left: 'prev,next today',
             center: 'title',
             right: 'dayGridMonth,timeGridWeek,timeGridDay'
         },
+        timeZone: 'local',
         locale: 'ru',
         selectable: true,
         slotMinTime: "08:00:00",
@@ -29,7 +29,8 @@ document.addEventListener('DOMContentLoaded', function() {
         firstDay: 1,
         height: 900,
         slotDuration: '00:30:00',
-        slotMinHeight: 60,
+        scrollTime: '08:00:00',
+        expandRows: true,
         eventSources: [ bookedAppointmentsSource ],
 
         eventDidMount: function(info) {
@@ -70,23 +71,26 @@ document.addEventListener('DOMContentLoaded', function() {
     // Удаляем ВСЕ события
     calendar.getEventSources().forEach(source => source.remove());
 
-    if (doctorId) {
-        // Загружаем занятые слоты для выбранного врача
+    if (doctorId && doctorId !== "__all_free__") {
+        // Для конкретного врача — и занятые, и свободные
         calendar.addEventSource({
             id: 'booked',
             url: `${window.bookedAppointmentsUrl}?doctor=${doctorId}`,
             color: '#dc3545',
             textColor: 'white'
         });
-
-        // Загружаем свободные слоты для выбранного врача
         calendar.addEventSource({
             id: 'available',
             url: `${window.availableSlotsBaseUrl}?doctor_id=${doctorId}`
         });
-
+    } else if (doctorId === "__all_free__") {
+        // Только свободные слоты для всех врачей
+        calendar.addEventSource({
+            id: 'available',
+            url: window.availableSlotsBaseUrl
+        });
     } else {
-        // Загружаем все занятые слоты, если врач не выбран
+        // Только занятые слоты для всех врачей
         calendar.addEventSource({
             id: 'booked',
             url: window.bookedAppointmentsUrl,
@@ -94,6 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
             textColor: 'white'
         });
     }
+    calendar.refetchEvents();
 }
 
 
@@ -109,13 +114,16 @@ document.addEventListener('DOMContentLoaded', function() {
         loadScheduleForDoctor(savedDoctorId);
     }
 
-    document.getElementById('createAppointmentBtn').addEventListener('click', function(e){
-        e.preventDefault();
-        const doctorId = doctorSelector.value;
-        if (!doctorId) {
-            alert("Пожалуйста, сначала выберите врача, чтобы увидеть его расписание.");
-        } else {
-            alert("Выберите свободный зеленый слот в календаре, чтобы записаться.");
-        }
-    });
+    const createBtn = document.getElementById('createAppointmentBtn');
+    if (createBtn) {
+        createBtn.addEventListener('click', function(e){
+            e.preventDefault();
+            const doctorId = doctorSelector.value;
+            if (!doctorId) {
+                alert("Пожалуйста, сначала выберите врача, чтобы увидеть его расписание.");
+            } else {
+                alert("Выберите свободный зеленый слот в календаре, чтобы записаться.");
+            }
+        });
+    }
 });

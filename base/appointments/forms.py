@@ -17,7 +17,10 @@ class AppointmentEventForm(forms.ModelForm):
         model = AppointmentEvent
         fields = ['schedule', 'patient', 'start', 'notes', 'status']
         widgets = {
-            'start': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+            'start': forms.DateTimeInput(
+                attrs={'type': 'datetime-local'},
+                format='%Y-%m-%dT%H:%M'
+            ),
             'patient': ModelSelect2Widget(
                 model=Patient,
                 search_fields=['last_name__icontains', 'first_name__icontains', 'middle_name__icontains'],
@@ -31,6 +34,11 @@ class AppointmentEventForm(forms.ModelForm):
         patient = cleaned_data.get('patient')
 
         if start and schedule:
+            # Убеждаемся, что время в правильной зоне
+            if timezone.is_naive(start):
+                start = timezone.make_aware(start, timezone.get_current_timezone())
+                cleaned_data['start'] = start
+            
             self.instance.end = start + timezone.timedelta(minutes=schedule.duration)
             end = self.instance.end
 

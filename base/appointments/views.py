@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from datetime import datetime, time, timedelta
 from django.utils.dateparse import parse_datetime
+from django.utils import timezone
 from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
 from .services import generate_available_slots
@@ -29,7 +30,7 @@ class AppointmentEventViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = super().get_queryset()
         doctor_id = self.request.query_params.get('doctor')
-        if doctor_id:
+        if doctor_id and doctor_id != '__all_free__':
             queryset = queryset.filter(schedule__doctor__id=doctor_id)
         return queryset
 
@@ -62,8 +63,8 @@ class AppointmentEventsAPI(View):
                 fio = str(appt.patient)
             events.append({
                 'title': fio,
-                'start': appt.start.strftime('%Y-%m-%dT%H:%M:%S'),
-                'end': appt.end.strftime('%Y-%m-%dT%H:%M:%S'),
+                'start': appt.start.isoformat(),
+                'end': appt.end.isoformat(),
                 'color': '#dc3545',
                 'textColor': 'white',
                 'id': appt.id
@@ -78,11 +79,26 @@ class AvailableSlotsAPIView(APIView):
         end_str = request.query_params.get('end')
         doctor_id = request.query_params.get('doctor_id')
 
-        if not all([start_str, end_str, doctor_id]):
-            return Response({"error": "Необходимы параметры start, end и doctor_id"}, status=400)
+        if not all([start_str, end_str]):
+            return Response({"error": "Необходимы параметры start и end"}, status=400)
 
-        start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
-        end_dt = datetime.fromisoformat(end_str.replace('Z', '+00:00'))
+        from django.utils import timezone
+        
+        # Обработка времени с учетом зоны
+        if 'Z' in start_str:
+            start_str = start_str.replace('Z', '+00:00')
+        if 'Z' in end_str:
+            end_str = end_str.replace('Z', '+00:00')
+            
+        # Парсим datetime
+        start_dt = datetime.fromisoformat(start_str)
+        end_dt = datetime.fromisoformat(end_str)
+        
+        # Делаем aware только если время наивное
+        if timezone.is_naive(start_dt):
+            start_dt = timezone.make_aware(start_dt, timezone.get_current_timezone())
+        if timezone.is_naive(end_dt):
+            end_dt = timezone.make_aware(end_dt, timezone.get_current_timezone())
 
         slots = generate_available_slots(start_dt, end_dt, doctor_id)
         return Response(slots)
@@ -113,6 +129,9 @@ class AppointmentCreateView(CreateView):
             if start:
                 parsed_start = parse_datetime(start)
                 if parsed_start:
+                    # Убеждаемся, что время в правильной зоне
+                    if timezone.is_naive(parsed_start):
+                        parsed_start = timezone.make_aware(parsed_start, timezone.get_current_timezone())
                     initial['start'] = parsed_start
 
         # ✅ Попытка прочитать параметры из URL (при первом заходе)
@@ -124,6 +143,9 @@ class AppointmentCreateView(CreateView):
             if start:
                 parsed_start = parse_datetime(start)
                 if parsed_start:
+                    # Убеждаемся, что время в правильной зоне
+                    if timezone.is_naive(parsed_start):
+                        parsed_start = timezone.make_aware(parsed_start, timezone.get_current_timezone())
                     initial['start'] = parsed_start
 
         # ✅ Отдельно читаем patient_id (из URL после создания пациента)
