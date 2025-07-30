@@ -74,18 +74,31 @@ def run():
     for med_data in medications_data:
         print(f"\nProcessing Medication: {med_data['medication_name']}")
 
+        # Используем update_or_create для создания/обновления препарата вместе со ссылкой
+        medication_obj, created = Medication.objects.update_or_create(
+            name=med_data['medication_name'],
+            defaults={
+                'external_info_url': med_data.get('external_info_url', '') # .get() для безопасности
+            }
+        )
+        
         # 1. Создаем препарат (МНН)
         medication_obj, _ = Medication.objects.get_or_create(name=med_data['medication_name'])
 
         # 2. Создаем торговые наименования
         for tn_data in med_data.get('trade_names', []):
-            group_obj = MedicationGroup.objects.get(name=tn_data['group'])
-            form_obj = ReleaseForm.objects.get(name=tn_data['release_form'])
-            TradeName.objects.create(
+            # Безопасно получаем или создаем связанные объекты, чтобы избежать ошибок
+            group_obj, _ = MedicationGroup.objects.get_or_create(name=tn_data.get('group', 'Не указана'))
+            form_obj, _ = ReleaseForm.objects.get_or_create(name=tn_data.get('release_form', 'Не указана'))
+
+            TradeName.objects.update_or_create(
                 medication=medication_obj,
-                name=tn_data['name'],
-                medication_group=group_obj,
-                release_form=form_obj
+                name=tn_data.get('name'),
+                defaults={
+                    'medication_group': group_obj,
+                    'release_form': form_obj,
+                    'atc_code': tn_data.get('atc_code', '') # <-- ДОБАВЛЕНО ПОЛЕ ATC
+                }
             )
 
         # 3. Создаем схемы применения
