@@ -16,7 +16,6 @@ from django.conf import settings
 from django.http import JsonResponse
 
 
-from pharmacy.models import DosingRule
 from .models import MedicationAssignment, GeneralTreatmentAssignment, LabTestAssignment, InstrumentalProcedureAssignment
 from .forms import MedicationAssignmentForm, GeneralTreatmentAssignmentForm, LabTestAssignmentForm, \
     InstrumentalProcedureAssignmentForm
@@ -380,14 +379,3 @@ class TreatmentAssignmentListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['title'] = 'Все назначения'
         return context
-
-
-def get_dosing_rules(request):
-    medication_id = request.GET.get('medication_id')
-    if not medication_id:
-        return JsonResponse({'error': 'Medication ID not provided'}, status=400)
-
-    # Находим все правила для данного препарата
-    rules = DosingRule.objects.filter(medication_id=medication_id).values('id', 'name')
-
-    return JsonResponse(list(rules), safe=False)

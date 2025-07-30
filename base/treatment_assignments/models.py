@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from patients.models import Patient
-from pharmacy.models import Medication, DosingRule
+from pharmacy.models import Medication
  
 from lab_tests.models import LabTestDefinition
 from instrumental_procedures.models import InstrumentalProcedureDefinition
@@ -42,8 +42,6 @@ class BaseAssignment(models.Model):
 class MedicationAssignment(BaseAssignment):
     medication = models.ForeignKey(Medication, on_delete=models.CASCADE, verbose_name="Препарат")
 
-    dosing_rule = models.ForeignKey('pharmacy.DosingRule', on_delete=models.SET_NULL, null=True, blank=True,
-                                    verbose_name="Правило дозирования")
     duration_days = models.PositiveIntegerField("Длительность (дней)", null=True, blank=True,
                                                 help_text="Укажите длительность курса в днях")
 

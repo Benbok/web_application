@@ -6,7 +6,7 @@ from pharmacy.models import Medication
 from django.contrib.auth import get_user_model
 from django_select2.forms import Select2Widget
 from django.utils import timezone
-from pharmacy.models import DosingRule, Medication
+from pharmacy.models import Medication
 
 User = get_user_model()
 
@@ -97,19 +97,13 @@ class BaseAssignmentForm(forms.ModelForm):
 
 class MedicationAssignmentForm(BaseAssignmentForm):
 
-    dosing_rule = forms.ModelChoiceField(
-        queryset=DosingRule.objects.none(),  # Изначально queryset пустой
-        label="Правило дозирования",
-        required=False
-    )
 
     class Meta:
         model = MedicationAssignment
         fields = [
             'patient', 'start_date', 'end_date', 'status', 'notes',
             'assigning_doctor', 'cancellation_reason', 'completed_by',
-            'medication',
-            'dosing_rule', 'duration_days',
+            'medication', 'duration_days',
             'patient_weight',
         ]
 
@@ -120,7 +114,6 @@ class MedicationAssignmentForm(BaseAssignmentForm):
             'start_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
             'end_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
             'medication': Select2Widget(attrs={'class': 'form-select'}),
-            'dosing_rule': Select2Widget(attrs={'class': 'form-select'}),
             'duration_days': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Например, 7'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Дополнительные примечания'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
@@ -137,29 +130,6 @@ class MedicationAssignmentForm(BaseAssignmentForm):
             'end_date': 'Дата завершения',
             'completed_by': 'Завершено кем',
         }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Filter dosing rules based on selected medication
-        if 'medication' in self.initial:
-            medication_id = self.initial['medication']
-            self.fields['dosing_rule'].queryset = self.fields['dosing_rule'].queryset.filter(medication_id=medication_id)
-        elif self.instance.pk and self.instance.medication:
-            self.fields['dosing_rule'].queryset = self.fields['dosing_rule'].queryset.filter(medication=self.instance.medication)
-        else:
-            self.fields['dosing_rule'].queryset = self.fields['dosing_rule'].queryset.none()
-
-        # Add JavaScript for dynamic filtering of dosing rules
-        self.fields['medication'].widget.attrs['onchange'] = 'updateDosingRules(this);'
-
-        # If form is submitted (POST request) and medication is selected,
-        # filter dosing rules based on medication.
-        if self.data and 'medication' in self.data:
-            try:
-                medication_id = self.data.get('medication')
-                self.fields['dosing_rule'].queryset = self.fields['dosing_rule'].queryset.filter(medication_id=medication_id)
-            except Medication.DoesNotExist:
-                pass
 
 
 class GeneralTreatmentAssignmentForm(BaseAssignmentForm):
