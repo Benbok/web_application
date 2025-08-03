@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 
 from documents.models import ClinicalDocument
 from departments.models import PatientDepartmentStatus, Department
+from diagnosis.models import Diagnosis
 from base.models import ArchivableModel, NotArchivedManager
 
 class Encounter(ArchivableModel, models.Model):
@@ -27,6 +28,14 @@ class Encounter(ArchivableModel, models.Model):
     documents = GenericRelation(ClinicalDocument)
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="encounters")
     doctor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    diagnosis = models.ForeignKey(
+        'diagnosis.Diagnosis', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        verbose_name="Диагноз",
+        related_name="encounters"
+    )
     date_start = models.DateTimeField("Дата начала")
     date_end = models.DateTimeField("Дата завершения", null=True, blank=True)
     is_active = models.BooleanField("Активен", default=True)
@@ -115,6 +124,10 @@ class Encounter(ArchivableModel, models.Model):
             raise ValidationError("Дата завершения не может быть раньше даты начала.")
 
     def save(self, *args, **kwargs):
+        # Автоматически устанавливаем дату начала для новых случаев
+        if not self.pk and not self.date_start:
+            self.date_start = timezone.now()
+        
         if self.date_end and self.outcome:
             self.is_active = False
         else:

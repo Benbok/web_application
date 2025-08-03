@@ -1,6 +1,26 @@
 {% extends "patients/base.html" %}
 {% load widget_tweaks %}
+{% load static %}
 {% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .treatment-regimens-section {
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid #dee2e6;
+    }
+    
+    .regimen-card {
+        transition: all 0.3s ease;
+    }
+    
+    .regimen-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 {% if messages %}
 <ul class="messages">
@@ -44,14 +64,30 @@
 </div>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Автоматическая установка текущей даты и времени для новых случаев
+        const dateStartField = document.getElementById('id_date_start');
+        if (dateStartField && !dateStartField.value) {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const formattedDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+            dateStartField.value = formattedDateTime;
+        }
+
+        // Логика для поля перевода в отделение
         const outcomeSelect = document.getElementById('id_outcome');
         const transferToDepartmentField = document.getElementById('id_transfer_to_department');
 
         function toggleTransferField() {
-            if (outcomeSelect.value === 'transferred') {
-                transferToDepartmentField.closest('.mb-3').style.display = 'block';
-            } else {
-                transferToDepartmentField.closest('.mb-3').style.display = 'none';
+            if (outcomeSelect && transferToDepartmentField) {
+                if (outcomeSelect.value === 'transferred') {
+                    transferToDepartmentField.closest('.mb-3').style.display = 'block';
+                } else {
+                    transferToDepartmentField.closest('.mb-3').style.display = 'none';
+                }
             }
         }
 

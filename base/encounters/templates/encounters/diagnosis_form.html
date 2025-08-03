@@ -1,0 +1,175 @@
+{% extends "patients/base.html" %}
+{% load widget_tweaks %}
+{% load static %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+{% if messages %}
+<ul class="messages">
+    {% for message in messages %}
+    <li{% if message.tags == "error" %} class="alert alert-danger"{% elif message.tags %} class="alert alert-{{ message.tags }}"{% endif %}>{{ message }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+<div class="card mt-4">
+    <div class="card-body" style="max-width: 500px;">
+        <h4 class="card-title mb-4">{{ title }}</h4>
+        
+        <!-- Информация о случае -->
+        <div class="alert alert-info mb-4">
+            <h6>Информация о случае:</h6>
+            <p class="mb-1"><strong>Пациент:</strong> {{ patient.full_name }}</p>
+            <p class="mb-1"><strong>Дата обращения:</strong> {{ encounter.date_start|date:"d.m.Y H:i" }}</p>
+            {% if encounter.diagnosis %}
+                <p class="mb-0"><strong>Текущий диагноз:</strong> {{ encounter.diagnosis }}</p>
+            {% else %}
+                <p class="mb-0 text-muted"><strong>Диагноз:</strong> Не установлен</p>
+            {% endif %}
+        </div>
+        
+        <form method="post" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {% for error in form.non_field_errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+            
+            {% for field in form %}
+                <div class="mb-3">
+                    <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                    {{ field|add_class:"form-control" }}
+                    {% if field.help_text %}
+                        <div class="form-text">{{ field.help_text }}</div>
+                    {% endif %}
+                    {% for error in field.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+            
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Сохранить диагноз
+                </button>
+                <a href="{% url 'encounters:encounter_detail' encounter.pk %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Назад
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Секция схем лечения -->
+<div class="treatment-regimens-section mt-4" data-encounter-id="{{ encounter.pk }}">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-pills"></i> 
+                        Схемы лечения
+                    </h5>
+                    <small class="text-muted">Выберите диагноз для просмотра доступных схем лечения</small>
+                </div>
+                <div class="card-body">
+                    <div id="treatment-regimens-container">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-info-circle fa-2x mb-2"></i>
+                            <p>Выберите диагноз в форме выше для отображения схем лечения</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Логика для схем лечения
+        const diagnosisField = document.getElementById('id_diagnosis');
+        const regimensContainer = document.getElementById('treatment-regimens-container');
+        
+        function loadTreatmentRegimens() {
+            const diagnosisId = diagnosisField.value;
+            if (!diagnosisId) {
+                regimensContainer.innerHTML = `
+                    <div class="text-center text-muted">
+                        <i class="fas fa-info-circle fa-2x mb-2"></i>
+                        <p>Выберите диагноз для отображения схем лечения</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Показываем индикатор загрузки
+            regimensContainer.innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <p class="mt-2">Загрузка схем лечения...</p>
+                </div>
+            `;
+            
+            // Загружаем схемы лечения
+            fetch(`/encounters/api/treatment-regimens/?diagnosis_id=${diagnosisId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.regimens && data.regimens.length > 0) {
+                        let html = '<div class="row">';
+                        data.regimens.forEach(regimen => {
+                            html += `
+                                <div class="col-md-6 mb-3">
+                                    <div class="card regimen-card">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">${regimen.medication_name}</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <p class="card-text"><strong>Схема:</strong> ${regimen.name}</p>
+                                            <p class="card-text"><strong>Дозировка:</strong> ${regimen.dosing_instructions}</p>
+                                            <p class="card-text"><strong>Применение:</strong> ${regimen.route}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                        regimensContainer.innerHTML = html;
+                    } else {
+                        regimensContainer.innerHTML = `
+                            <div class="text-center text-muted">
+                                <i class="fas fa-info-circle fa-2x mb-2"></i>
+                                <p>Для выбранного диагноза схемы лечения не найдены</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка загрузки схем лечения:', error);
+                    regimensContainer.innerHTML = `
+                        <div class="text-center text-danger">
+                            <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                            <p>Ошибка загрузки схем лечения</p>
+                        </div>
+                    `;
+                });
+        }
+        
+        if (diagnosisField) {
+            diagnosisField.addEventListener('change', loadTreatmentRegimens);
+            // Загружаем схемы при загрузке страницы, если диагноз уже выбран
+            if (diagnosisField.value) {
+                loadTreatmentRegimens();
+            }
+        }
+    });
+</script>
+
+<!-- Подключение JavaScript для схем лечения -->
+<script src="{% static 'encounters/js/treatment_regimens.js' %}"></script>
+{% endblock %} 

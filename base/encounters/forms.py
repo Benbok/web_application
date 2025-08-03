@@ -1,9 +1,12 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django_select2.forms import Select2Widget
 from .models import Encounter
 from .services.encounter_service import EncounterService
 from .strategies.outcome_strategies import OutcomeStrategyFactory
 from departments.models import Department
+from diagnosis.models import Diagnosis
+from diagnosis.widgets import DiagnosisSelect2Widget
 
 User = get_user_model()  
 
@@ -14,6 +17,16 @@ class EncounterForm(forms.ModelForm):
         widgets = {
             'date_start': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Устанавливаем текущую дату и время по умолчанию
+        if not self.instance.pk:  # Только для новых случаев
+            from django.utils import timezone
+            current_time = timezone.now()
+            # Форматируем для datetime-local input
+            formatted_time = current_time.strftime('%Y-%m-%dT%H:%M')
+            self.fields['date_start'].initial = formatted_time
 
 class EncounterUpdateForm(forms.ModelForm):
     transfer_to_department = forms.ModelChoiceField(
@@ -113,6 +126,28 @@ class EncounterCloseForm(forms.ModelForm):
                 raise forms.ValidationError("Не удалось закрыть случай обращения.")
         
         return encounter
+
+
+class EncounterDiagnosisForm(forms.ModelForm):
+    """Форма для установки диагноза в случае обращения"""
+    
+    diagnosis = forms.ModelChoiceField(
+        queryset=Diagnosis.objects.all(),
+        required=True,
+        label="Диагноз",
+        empty_label="Выберите диагноз",
+        widget=DiagnosisSelect2Widget(attrs={'class': 'form-select', 'id': 'diagnosis-select'})
+    )
+    
+    class Meta:
+        model = Encounter
+        fields = ['diagnosis']
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Устанавливаем текущий диагноз как начальное значение
+        if self.instance and self.instance.diagnosis:
+            self.fields['diagnosis'].initial = self.instance.diagnosis
 
 
 class EncounterReopenForm(forms.Form):

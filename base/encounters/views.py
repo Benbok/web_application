@@ -4,14 +4,19 @@ from django.views import View
 from django.views.generic import DetailView, CreateView, UpdateView, DeleteView
 from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, JsonResponse
 from django.utils import timezone
+from django.views.decorators.http import require_http_methods
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 
 from .models import Encounter
 from .services.encounter_service import EncounterService
 from patients.models import Patient
-from .forms import EncounterForm, EncounterCloseForm, EncounterUpdateForm, EncounterReopenForm, EncounterUndoForm
+from .forms import EncounterForm, EncounterCloseForm, EncounterUpdateForm, EncounterReopenForm, EncounterUndoForm, EncounterDiagnosisForm
 from departments.models import Department, PatientDepartmentStatus
+from pharmacy.services import RegimenService, PatientRecommendationService
+from diagnosis.models import Diagnosis
 
 class EncounterDetailView(DetailView):
     model = Encounter
@@ -51,6 +56,11 @@ class EncounterCreateView(CreateView):
         """Добавляем пациента и врача перед сохранением."""
         form.instance.patient = self.patient
         form.instance.doctor = self.request.user
+        
+        # Если дата начала не установлена, устанавливаем текущую дату и время
+        if not form.instance.date_start:
+            form.instance.date_start = timezone.now()
+        
         return super().form_valid(form)
 
     def get_context_data(self, **kwargs):
@@ -133,6 +143,29 @@ class EncounterUpdateView(UpdateView):
         return response
 
     def get_success_url(self):
+        return reverse('encounters:encounter_detail', kwargs={'pk': self.object.pk})
+
+class EncounterDiagnosisView(UpdateView):
+    """Представление для установки диагноза в случае обращения"""
+    model = Encounter
+    form_class = EncounterDiagnosisForm
+    template_name = 'encounters/diagnosis_form.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['encounter'] = self.object
+        context['patient'] = self.object.patient
+        context['title'] = 'Установить диагноз'
+        return context
+
+    def form_valid(self, form):
+        """Сохраняем диагноз и показываем сообщение об успехе."""
+        response = super().form_valid(form)
+        messages.success(self.request, f'Диагноз успешно установлен: {form.instance.diagnosis}')
+        return response
+
+    def get_success_url(self):
+        """Редирект на детальную страницу случая."""
         return reverse('encounters:encounter_detail', kwargs={'pk': self.object.pk})
 
 class EncounterDeleteView(DeleteView):
@@ -229,3 +262,88 @@ class EncounterUndoView(View):
             messages.error(request, "Не удалось отменить последнюю операцию.")
 
         return redirect(reverse('encounters:encounter_detail', kwargs={'pk': pk}))
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class TreatmentRegimensView(View):
+    """
+    AJAX view для получения схем лечения по диагнозу.
+    Возвращает JSON с рекомендациями по препаратам.
+    """
+    
+    def get(self, request, *args, **kwargs):
+        diagnosis_id = request.GET.get('diagnosis_id')
+        encounter_id = request.GET.get('encounter_id')
+        
+        if not diagnosis_id:
+            return JsonResponse({'error': 'Не указан ID диагноза'}, status=400)
+        
+        try:
+            diagnosis = Diagnosis.objects.get(id=diagnosis_id)
+        except Diagnosis.DoesNotExist:
+            return JsonResponse({'error': 'Диагноз не найден'}, status=404)
+        
+        # Получаем схемы лечения по диагнозу
+        regimens = RegimenService.get_regimens_by_diagnosis(diagnosis.id)
+        
+        # Если указан encounter_id, получаем персонализированные рекомендации
+        personalized_recommendations = None
+        if encounter_id:
+            try:
+                encounter = Encounter.objects.get(id=encounter_id)
+                personalized_recommendations = PatientRecommendationService.get_patient_recommendations(
+                    patient=encounter.patient,
+                    diagnosis=diagnosis
+                )
+            except Encounter.DoesNotExist:
+                pass
+        
+        return JsonResponse({
+            'diagnosis': {
+                'id': diagnosis.id,
+                'name': diagnosis.name,
+                'code': diagnosis.code
+            },
+            'regimens': regimens,
+            'personalized_recommendations': personalized_recommendations
+        })
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class PatientRecommendationsView(View):
+    """
+    AJAX view для получения персонализированных рекомендаций для пациента.
+    """
+    
+    def get(self, request, *args, **kwargs):
+        encounter_id = request.GET.get('encounter_id')
+        diagnosis_id = request.GET.get('diagnosis_id')
+        
+        if not encounter_id:
+            return JsonResponse({'error': 'Не указан ID обращения'}, status=400)
+        
+        try:
+            encounter = Encounter.objects.get(id=encounter_id)
+        except Encounter.DoesNotExist:
+            return JsonResponse({'error': 'Обращение не найдено'}, status=404)
+        
+        diagnosis = None
+        if diagnosis_id:
+            try:
+                diagnosis = Diagnosis.objects.get(id=diagnosis_id)
+            except Diagnosis.DoesNotExist:
+                pass
+        
+        recommendations = PatientRecommendationService.get_patient_recommendations(
+            patient=encounter.patient,
+            diagnosis=diagnosis
+        )
+        
+        return JsonResponse({
+            'patient': {
+                'id': encounter.patient.id,
+                'name': encounter.patient.full_name,
+                'age_days': (timezone.now().date() - encounter.patient.birth_date).days
+            },
+            'recommendations': recommendations
+        })

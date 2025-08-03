@@ -40,6 +40,9 @@
     <!-- Собственный CSS -->
     <link rel="stylesheet" href="{% static 'patients/css/style.css' %}" />
 
+    <!-- Django Select2 CSS -->
+    {{ form.media.css }}
+
     <!-- Favicon -->
     {% comment %}
     <link rel="icon" href="{% static 'patients/img/favicon.ico' %}" />
@@ -316,6 +319,9 @@
 
     <!-- Custom JS -->
     <script src="{% static 'patients/js/script.js' %}"></script>
+
+    <!-- Django Select2 JavaScript -->
+    {{ form.media.js }}
 
     <!-- Input Mask для форм -->
     <script src="https://cdn.jsdelivr.net/npm/inputmask@5.0.8/dist/inputmask.min.js"></script>
