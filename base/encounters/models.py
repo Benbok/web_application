@@ -10,6 +10,210 @@ from departments.models import PatientDepartmentStatus, Department
 from diagnosis.models import Diagnosis
 from base.models import ArchivableModel, NotArchivedManager
 
+class EncounterDiagnosis(models.Model):
+    """Модель для хранения диагнозов случая обращения"""
+    
+    DIAGNOSIS_TYPE_CHOICES = [
+        ('main', 'Основной диагноз'),
+        ('complication', 'Осложнение'),
+        ('comorbidity', 'Сопутствующий диагноз'),
+    ]
+    
+    encounter = models.ForeignKey(
+        'Encounter',
+        on_delete=models.CASCADE,
+        related_name='diagnoses',
+        verbose_name="Случай обращения"
+    )
+    diagnosis_type = models.CharField(
+        "Тип диагноза",
+        max_length=20,
+        choices=DIAGNOSIS_TYPE_CHOICES,
+        default='main'
+    )
+    diagnosis = models.ForeignKey(
+        'diagnosis.Diagnosis',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        verbose_name="Диагноз из справочника",
+        related_name="encounter_diagnoses"
+    )
+    custom_diagnosis = models.TextField(
+        "Собственный диагноз",
+        blank=True,
+        help_text="Введите диагноз в свободной форме"
+    )
+    description = models.TextField(
+        "Описание",
+        blank=True,
+        help_text="Дополнительное описание диагноза"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Диагноз случая"
+        verbose_name_plural = "Диагнозы случая"
+        ordering = ['diagnosis_type', 'created_at']
+        # Убираем unique_together, так как для осложнений и сопутствующих диагнозов
+        # нужно разрешить множественные записи
+    
+    def __str__(self):
+        if self.diagnosis:
+            return f"{self.get_diagnosis_type_display()}: {self.diagnosis}"
+        elif self.custom_diagnosis:
+            return f"{self.get_diagnosis_type_display()}: {self.custom_diagnosis}"
+        return f"{self.get_diagnosis_type_display()}"
+    
+    def clean(self):
+        """Проверяем, что либо выбран диагноз из справочника, либо введен собственный"""
+        if not self.diagnosis and not self.custom_diagnosis:
+            raise ValidationError("Необходимо выбрать диагноз из справочника или ввести собственный диагноз")
+        
+        if self.diagnosis and self.custom_diagnosis:
+            raise ValidationError("Нельзя одновременно выбирать диагноз из справочника и вводить собственный")
+        
+        # Проверяем уникальность для основного диагноза
+        if self.diagnosis_type == 'main' and hasattr(self, 'encounter') and self.encounter:
+            # Для основного диагноза проверяем, что нет дубликатов
+            existing_main = EncounterDiagnosis.objects.filter(
+                encounter=self.encounter,
+                diagnosis_type='main'
+            ).exclude(pk=self.pk)
+            
+            if existing_main.exists():
+                raise ValidationError("Основной диагноз уже установлен для этого случая")
+    
+    def get_display_name(self):
+        """Возвращает отображаемое название диагноза"""
+        if self.diagnosis:
+            return str(self.diagnosis)
+        return self.custom_diagnosis
+
+class TreatmentPlan(models.Model):
+    """Модель для плана лечения"""
+    
+    encounter = models.ForeignKey(
+        'Encounter',
+        on_delete=models.CASCADE,
+        related_name='treatment_plans',
+        verbose_name="Случай обращения"
+    )
+    name = models.CharField(
+        "Название плана лечения",
+        max_length=200,
+        help_text="Например: 'Основная терапия', 'Симптоматическое лечение'"
+    )
+    description = models.TextField(
+        "Описание плана лечения",
+        blank=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "План лечения"
+        verbose_name_plural = "Планы лечения"
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.name} - {self.encounter}"
+
+class TreatmentMedication(models.Model):
+    """Модель для лекарств в плане лечения"""
+    
+    ROUTE_CHOICES = [
+        ('oral', 'Перорально'),
+        ('intravenous', 'Внутривенно'),
+        ('intramuscular', 'Внутримышечно'),
+        ('subcutaneous', 'Подкожно'),
+        ('topical', 'Наружно'),
+        ('inhalation', 'Ингаляционно'),
+        ('rectal', 'Ректально'),
+        ('other', 'Другое'),
+    ]
+    
+    treatment_plan = models.ForeignKey(
+        TreatmentPlan,
+        on_delete=models.CASCADE,
+        related_name='medications',
+        verbose_name="План лечения"
+    )
+    medication = models.ForeignKey(
+        'pharmacy.Medication',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        verbose_name="Препарат из справочника",
+        related_name="treatment_medications"
+    )
+    custom_medication = models.CharField(
+        "Собственный препарат",
+        max_length=200,
+        blank=True,
+        help_text="Введите название препарата в свободной форме"
+    )
+    dosage = models.CharField(
+        "Дозировка",
+        max_length=100,
+        help_text="Например: '500 мг', '1 таблетка'"
+    )
+    frequency = models.CharField(
+        "Частота приема",
+        max_length=100,
+        help_text="Например: '2 раза в день', 'каждые 8 часов'"
+    )
+    route = models.CharField(
+        "Способ применения",
+        max_length=20,
+        choices=ROUTE_CHOICES,
+        default='oral'
+    )
+    duration = models.CharField(
+        "Длительность курса",
+        max_length=100,
+        blank=True,
+        help_text="Например: '7 дней', 'до улучшения'"
+    )
+    instructions = models.TextField(
+        "Особые указания",
+        blank=True,
+        help_text="Дополнительные инструкции по применению"
+    )
+    is_active = models.BooleanField(
+        "Активен",
+        default=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Лекарство в плане лечения"
+        verbose_name_plural = "Лекарства в плане лечения"
+        ordering = ['created_at']
+    
+    def __str__(self):
+        medication_name = self.medication.name if self.medication else self.custom_medication
+        return f"{medication_name} - {self.dosage} {self.frequency}"
+    
+    def clean(self):
+        """Проверяем, что либо выбран препарат из справочника, либо введен собственный"""
+        if not self.medication and not self.custom_medication:
+            raise ValidationError("Необходимо выбрать препарат из справочника или ввести собственный препарат")
+        
+        if self.medication and self.custom_medication:
+            raise ValidationError("Нельзя одновременно выбирать препарат из справочника и вводить собственный")
+    
+    def get_medication_name(self):
+        """Возвращает название препарата"""
+        if self.medication:
+            return self.medication.name
+        elif self.custom_medication:
+            return self.custom_medication
+        else:
+            return "Неизвестный препарат"
+
 class Encounter(ArchivableModel, models.Model):
     OUTCOME_CHOICES = [
         ('consultation_end', 'Консультация'),
@@ -28,12 +232,13 @@ class Encounter(ArchivableModel, models.Model):
     documents = GenericRelation(ClinicalDocument)
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="encounters")
     doctor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    # Старое поле диагноза (оставляем для обратной совместимости)
     diagnosis = models.ForeignKey(
         'diagnosis.Diagnosis', 
         on_delete=models.SET_NULL, 
         null=True, 
         blank=True,
-        verbose_name="Диагноз",
+        verbose_name="Диагноз (устаревшее)",
         related_name="encounters"
     )
     date_start = models.DateTimeField("Дата начала")
@@ -167,3 +372,40 @@ class Encounter(ArchivableModel, models.Model):
             if getattr(dept_status, 'is_archived', False):
                 dept_status.unarchive()
         super().unarchive()
+    
+    # Методы для работы с диагнозами
+    def get_main_diagnosis(self):
+        """Возвращает основной диагноз"""
+        return self.diagnoses.filter(diagnosis_type='main').first()
+    
+    def get_complications(self):
+        """Возвращает осложнения"""
+        return self.diagnoses.filter(diagnosis_type='complication')
+    
+    def get_comorbidities(self):
+        """Возвращает сопутствующие диагнозы"""
+        return self.diagnoses.filter(diagnosis_type='comorbidity')
+    
+    def add_diagnosis(self, diagnosis_type, diagnosis=None, custom_diagnosis='', description=''):
+        """Добавляет диагноз к случаю"""
+        if diagnosis_type == 'main':
+            # Удаляем существующий основной диагноз
+            self.diagnoses.filter(diagnosis_type='main').delete()
+        
+        return self.diagnoses.create(
+            diagnosis_type=diagnosis_type,
+            diagnosis=diagnosis,
+            custom_diagnosis=custom_diagnosis,
+            description=description
+        )
+    
+    def get_active_treatment_plan(self):
+        """Возвращает последний созданный план лечения"""
+        return self.treatment_plans.order_by('-created_at').first()
+    
+    def create_treatment_plan(self, name, description=''):
+        """Создает новый план лечения"""
+        return self.treatment_plans.create(
+            name=name,
+            description=description
+        )

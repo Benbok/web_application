@@ -1,14 +1,17 @@
 from django import forms
 from django.contrib.auth import get_user_model
-from django_select2.forms import Select2Widget
-from .models import Encounter
-from .services.encounter_service import EncounterService
-from .strategies.outcome_strategies import OutcomeStrategyFactory
-from departments.models import Department
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+
+from .models import Encounter, EncounterDiagnosis, TreatmentPlan, TreatmentMedication
 from diagnosis.models import Diagnosis
 from diagnosis.widgets import DiagnosisSelect2Widget
+from pharmacy.widgets import MedicationSelect2Widget
+from departments.models import Department
+from encounters.services.encounter_service import EncounterService
+from encounters.strategies.outcome_strategies import OutcomeStrategyFactory
 
-User = get_user_model()  
+User = get_user_model()
 
 class EncounterForm(forms.ModelForm):
     class Meta:
@@ -27,6 +30,166 @@ class EncounterForm(forms.ModelForm):
             # Форматируем для datetime-local input
             formatted_time = current_time.strftime('%Y-%m-%dT%H:%M')
             self.fields['date_start'].initial = formatted_time
+
+class EncounterDiagnosisForm(forms.ModelForm):
+    """Форма для установки диагноза в случае обращения"""
+    
+    diagnosis = forms.ModelChoiceField(
+        queryset=Diagnosis.objects.all(),
+        required=False,
+        label="Диагноз",
+        empty_label="Выберите диагноз",
+        widget=DiagnosisSelect2Widget(attrs={'class': 'form-select', 'id': 'diagnosis-select'})
+    )
+    
+    class Meta:
+        model = Encounter
+        fields = ['diagnosis']
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Устанавливаем текущий диагноз как начальное значение
+        if self.instance and self.instance.diagnosis:
+            self.fields['diagnosis'].initial = self.instance.diagnosis
+
+class EncounterDiagnosisAdvancedForm(forms.ModelForm):
+    """Форма для работы с расширенной структурой диагнозов"""
+    
+    diagnosis_type = forms.ChoiceField(
+        choices=EncounterDiagnosis.DIAGNOSIS_TYPE_CHOICES,
+        label="Тип диагноза",
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
+    diagnosis = forms.ModelChoiceField(
+        queryset=Diagnosis.objects.all(),
+        required=False,
+        label="Диагноз из справочника",
+        empty_label="Выберите диагноз из справочника",
+        widget=DiagnosisSelect2Widget(attrs={'class': 'form-select', 'id': 'diagnosis-select'})
+    )
+    
+    custom_diagnosis = forms.CharField(
+        max_length=500,
+        required=False,
+        label="Собственный диагноз",
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        help_text="Введите диагноз в свободной форме"
+    )
+    
+    description = forms.CharField(
+        max_length=1000,
+        required=False,
+        label="Описание",
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        help_text="Дополнительное описание диагноза"
+    )
+    
+    class Meta:
+        model = EncounterDiagnosis
+        fields = ['diagnosis_type', 'diagnosis', 'custom_diagnosis', 'description']
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        diagnosis = cleaned_data.get('diagnosis')
+        custom_diagnosis = cleaned_data.get('custom_diagnosis')
+        
+        if not diagnosis and not custom_diagnosis:
+            raise ValidationError("Необходимо выбрать диагноз из справочника или ввести собственный диагноз")
+        
+        if diagnosis and custom_diagnosis:
+            raise ValidationError("Нельзя одновременно выбирать диагноз из справочника и вводить собственный")
+        
+        return cleaned_data
+
+class TreatmentPlanForm(forms.ModelForm):
+    """Форма для создания/редактирования плана лечения"""
+    
+    class Meta:
+        model = TreatmentPlan
+        fields = ['name', 'description']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+class TreatmentMedicationForm(forms.ModelForm):
+    """Форма для добавления лекарства в план лечения"""
+    
+    medication = forms.ModelChoiceField(
+        queryset=None,  # Будет установлен в __init__
+        required=False,
+        label="Препарат из справочника",
+        empty_label="Выберите препарат из справочника",
+        widget=MedicationSelect2Widget(attrs={'class': 'form-select', 'id': 'medication-select'})
+    )
+    
+    custom_medication = forms.CharField(
+        max_length=200,
+        required=False,
+        label="Собственный препарат",
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+        help_text="Введите название препарата в свободной форме"
+    )
+    
+    dosage = forms.CharField(
+        max_length=100,
+        label="Дозировка",
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+        help_text="Например: '500 мг', '1 таблетка'"
+    )
+    
+    frequency = forms.CharField(
+        max_length=100,
+        label="Частота приема",
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+        help_text="Например: '2 раза в день', 'каждые 8 часов'"
+    )
+    
+    route = forms.ChoiceField(
+        choices=TreatmentMedication.ROUTE_CHOICES,
+        label="Способ применения",
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
+    duration = forms.CharField(
+        max_length=100,
+        required=False,
+        label="Длительность курса",
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+        help_text="Например: '7 дней', 'до улучшения'"
+    )
+    
+    instructions = forms.CharField(
+        max_length=500,
+        required=False,
+        label="Особые указания",
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        help_text="Дополнительные инструкции по применению"
+    )
+    
+    class Meta:
+        model = TreatmentMedication
+        fields = ['medication', 'custom_medication', 'dosage', 'frequency', 'route', 'duration', 'instructions']
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Импортируем модель Medication здесь, чтобы избежать циклических импортов
+        from pharmacy.models import Medication
+        self.fields['medication'].queryset = Medication.objects.all()
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        medication = cleaned_data.get('medication')
+        custom_medication = cleaned_data.get('custom_medication')
+        
+        if not medication and not custom_medication:
+            raise ValidationError("Необходимо выбрать препарат из справочника или ввести собственный препарат")
+        
+        if medication and custom_medication:
+            raise ValidationError("Нельзя одновременно выбирать препарат из справочника и вводить собственный")
+        
+        return cleaned_data
 
 class EncounterUpdateForm(forms.ModelForm):
     transfer_to_department = forms.ModelChoiceField(
@@ -126,28 +289,6 @@ class EncounterCloseForm(forms.ModelForm):
                 raise forms.ValidationError("Не удалось закрыть случай обращения.")
         
         return encounter
-
-
-class EncounterDiagnosisForm(forms.ModelForm):
-    """Форма для установки диагноза в случае обращения"""
-    
-    diagnosis = forms.ModelChoiceField(
-        queryset=Diagnosis.objects.all(),
-        required=True,
-        label="Диагноз",
-        empty_label="Выберите диагноз",
-        widget=DiagnosisSelect2Widget(attrs={'class': 'form-select', 'id': 'diagnosis-select'})
-    )
-    
-    class Meta:
-        model = Encounter
-        fields = ['diagnosis']
-        
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Устанавливаем текущий диагноз как начальное значение
-        if self.instance and self.instance.diagnosis:
-            self.fields['diagnosis'].initial = self.instance.diagnosis
 
 
 class EncounterReopenForm(forms.Form):

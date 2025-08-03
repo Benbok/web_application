@@ -1,0 +1,138 @@
+{% extends "patients/base.html" %}
+{% load widget_tweaks %}
+{% load static %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+{% if messages %}
+<ul class="messages">
+    {% for message in messages %}
+    <li{% if message.tags == "error" %} class="alert alert-danger"{% elif message.tags %} class="alert alert-{{ message.tags }}"{% endif %}>{{ message }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h4 class="card-title mb-0">{{ title }}</h4>
+        <small class="text-muted">Пациент: {{ patient.full_name }} | Случай: {{ encounter.date_start|date:"d.m.Y H:i" }}</small>
+    </div>
+    <div class="card-body">
+        <!-- Основной диагноз -->
+        <div class="mb-4">
+            <h5 class="text-primary">
+                <i class="fas fa-stethoscope"></i> Основной диагноз
+            </h5>
+            {% if main_diagnosis %}
+                <div class="alert alert-info">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong>{{ main_diagnosis.get_display_name }}</strong>
+                            {% if main_diagnosis.description %}
+                                <br><small class="text-muted">{{ main_diagnosis.description }}</small>
+                            {% endif %}
+                        </div>
+                        <div class="btn-group">
+                            <a href="{% url 'encounters:encounter_diagnosis_update' main_diagnosis.pk %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-edit"></i> Изменить
+                            </a>
+                            <a href="{% url 'encounters:encounter_diagnosis_delete' main_diagnosis.pk %}" class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-trash"></i> Удалить
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> Основной диагноз не установлен
+                    <a href="{% url 'encounters:encounter_diagnosis_create' encounter.pk %}?type=main" class="btn btn-sm btn-primary ms-2">
+                        <i class="fas fa-plus"></i> Добавить
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Осложнения -->
+        <div class="mb-4">
+            <h5 class="text-warning">
+                <i class="fas fa-exclamation-triangle"></i> Осложнения
+                <a href="{% url 'encounters:encounter_diagnosis_create' encounter.pk %}?type=complication" class="btn btn-sm btn-outline-warning ms-2">
+                    <i class="fas fa-plus"></i> Добавить
+                </a>
+            </h5>
+            {% if complications %}
+                {% for complication in complications %}
+                    <div class="alert alert-warning">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>{{ complication.get_display_name }}</strong>
+                                {% if complication.description %}
+                                    <br><small class="text-muted">{{ complication.description }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="btn-group">
+                                <a href="{% url 'encounters:encounter_diagnosis_update' complication.pk %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-edit"></i> Изменить
+                                </a>
+                                <a href="{% url 'encounters:encounter_diagnosis_delete' complication.pk %}" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-trash"></i> Удалить
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-light">
+                    <i class="fas fa-info-circle"></i> Осложнения не выявлены
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Сопутствующие диагнозы -->
+        <div class="mb-4">
+            <h5 class="text-info">
+                <i class="fas fa-list"></i> Сопутствующие диагнозы
+                <a href="{% url 'encounters:encounter_diagnosis_create' encounter.pk %}?type=comorbidity" class="btn btn-sm btn-outline-info ms-2">
+                    <i class="fas fa-plus"></i> Добавить
+                </a>
+            </h5>
+            {% if comorbidities %}
+                {% for comorbidity in comorbidities %}
+                    <div class="alert alert-info">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>{{ comorbidity.get_display_name }}</strong>
+                                {% if comorbidity.description %}
+                                    <br><small class="text-muted">{{ comorbidity.description }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="btn-group">
+                                <a href="{% url 'encounters:encounter_diagnosis_update' comorbidity.pk %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-edit"></i> Изменить
+                                </a>
+                                <a href="{% url 'encounters:encounter_diagnosis_delete' comorbidity.pk %}" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-trash"></i> Удалить
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-light">
+                    <i class="fas fa-info-circle"></i> Сопутствующие диагнозы не выявлены
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Кнопки навигации -->
+        <div class="d-flex gap-2 mt-4">
+            <a href="{% url 'encounters:encounter_detail' encounter.pk %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Назад к случаю
+            </a>
+            <a href="{% url 'encounters:treatment_plans' encounter.pk %}" class="btn btn-success">
+                <i class="fas fa-pills"></i> Планы лечения
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -2,6 +2,9 @@
 from django.shortcuts import render
 from django.views.generic import ListView
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from django.views import View
 from .models import Medication
 
 class MedicationListView(ListView):
@@ -41,3 +44,65 @@ def medication_detail_api(request, pk):
         'default_route': medication.default_route,
     }
     return JsonResponse(data)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class MedicationAjaxSearchView(View):
+    """AJAX endpoint для поиска препаратов"""
+    
+    def get(self, request, *args, **kwargs):
+        query = request.GET.get('q', '')
+        page = request.GET.get('page', 1)
+        
+        if not query or len(query) < 2:
+            return JsonResponse({
+                'results': [],
+                'pagination': {'more': False}
+            })
+        
+        # Поиск по названию препарата
+        medications = Medication.objects.filter(
+            name__icontains=query
+        ).order_by('name')[:20]
+        
+        results = []
+        for medication in medications:
+            results.append({
+                'id': medication.pk,
+                'text': f"{medication.name}",
+            })
+        
+        return JsonResponse({
+            'results': results,
+            'pagination': {'more': False}
+        })
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class MedicationAjaxSearchLightView(View):
+    """Облегченный AJAX endpoint для поиска препаратов"""
+    
+    def get(self, request, *args, **kwargs):
+        query = request.GET.get('q', '')
+        page = request.GET.get('page', 1)
+        
+        if not query:
+            # Возвращаем первые 50 препаратов для быстрого старта
+            medications = Medication.objects.all().order_by('name')[:50]
+        else:
+            # Поиск по названию препарата
+            medications = Medication.objects.filter(
+                name__icontains=query
+            ).order_by('name')[:20]
+        
+        results = []
+        for medication in medications:
+            results.append({
+                'id': medication.pk,
+                'text': f"{medication.name}",
+            })
+        
+        return JsonResponse({
+            'results': results,
+            'pagination': {'more': False}
+        })

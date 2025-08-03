@@ -1,7 +1,7 @@
 from django.db import models
 from django.urls import reverse, reverse_lazy
 from django.views import View
-from django.views.generic import DetailView, CreateView, UpdateView, DeleteView
+from django.views.generic import DetailView, CreateView, UpdateView, DeleteView, ListView
 from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
 from django.http import HttpResponseForbidden, JsonResponse
@@ -10,10 +10,15 @@ from django.views.decorators.http import require_http_methods
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 
-from .models import Encounter
+from .models import Encounter, EncounterDiagnosis, TreatmentPlan, TreatmentMedication
 from .services.encounter_service import EncounterService
+from .services import TreatmentPlanService
 from patients.models import Patient
-from .forms import EncounterForm, EncounterCloseForm, EncounterUpdateForm, EncounterReopenForm, EncounterUndoForm, EncounterDiagnosisForm
+from .forms import (
+    EncounterForm, EncounterCloseForm, EncounterUpdateForm, EncounterReopenForm, 
+    EncounterUndoForm, EncounterDiagnosisForm, EncounterDiagnosisAdvancedForm,
+    TreatmentPlanForm, TreatmentMedicationForm
+)
 from departments.models import Department, PatientDepartmentStatus
 from pharmacy.services import RegimenService, PatientRecommendationService
 from diagnosis.models import Diagnosis
@@ -39,6 +44,12 @@ class EncounterDetailView(DetailView):
         # Добавляем информацию о командах
         context['command_history'] = service.get_command_history()
         context['last_command'] = service.get_last_command()
+        
+        # Добавляем информацию о диагнозах
+        context['main_diagnosis'] = encounter.get_main_diagnosis()
+        context['complications'] = encounter.get_complications()
+        context['comorbidities'] = encounter.get_comorbidities()
+        context['treatment_plans'] = encounter.treatment_plans.all()
         
         return context
 
@@ -98,43 +109,23 @@ class EncounterUpdateView(UpdateView):
 
         # НОВАЯ ЛОГИКА: Проверка наличия документов перед сохранением, если случай закрывается
         # Случай считается закрытым, если outcome установлен и date_end установлен
-        if form.cleaned_data.get('outcome') and form.instance.date_end:
-            # Получаем актуальный объект Encounter, чтобы проверить его документы
-            # (form.instance может еще не быть сохраненным в базе данных)
-            current_encounter = self.get_object()
-            if not current_encounter.documents.exists():
-                messages.error(self.request, "Невозможно закрыть случай обращения: нет прикрепленных документов.")
-                return self.form_invalid(form) # Возвращаем форму с ошибкой
+        if form.cleaned_data.get('outcome') and form.cleaned_data.get('date_end'):
+            if not self.object.documents.exists():
+                form.add_error(None, "Невозможно закрыть случай обращения: нет прикрепленных документов.")
+                return self.form_invalid(form)
 
         response = super().form_valid(form)
 
-        new_outcome = self.object.outcome
-        new_transfer_to_department = self.object.transfer_to_department
-
-        # Логика для PatientDepartmentStatus при изменении перевода
-        if old_outcome == 'transferred' and old_transfer_to_department:
-            # Если раньше был перевод, и он изменился или отменился
-            if new_outcome != 'transferred' or new_transfer_to_department != old_transfer_to_department:
-                # Отменяем старую запись PatientDepartmentStatus
-                patient_dept_status = PatientDepartmentStatus.objects.filter(
-                    patient=self.object.patient,
-                    department=old_transfer_to_department,
-                    source_encounter=self.object
-                ).order_by('-admission_date').first()
-                if patient_dept_status:
-                    if patient_dept_status.cancel_transfer():
-                        messages.info(self.request, f"Предыдущий перевод в отделение «{old_transfer_to_department.name}» отменен.")
-                    else:
-                        messages.warning(self.request, f"Не удалось отменить предыдущий перевод в отделение «{old_transfer_to_department.name}».")
-
-        if new_outcome == 'transferred' and new_transfer_to_department:
-            # Если сейчас перевод, и он новый или изменился
-            if old_outcome != 'transferred' or new_transfer_to_department != old_transfer_to_department:
-                # Создаем новую запись PatientDepartmentStatus
+        # Обработка перевода в отделение
+        if form.cleaned_data.get('outcome') == 'transferred':
+            new_transfer_to_department = form.cleaned_data.get('transfer_to_department')
+            if new_transfer_to_department and (not old_transfer_to_department or old_transfer_to_department != new_transfer_to_department):
+                # Создаем запись о переводе пациента в отделение
                 PatientDepartmentStatus.objects.create(
                     patient=self.object.patient,
                     department=new_transfer_to_department,
-                    status='pending',
+                    status='admitted',
+                    admission_date=timezone.now(),
                     source_encounter=self.object
                 )
                 messages.success(self.request, f"Пациент переведен в отделение «{new_transfer_to_department.name}».")
@@ -143,6 +134,7 @@ class EncounterUpdateView(UpdateView):
         return response
 
     def get_success_url(self):
+        """Редирект после успешного обновления."""
         return reverse('encounters:encounter_detail', kwargs={'pk': self.object.pk})
 
 class EncounterDiagnosisView(UpdateView):
@@ -167,6 +159,209 @@ class EncounterDiagnosisView(UpdateView):
     def get_success_url(self):
         """Редирект на детальную страницу случая."""
         return reverse('encounters:encounter_detail', kwargs={'pk': self.object.pk})
+
+class EncounterDiagnosisAdvancedView(DetailView):
+    """Представление для работы с расширенной структурой диагнозов"""
+    model = Encounter
+    template_name = 'encounters/diagnosis_advanced.html'
+    context_object_name = 'encounter'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['patient'] = self.object.patient
+        context['title'] = 'Управление диагнозами'
+        context['main_diagnosis'] = self.object.get_main_diagnosis()
+        context['complications'] = self.object.get_complications()
+        context['comorbidities'] = self.object.get_comorbidities()
+        return context
+
+class EncounterDiagnosisCreateView(CreateView):
+    """Представление для создания нового диагноза"""
+    model = EncounterDiagnosis
+    form_class = EncounterDiagnosisAdvancedForm
+    template_name = 'encounters/diagnosis_create.html'
+    
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        encounter_pk = self.kwargs.get('encounter_pk')
+        if encounter_pk:
+            self.encounter = get_object_or_404(Encounter, pk=encounter_pk)
+        else:
+            self.encounter = None
+    
+    def form_valid(self, form):
+        # Убеждаемся, что encounter установлен
+        if not hasattr(self, 'encounter') or self.encounter is None:
+            encounter_pk = self.kwargs.get('encounter_pk')
+            if encounter_pk:
+                self.encounter = get_object_or_404(Encounter, pk=encounter_pk)
+            else:
+                raise ValueError("encounter_pk не найден в kwargs")
+        
+        form.instance.encounter = self.encounter
+        response = super().form_valid(form)
+        messages.success(self.request, f'Диагноз успешно добавлен: {form.instance.get_display_name()}')
+        return response
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['encounter'] = self.encounter
+        context['patient'] = self.encounter.patient
+        context['title'] = 'Добавить диагноз'
+        return context
+    
+    def get_success_url(self):
+        return reverse('encounters:encounter_diagnosis_advanced', kwargs={'pk': self.encounter.pk})
+
+class EncounterDiagnosisUpdateView(UpdateView):
+    """Представление для редактирования диагноза"""
+    model = EncounterDiagnosis
+    form_class = EncounterDiagnosisAdvancedForm
+    template_name = 'encounters/diagnosis_edit.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['encounter'] = self.object.encounter
+        context['patient'] = self.object.encounter.patient
+        context['title'] = 'Редактировать диагноз'
+        return context
+    
+    def get_success_url(self):
+        return reverse('encounters:encounter_diagnosis_advanced', kwargs={'pk': self.object.encounter.pk})
+
+class EncounterDiagnosisDeleteView(DeleteView):
+    """Представление для удаления диагноза"""
+    model = EncounterDiagnosis
+    template_name = 'encounters/diagnosis_confirm_delete.html'
+    
+    def get_success_url(self):
+        return reverse('encounters:encounter_diagnosis_advanced', kwargs={'pk': self.object.encounter.pk})
+
+class TreatmentPlanListView(ListView):
+    """Представление для списка планов лечения"""
+    model = TreatmentPlan
+    template_name = 'encounters/treatment_plans.html'
+    context_object_name = 'treatment_plans'
+    
+    def get_queryset(self):
+        self.encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
+        return self.encounter.treatment_plans.all()
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['encounter'] = self.encounter
+        context['patient'] = self.encounter.patient
+        context['title'] = 'Планы лечения'
+        
+        # Добавляем рекомендации по лекарствам
+        recommendations = TreatmentPlanService.get_medication_recommendations(self.encounter)
+        context['recommendations'] = recommendations
+        
+        return context
+
+class TreatmentPlanCreateView(CreateView):
+    """Представление для создания плана лечения"""
+    model = TreatmentPlan
+    form_class = TreatmentPlanForm
+    template_name = 'encounters/treatment_plan_form.html'
+    
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        self.encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
+    
+    def form_valid(self, form):
+        # Создаем план лечения без автоматического добавления препаратов
+        form.instance.encounter = self.encounter
+        treatment_plan = form.save()
+        
+        messages.success(self.request, f'План лечения успешно создан: {treatment_plan.name}')
+        
+        # Перенаправляем на детальный просмотр созданного плана
+        return redirect('encounters:treatment_plan_detail', pk=treatment_plan.pk)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['encounter'] = self.encounter
+        context['patient'] = self.encounter.patient
+        context['title'] = 'Создать план лечения'
+        return context
+    
+    def get_success_url(self):
+        return reverse('encounters:treatment_plan_detail', kwargs={'pk': self.object.pk})
+
+class TreatmentPlanDetailView(DetailView):
+    """Представление для детального просмотра плана лечения"""
+    model = TreatmentPlan
+    template_name = 'encounters/treatment_plan_detail.html'
+    context_object_name = 'treatment_plan'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['encounter'] = self.object.encounter
+        context['patient'] = self.object.encounter.patient
+        context['title'] = f'План лечения: {self.object.name}'
+        context['medications'] = self.object.medications.all()
+        return context
+
+class TreatmentMedicationCreateView(CreateView):
+    """Представление для добавления лекарства в план лечения"""
+    model = TreatmentMedication
+    form_class = TreatmentMedicationForm
+    template_name = 'encounters/treatment_medication_form.html'
+    
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        self.treatment_plan = get_object_or_404(TreatmentPlan, pk=self.kwargs['treatment_plan_pk'])
+    
+    def form_valid(self, form):
+        form.instance.treatment_plan = self.treatment_plan
+        response = super().form_valid(form)
+        messages.success(self.request, f'Лекарство успешно добавлено в план лечения')
+        return response
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['treatment_plan'] = self.treatment_plan
+        context['encounter'] = self.treatment_plan.encounter
+        context['patient'] = self.treatment_plan.encounter.patient
+        context['title'] = 'Добавить лекарство'
+        return context
+    
+    def get_success_url(self):
+        return reverse('encounters:treatment_plan_detail', kwargs={'pk': self.treatment_plan.pk})
+
+class TreatmentMedicationUpdateView(UpdateView):
+    """Представление для редактирования лекарства в плане лечения"""
+    model = TreatmentMedication
+    form_class = TreatmentMedicationForm
+    template_name = 'encounters/treatment_medication_form.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['treatment_plan'] = self.object.treatment_plan
+        context['encounter'] = self.object.treatment_plan.encounter
+        context['patient'] = self.object.treatment_plan.encounter.patient
+        context['title'] = 'Редактировать лекарство'
+        return context
+    
+    def get_success_url(self):
+        return reverse('encounters:treatment_plan_detail', kwargs={'pk': self.object.treatment_plan.pk})
+
+class TreatmentMedicationDeleteView(DeleteView):
+    """Представление для удаления лекарства из плана лечения"""
+    model = TreatmentMedication
+    template_name = 'encounters/treatment_medication_confirm_delete.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['treatment_plan'] = self.object.treatment_plan
+        context['encounter'] = self.object.treatment_plan.encounter
+        context['patient'] = self.object.treatment_plan.encounter.patient
+        context['title'] = 'Удалить лекарство'
+        return context
+    
+    def get_success_url(self):
+        return reverse('encounters:treatment_plan_detail', kwargs={'pk': self.object.treatment_plan.pk})
 
 class EncounterDeleteView(DeleteView):
     model = Encounter
@@ -347,3 +542,66 @@ class PatientRecommendationsView(View):
             },
             'recommendations': recommendations
         })
+
+
+class QuickAddMedicationView(CreateView):
+    """Представление для быстрого добавления препарата из рекомендаций"""
+    model = TreatmentMedication
+    form_class = TreatmentMedicationForm
+    template_name = 'encounters/quick_add_medication.html'
+    
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        self.treatment_plan = get_object_or_404(TreatmentPlan, pk=self.kwargs.get('plan_pk'))
+        self.encounter = self.treatment_plan.encounter
+        self.patient = self.encounter.patient
+        
+        # Получаем данные о препарате из рекомендации
+        medication_id = self.kwargs.get('medication_id')
+        if medication_id:
+            from pharmacy.models import Medication
+            try:
+                self.recommended_medication = Medication.objects.get(pk=medication_id)
+            except Medication.DoesNotExist:
+                self.recommended_medication = None
+                messages.warning(request, f"Препарат с ID {medication_id} не найден в справочнике")
+        else:
+            self.recommended_medication = None
+    
+    def get_initial(self):
+        """Устанавливаем начальные значения из рекомендации"""
+        initial = super().get_initial()
+        if self.recommended_medication:
+            initial['medication'] = self.recommended_medication
+            # Можно добавить другие поля из рекомендации, если они есть
+        else:
+            # Если препарат не найден в базе, но есть название из рекомендации
+            medication_name = self.kwargs.get('medication_name')
+            if medication_name:
+                initial['custom_medication'] = medication_name
+        return initial
+    
+    def form_valid(self, form):
+        form.instance.treatment_plan = self.treatment_plan
+        
+        # Если препарат выбран из рекомендации, можно добавить дополнительные данные
+        if form.cleaned_data.get('medication') and self.recommended_medication:
+            # Здесь можно добавить логику для автоматического заполнения полей
+            # на основе данных из рекомендации
+            pass
+        
+        response = super().form_valid(form)
+        messages.success(self.request, f'Препарат "{form.instance.get_medication_name()}" успешно добавлен в план лечения')
+        return response
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['treatment_plan'] = self.treatment_plan
+        context['encounter'] = self.encounter
+        context['patient'] = self.patient
+        context['recommended_medication'] = self.recommended_medication
+        context['title'] = 'Быстрое добавление препарата'
+        return context
+    
+    def get_success_url(self):
+        return reverse('encounters:treatment_plan_detail', kwargs={'pk': self.treatment_plan.pk})
