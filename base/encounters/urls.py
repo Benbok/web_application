@@ -31,6 +31,9 @@ urlpatterns = [
     path('plans/<int:plan_pk>/quick-add/<int:medication_id>/', views.QuickAddMedicationView.as_view(), name='quick_add_medication'),
     path('plans/<int:plan_pk>/quick-add-by-name/<str:medication_name>/', views.QuickAddMedicationView.as_view(), name='quick_add_medication_by_name'),
     
+    # AJAX endpoints
+    path('api/medication-info/<int:medication_id>/', views.MedicationInfoView.as_view(), name='medication_info'),
+    
     # AJAX endpoints для схем лечения
     path('api/treatment-regimens/', views.TreatmentRegimensView.as_view(), name='treatment_regimens'),
     path('api/patient-recommendations/', views.PatientRecommendationsView.as_view(), name='patient_recommendations'),

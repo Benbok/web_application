@@ -194,17 +194,72 @@ python scripts/test_quick_add_medication.py
 
 **Решение:**
 ```html
-{% if treatment_plans and recommendation.medication.id %}
-    <!-- Показываем кнопку добавления только если есть ID препарата -->
-    <a href="{% url 'encounters:quick_add_medication' plan.pk recommendation.medication.id %}">
-        <i class="fas fa-pills"></i> {{ plan.name }}
-    </a>
-{% elif treatment_plans %}
-    <!-- Показываем сообщение, если препарат не найден в справочнике -->
-    <small class="text-muted">
-        <i class="fas fa-info-circle"></i> Препарат не найден в справочнике
-    </small>
+{% if treatment_plans %}
+    <div class="dropdown">
+        <button class="btn btn-sm btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-plus"></i> Добавить
+        </button>
+        <ul class="dropdown-menu">
+            {% for plan in treatment_plans %}
+                <li>
+                    {% if recommendation.medication.id %}
+                        <a class="dropdown-item" href="{% url 'encounters:quick_add_medication' plan.pk recommendation.medication.id %}">
+                            <i class="fas fa-pills"></i> {{ plan.name }}
+                        </a>
+                    {% else %}
+                        <a class="dropdown-item" href="{% url 'encounters:quick_add_medication_by_name' plan.pk recommendation.medication.name %}">
+                            <i class="fas fa-pills"></i> {{ plan.name }} (по названию)
+                        </a>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
 {% endif %}
+```
+
+### Добавление препаратов по названию
+Добавлена возможность добавления препаратов, которые не найдены в справочнике, но имеют название в рекомендациях.
+
+**Изменения в TreatmentPlanService:**
+```python
+# Ищем препарат в базе данных по названию
+medication_obj = None
+if medication:
+    # Поиск по точному названию
+    medication_obj = Medication.objects.filter(name__iexact=medication).first()
+    if not medication_obj:
+        # Поиск по частичному совпадению
+        medication_obj = Medication.objects.filter(name__icontains=medication).first()
+
+# Формируем рекомендацию
+recommendation = {
+    'medication': {
+        'id': medication_obj.id if medication_obj else None,
+        'name': medication
+    },
+    # ...
+}
+```
+
+**Новый URL-паттерн:**
+```python
+path('plans/<int:plan_pk>/quick-add-by-name/<str:medication_name>/', views.QuickAddMedicationView.as_view(), name='quick_add_medication_by_name'),
+```
+
+**Обновление QuickAddMedicationView:**
+```python
+def get_initial(self):
+    """Устанавливаем начальные значения из рекомендации"""
+    initial = super().get_initial()
+    if self.recommended_medication:
+        initial['medication'] = self.recommended_medication
+    else:
+        # Если препарат не найден в базе, но есть название из рекомендации
+        medication_name = self.kwargs.get('medication_name')
+        if medication_name:
+            initial['custom_medication'] = medication_name
+    return initial
 ```
 
 ## Статус

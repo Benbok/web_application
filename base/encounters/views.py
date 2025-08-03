@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+import json
 
 from .models import Encounter, EncounterDiagnosis, TreatmentPlan, TreatmentMedication
 from .services.encounter_service import EncounterService
@@ -329,6 +330,140 @@ class TreatmentMedicationCreateView(CreateView):
     
     def get_success_url(self):
         return reverse('encounters:treatment_plan_detail', kwargs={'pk': self.treatment_plan.pk})
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class MedicationInfoView(View):
+    """AJAX endpoint для получения информации о препарате"""
+    
+    def get(self, request, medication_id):
+        try:
+            from pharmacy.models import Medication
+            medication = Medication.objects.get(pk=medication_id)
+            
+            # Получаем информацию о пациенте из параметров запроса
+            patient_id = request.GET.get('patient_id')
+            patient = None
+            if patient_id:
+                from patients.models import Patient
+                try:
+                    patient = Patient.objects.get(pk=patient_id)
+                except Patient.DoesNotExist:
+                    pass
+            
+            # Получаем информацию о препарате
+            medication_info = {
+                'id': medication.id,
+                'name': medication.name,
+                'description': getattr(medication, 'description', ''),
+                'dosage': '',
+                'frequency': '',
+                'route': 'oral',
+                'duration': '',
+                'instructions': ''
+            }
+            
+            # Получаем торговые названия
+            trade_names = medication.trade_names.all()
+            if trade_names.exists():
+                medication_info['trade_names'] = [
+                    {
+                        'name': tn.name,
+                        'group': tn.medication_group.name if tn.medication_group else None,
+                        'release_form': tn.release_form.name if tn.release_form else None,
+                    }
+                    for tn in trade_names
+                ]
+            
+            # Получаем стандартные дозировки из pharmacy app с учетом пациента
+            from pharmacy.models import Regimen, DosingInstruction, PopulationCriteria
+            from datetime import date
+            
+            if patient and patient.birth_date:
+                # Вычисляем возраст пациента в днях
+                age_days = (date.today() - patient.birth_date).days
+                
+                # Ищем схемы с подходящими возрастными критериями
+                suitable_regimens = []
+                
+                regimens_with_instructions = Regimen.objects.filter(
+                    medication=medication,
+                    dosing_instructions__isnull=False
+                ).distinct()
+                
+                for regimen in regimens_with_instructions:
+                    # Проверяем критерии населения для этой схемы
+                    population_criteria = PopulationCriteria.objects.filter(regimen=regimen)
+                    
+                    if not population_criteria.exists():
+                        # Если нет критериев, считаем подходящим
+                        suitable_regimens.append(regimen)
+                        continue
+                    
+                    for criteria in population_criteria:
+                        # Проверяем возрастные критерии
+                        age_suitable = True
+                        if criteria.min_age_days and age_days < criteria.min_age_days:
+                            age_suitable = False
+                        if criteria.max_age_days and age_days > criteria.max_age_days:
+                            age_suitable = False
+                        
+                        # Проверяем весовые критерии (если есть)
+                        weight_suitable = True
+                        patient_weight = getattr(patient, 'weight', None)
+                        if patient_weight and criteria.min_weight_kg and patient_weight < criteria.min_weight_kg:
+                            weight_suitable = False
+                        if patient_weight and criteria.max_weight_kg and patient_weight > criteria.max_weight_kg:
+                            weight_suitable = False
+                        
+                        if age_suitable and weight_suitable:
+                            suitable_regimens.append(regimen)
+                            break
+                
+                # Если нашли подходящие схемы, берем первую
+                if suitable_regimens:
+                    regimen = suitable_regimens[0]
+                else:
+                    # Если не нашли подходящих, берем первую доступную
+                    regimen = regimens_with_instructions.first()
+            else:
+                # Если нет информации о пациенте, берем первую схему
+                regimens_with_instructions = Regimen.objects.filter(
+                    medication=medication,
+                    dosing_instructions__isnull=False
+                ).distinct()
+                regimen = regimens_with_instructions.first() if regimens_with_instructions.exists() else None
+            
+            if regimen:
+                dosing_instruction = DosingInstruction.objects.filter(regimen=regimen).first()
+                if dosing_instruction:
+                    medication_info['dosage'] = dosing_instruction.dose_description
+                    medication_info['frequency'] = dosing_instruction.frequency_description
+                    medication_info['route'] = dosing_instruction.route.name if dosing_instruction.route else 'oral'
+                    medication_info['duration'] = dosing_instruction.duration_description
+                    medication_info['instructions'] = regimen.notes or ''
+                    
+                    # Добавляем информацию о выбранной схеме
+                    medication_info['selected_regimen'] = {
+                        'name': regimen.name,
+                        'notes': regimen.notes or ''
+                    }
+            
+            return JsonResponse({
+                'success': True,
+                'medication': medication_info
+            })
+            
+        except Medication.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Препарат не найден'
+            }, status=404)
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)
 
 class TreatmentMedicationUpdateView(UpdateView):
     """Представление для редактирования лекарства в плане лечения"""

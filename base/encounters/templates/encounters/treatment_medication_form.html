@@ -135,8 +135,88 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Отладочная информация
+    console.log('Пациент в шаблоне:', '{{ patient }}');
+    console.log('ID пациента в шаблоне:', '{{ patient.id }}');
+    console.log('Пациент full_name:', '{{ patient.full_name }}');
+    
     const medicationField = document.getElementById('{{ form.medication.id_for_label }}');
     const customMedicationField = document.getElementById('{{ form.custom_medication.id_for_label }}');
+    const dosageField = document.getElementById('{{ form.dosage.id_for_label }}');
+    const frequencyField = document.getElementById('{{ form.frequency.id_for_label }}');
+    const routeField = document.getElementById('{{ form.route.id_for_label }}');
+    const durationField = document.getElementById('{{ form.duration.id_for_label }}');
+    const instructionsField = document.getElementById('{{ form.instructions.id_for_label }}');
+    
+    // Функция для автоматического заполнения полей дозировки
+    async function loadMedicationInfo(medicationId) {
+        if (!medicationId) {
+            // Очищаем поля если препарат не выбран
+            if (dosageField) dosageField.value = '';
+            if (frequencyField) frequencyField.value = '';
+            if (routeField) routeField.value = 'oral';
+            if (durationField) durationField.value = '';
+            if (instructionsField) instructionsField.value = '';
+            return;
+        }
+        
+        try {
+            // Передаем ID пациента для учета возрастной группы
+            const patientId = {{ patient.id }};
+            const url = `{% url 'encounters:medication_info' 0 %}`.replace('0', medicationId) + `?patient_id=${patientId}`;
+            
+            // Добавляем отладочную информацию
+            console.log('Отправляем AJAX запрос:', url);
+            console.log('ID пациента:', patientId);
+            console.log('ID препарата:', medicationId);
+            
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            console.log('Получен ответ:', data);
+            
+            if (data.success && data.medication) {
+                const med = data.medication;
+                
+                // Заполняем поля автоматически
+                if (dosageField && med.dosage) dosageField.value = med.dosage;
+                if (frequencyField && med.frequency) frequencyField.value = med.frequency;
+                if (routeField && med.route) routeField.value = med.route;
+                if (durationField && med.duration) durationField.value = med.duration;
+                if (instructionsField && med.instructions) instructionsField.value = med.instructions;
+                
+                // Показываем уведомление о загрузке данных
+                let notificationMessage = 'Данные о препарате загружены автоматически';
+                if (med.selected_regimen) {
+                    notificationMessage += ` (схема: ${med.selected_regimen.name})`;
+                }
+                showNotification(notificationMessage, 'info');
+            }
+        } catch (error) {
+            console.error('Ошибка при загрузке информации о препарате:', error);
+            showNotification('Не удалось загрузить данные о препарате', 'warning');
+        }
+    }
+    
+    // Функция для показа уведомлений
+    function showNotification(message, type = 'info') {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const container = document.querySelector('.card-body');
+        container.insertBefore(alertDiv, container.firstChild);
+        
+        // Автоматически скрываем уведомление через 3 секунды
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 3000);
+    }
     
     // Показываем/скрываем поля в зависимости от выбора
     function toggleFields() {
@@ -149,7 +229,32 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    medicationField.addEventListener('change', toggleFields);
+    // Добавляем отладку для поля выбора препарата
+    console.log('Поле выбора препарата найдено:', medicationField);
+    console.log('Текущее значение поля:', medicationField.value);
+    
+    // Для select2 используем правильные события
+    $(medicationField).on('select2:select', function(e) {
+        console.log('Событие select2:select сработало!');
+        console.log('Выбранное значение:', e.params.data);
+        toggleFields();
+        loadMedicationInfo(e.params.data.id);
+    });
+    
+    $(medicationField).on('select2:clear', function(e) {
+        console.log('Событие select2:clear сработало!');
+        toggleFields();
+        loadMedicationInfo('');
+    });
+    
+    // Также добавляем обычный слушатель change на случай
+    medicationField.addEventListener('change', function() {
+        console.log('Событие change сработало!');
+        console.log('Новое значение:', this.value);
+        toggleFields();
+        loadMedicationInfo(this.value);
+    });
+    
     customMedicationField.addEventListener('input', toggleFields);
 });
 </script>
