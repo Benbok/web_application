@@ -48,7 +48,7 @@ def medication_detail_api(request, pk):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class MedicationAjaxSearchView(View):
-    """AJAX endpoint для поиска препаратов"""
+    """AJAX endpoint для поиска препаратов по МНН и торговым названиям"""
     
     def get(self, request, *args, **kwargs):
         query = request.GET.get('q', '')
@@ -60,17 +60,32 @@ class MedicationAjaxSearchView(View):
                 'pagination': {'more': False}
             })
         
-        # Поиск по названию препарата
+        from django.db.models import Q
+        
+        # Поиск по МНН и торговым названиям
         medications = Medication.objects.filter(
-            name__icontains=query
-        ).order_by('name')[:20]
+            Q(name__icontains=query) |  # Поиск по МНН
+            Q(trade_names__name__icontains=query)  # Поиск по торговым названиям
+        ).distinct().order_by('name')[:20]
         
         results = []
         for medication in medications:
-            results.append({
-                'id': medication.pk,
-                'text': f"{medication.name}",
-            })
+            # Получаем торговые названия для этого препарата
+            trade_names = medication.trade_names.filter(name__icontains=query)
+            
+            if trade_names.exists():
+                # Если найдены торговые названия, показываем их
+                for trade_name in trade_names:
+                    results.append({
+                        'id': medication.pk,
+                        'text': f"{trade_name.name} ({medication.name})",
+                    })
+            else:
+                # Если поиск был по МНН, показываем МНН
+                results.append({
+                    'id': medication.pk,
+                    'text': f"{medication.name}",
+                })
         
         return JsonResponse({
             'results': results,
@@ -80,27 +95,56 @@ class MedicationAjaxSearchView(View):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class MedicationAjaxSearchLightView(View):
-    """Облегченный AJAX endpoint для поиска препаратов"""
+    """Облегченный AJAX endpoint для поиска препаратов по МНН и торговым названиям"""
     
     def get(self, request, *args, **kwargs):
         query = request.GET.get('q', '')
         page = request.GET.get('page', 1)
         
-        if not query:
-            # Возвращаем первые 50 препаратов для быстрого старта
-            medications = Medication.objects.all().order_by('name')[:50]
-        else:
-            # Поиск по названию препарата
-            medications = Medication.objects.filter(
-                name__icontains=query
-            ).order_by('name')[:20]
+        from django.db.models import Q
         
-        results = []
-        for medication in medications:
-            results.append({
-                'id': medication.pk,
-                'text': f"{medication.name}",
-            })
+        if not query:
+            # Возвращаем первые 50 препаратов с их торговыми названиями для быстрого старта
+            medications = Medication.objects.all().order_by('name')[:50]
+            results = []
+            for medication in medications:
+                # Показываем МНН и первое торговое название
+                trade_names = medication.trade_names.all()[:1]
+                if trade_names.exists():
+                    results.append({
+                        'id': medication.pk,
+                        'text': f"{trade_names[0].name} ({medication.name})",
+                    })
+                else:
+                    results.append({
+                        'id': medication.pk,
+                        'text': f"{medication.name}",
+                    })
+        else:
+            # Поиск по МНН и торговым названиям
+            medications = Medication.objects.filter(
+                Q(name__icontains=query) |  # Поиск по МНН
+                Q(trade_names__name__icontains=query)  # Поиск по торговым названиям
+            ).distinct().order_by('name')[:20]
+            
+            results = []
+            for medication in medications:
+                # Получаем торговые названия для этого препарата
+                trade_names = medication.trade_names.filter(name__icontains=query)
+                
+                if trade_names.exists():
+                    # Если найдены торговые названия, показываем их
+                    for trade_name in trade_names:
+                        results.append({
+                            'id': medication.pk,
+                            'text': f"{trade_name.name} ({medication.name})",
+                        })
+                else:
+                    # Если поиск был по МНН, показываем МНН
+                    results.append({
+                        'id': medication.pk,
+                        'text': f"{medication.name}",
+                    })
         
         return JsonResponse({
             'results': results,

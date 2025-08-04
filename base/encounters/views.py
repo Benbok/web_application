@@ -304,6 +304,24 @@ class TreatmentPlanDetailView(DetailView):
         context['medications'] = self.object.medications.all()
         return context
 
+
+class TreatmentPlanDeleteView(DeleteView):
+    """Представление для удаления плана лечения"""
+    model = TreatmentPlan
+    template_name = 'encounters/treatment_plan_confirm_delete.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['encounter'] = self.object.encounter
+        context['patient'] = self.object.encounter.patient
+        context['medications'] = self.object.medications.all()
+        context['title'] = 'Удалить план лечения'
+        return context
+    
+    def get_success_url(self):
+        return reverse('encounters:treatment_plans', kwargs={'encounter_pk': self.object.encounter.pk})
+
+
 class TreatmentMedicationCreateView(CreateView):
     """Представление для добавления лекарства в план лечения"""
     model = TreatmentMedication
@@ -356,6 +374,7 @@ class MedicationInfoView(View):
                 'id': medication.id,
                 'name': medication.name,
                 'description': getattr(medication, 'description', ''),
+                'external_url': medication.external_info_url or '',
                 'dosage': '',
                 'frequency': '',
                 'route': 'oral',

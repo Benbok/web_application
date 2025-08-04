@@ -5,7 +5,9 @@ import yaml
 from decimal import Decimal
 
 # Настройка окружения Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'your_project_name.settings') # <-- ЗАМЕНИТЕ НА ВАШ ПРОЕКТ
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'base.settings')
 django.setup()
 
 from pharmacy.models import (
@@ -59,14 +61,19 @@ def pre_populate_lookups(data):
 
 
 def run():
+    print("Starting database population...")
     clear_database()
 
     print(f"Loading data from {DATA_FILE}...")
     try:
         with open(DATA_FILE, 'r', encoding='utf-8') as f:
             medications_data = yaml.safe_load(f)
+        print(f"Successfully loaded {len(medications_data)} medications from YAML file")
     except FileNotFoundError:
         print(f"ERROR: Data file not found at {DATA_FILE}. Please create it.")
+        return
+    except Exception as e:
+        print(f"ERROR loading YAML file: {e}")
         return
     
     pre_populate_lookups(medications_data)
@@ -74,24 +81,23 @@ def run():
     for med_data in medications_data:
         print(f"\nProcessing Medication: {med_data['medication_name']}")
 
-        # Используем update_or_create для создания/обновления препарата вместе со ссылкой
+        # 1. Создаем препарат (МНН)
         medication_obj, created = Medication.objects.update_or_create(
             name=med_data['medication_name'],
             defaults={
                 'external_info_url': med_data.get('external_info_url', '') # .get() для безопасности
             }
         )
-        
-        # 1. Создаем препарат (МНН)
-        medication_obj, _ = Medication.objects.get_or_create(name=med_data['medication_name'])
+        print(f"  {'Created' if created else 'Updated'} medication: {medication_obj.name}")
 
         # 2. Создаем торговые наименования
         for tn_data in med_data.get('trade_names', []):
+            print(f"  Processing trade name: {tn_data.get('name')}")
             # Безопасно получаем или создаем связанные объекты, чтобы избежать ошибок
             group_obj, _ = MedicationGroup.objects.get_or_create(name=tn_data.get('group', 'Не указана'))
             form_obj, _ = ReleaseForm.objects.get_or_create(name=tn_data.get('release_form', 'Не указана'))
 
-            TradeName.objects.update_or_create(
+            trade_name, created = TradeName.objects.update_or_create(
                 medication=medication_obj,
                 name=tn_data.get('name'),
                 defaults={
@@ -100,14 +106,17 @@ def run():
                     'atc_code': tn_data.get('atc_code', '') # <-- ДОБАВЛЕНО ПОЛЕ ATC
                 }
             )
+            print(f"    {'Created' if created else 'Updated'} trade name: {trade_name.name}")
 
         # 3. Создаем схемы применения
         for reg_data in med_data.get('regimens', []):
+            print(f"  Processing regimen: {reg_data['name']}")
             regimen_obj = Regimen.objects.create(
                 medication=medication_obj,
                 name=reg_data['name'],
                 notes=reg_data.get('notes', '')
             )
+            print(f"    Created regimen: {regimen_obj.name}")
             
             # Привязываем диагнозы (используем только существующие)
             if 'indications' in reg_data:
@@ -125,6 +134,7 @@ def run():
                     min_age_days=int(crit_data.get('min_age_years', 0) * 365),
                     max_age_days=int(crit_data.get('max_age_years', 0) * 365) if 'max_age_years' in crit_data else None,
                     min_weight_kg=Decimal(str(crit_data.get('min_weight_kg', 0.0))),
+                    max_weight_kg=Decimal(str(crit_data.get('max_weight_kg', 0.0))) if 'max_weight_kg' in crit_data else None,
                 )
             
             # Создаем инструкции по дозированию
@@ -152,3 +162,6 @@ def run():
                 )
 
     print("\nDatabase population from data file finished successfully! ✅")
+
+if __name__ == "__main__":
+    run()

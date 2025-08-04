@@ -25,6 +25,7 @@ urlpatterns = [
     path('<int:encounter_pk>/treatment-plans/', views.TreatmentPlanListView.as_view(), name='treatment_plans'),
     path('<int:encounter_pk>/treatment-plans/add/', views.TreatmentPlanCreateView.as_view(), name='treatment_plan_create'),
     path('treatment-plans/<int:pk>/', views.TreatmentPlanDetailView.as_view(), name='treatment_plan_detail'),
+    path('treatment-plans/<int:pk>/delete/', views.TreatmentPlanDeleteView.as_view(), name='treatment_plan_delete'),
     path('treatment-plans/<int:treatment_plan_pk>/medications/add/', views.TreatmentMedicationCreateView.as_view(), name='treatment_medication_create'),
     path('medications/<int:pk>/edit/', views.TreatmentMedicationUpdateView.as_view(), name='treatment_medication_update'),
     path('medications/<int:pk>/delete/', views.TreatmentMedicationDeleteView.as_view(), name='treatment_medication_delete'),

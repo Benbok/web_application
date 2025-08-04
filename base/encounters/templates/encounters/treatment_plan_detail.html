@@ -21,6 +21,9 @@
              <a href="{% url 'encounters:treatment_medication_create' treatment_plan.pk %}" class="btn btn-success">
                  <i class="fas fa-plus"></i> Добавить лекарство
              </a>
+             <a href="{% url 'encounters:treatment_plan_delete' treatment_plan.pk %}" class="btn btn-danger">
+                 <i class="fas fa-trash"></i> Удалить план
+             </a>
          </div>
     </div>
     <div class="card-body">
@@ -56,6 +59,9 @@
                              </a>
                             <a href="{% url 'encounters:treatment_plans' encounter.pk %}" class="btn btn-outline-secondary btn-sm">
                                 <i class="fas fa-arrow-left"></i> К списку планов
+                            </a>
+                            <a href="{% url 'encounters:treatment_plan_delete' treatment_plan.pk %}" class="btn btn-outline-danger btn-sm">
+                                <i class="fas fa-trash"></i> Удалить план
                             </a>
                         </div>
                     </div>

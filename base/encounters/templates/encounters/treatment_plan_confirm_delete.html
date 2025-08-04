@@ -1,0 +1,87 @@
+{% extends "patients/base.html" %}
+{% load static %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+{% if messages %}
+<ul class="messages">
+    {% for message in messages %}
+    <li{% if message.tags == "error" %} class="alert alert-danger"{% elif message.tags %} class="alert alert-{{ message.tags }}"{% endif %}>{{ message }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h4 class="card-title mb-0 text-danger">
+            <i class="fas fa-exclamation-triangle"></i> {{ title }}
+        </h4>
+        <small class="text-muted">Пациент: {{ patient.full_name }} | Случай: {{ encounter.date_start|date:"d.m.Y H:i" }}</small>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-warning">
+            <h5><i class="fas fa-exclamation-triangle"></i> Внимание!</h5>
+            <p>Вы собираетесь удалить план лечения <strong>"{{ object.name }}"</strong>.</p>
+            
+            {% if medications %}
+                <p>Этот план содержит <strong>{{ medications.count }}</strong> лекарств:</p>
+                <ul>
+                    {% for medication in medications %}
+                        <li>
+                            {% if medication.medication %}
+                                {{ medication.medication.name }}
+                            {% else %}
+                                {{ medication.custom_medication }}
+                            {% endif %}
+                            - {{ medication.dosage }} {{ medication.frequency }}
+                        </li>
+                    {% endfor %}
+                </ul>
+                <p><strong>Все лекарства в этом плане также будут удалены!</strong></p>
+            {% else %}
+                <p>Этот план не содержит лекарств.</p>
+            {% endif %}
+            
+            <p class="mb-0"><strong>Это действие нельзя отменить!</strong></p>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Информация о плане:</h6>
+                <ul class="list-unstyled">
+                    <li><small class="text-muted"><i class="fas fa-tag"></i> Название: {{ treatment_plan.name }}</small></li>
+                    <li><small class="text-muted"><i class="fas fa-clock"></i> Создан: {{ treatment_plan.created_at|date:"d.m.Y H:i" }}</small></li>
+                    <li><small class="text-muted"><i class="fas fa-pills"></i> Лекарств: {{ medications.count }}</small></li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                {% if treatment_plan.description %}
+                    <h6>Описание:</h6>
+                    <p class="text-muted">{{ treatment_plan.description }}</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex gap-2 mt-3">
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> Удалить план лечения
+                </button>
+                <a href="{% url 'encounters:treatment_plan_detail' object.pk %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Отмена
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="d-flex gap-2 mt-3">
+    <a href="{% url 'encounters:treatment_plans' encounter.pk %}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> К списку планов
+    </a>
+    <a href="{% url 'encounters:encounter_detail' encounter.pk %}" class="btn btn-outline-primary">
+        <i class="fas fa-user"></i> К случаю
+    </a>
+</div>
+{% endblock %} 

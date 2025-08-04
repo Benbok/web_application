@@ -63,6 +63,16 @@
                 </div>
             </div>
             
+            <!-- Поле для отображения ссылки на источник информации -->
+            <div class="mb-3" id="external-link-container" style="display: none;">
+                <label class="form-label">Источник информации о препарате:</label>
+                <div id="external-link-content">
+                    <a href="#" id="external-link" target="_blank" class="btn btn-outline-info btn-sm">
+                        <i class="fas fa-external-link-alt"></i> Открыть информацию о препарате
+                    </a>
+                </div>
+            </div>
+            
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
@@ -176,6 +186,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const routeField = document.getElementById('{{ form.route.id_for_label }}');
     const durationField = document.getElementById('{{ form.duration.id_for_label }}');
     const instructionsField = document.getElementById('{{ form.instructions.id_for_label }}');
+    const externalLinkContainer = document.getElementById('external-link-container');
+    const externalLink = document.getElementById('external-link');
     
     if (medicationField && customMedicationField) {
         function toggleCustomField() {
@@ -199,6 +211,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (routeField) routeField.value = 'oral';
                 if (durationField) durationField.value = '';
                 if (instructionsField) instructionsField.value = '';
+                // Скрываем ссылку на источник
+                if (externalLinkContainer) externalLinkContainer.style.display = 'none';
                 return;
             }
             
@@ -218,6 +232,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (routeField && med.route) routeField.value = med.route;
                     if (durationField && med.duration) durationField.value = med.duration;
                     if (instructionsField && med.instructions) instructionsField.value = med.instructions;
+                    
+                    // Обрабатываем внешнюю ссылку
+                    if (externalLinkContainer && externalLink) {
+                        if (med.external_url) {
+                            externalLink.href = med.external_url;
+                            externalLinkContainer.style.display = 'block';
+                        } else {
+                            externalLinkContainer.style.display = 'none';
+                        }
+                    }
                     
                     // Показываем уведомление о загрузке данных
                     let notificationMessage = 'Данные о препарате загружены автоматически';

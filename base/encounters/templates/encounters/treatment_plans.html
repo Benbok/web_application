@@ -117,6 +117,9 @@
                                      <a href="{% url 'encounters:treatment_medication_create' plan.pk %}" class="btn btn-sm btn-outline-success">
                                          <i class="fas fa-plus"></i> Добавить лекарство
                                      </a>
+                                     <a href="{% url 'encounters:treatment_plan_delete' plan.pk %}" class="btn btn-sm btn-outline-danger">
+                                         <i class="fas fa-trash"></i> Удалить
+                                     </a>
                                  </div>
                              </div>
                         </div>
