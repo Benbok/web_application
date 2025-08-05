@@ -1,0 +1,60 @@
+{% extends "patients/base.html" %}
+
+{% block title %}Удалить план лечения{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title mb-0 text-danger">
+                        <i class="fas fa-exclamation-triangle"></i> Подтверждение удаления
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <h5>Внимание!</h5>
+                        <p>Вы собираетесь удалить план лечения <strong>"{{ object.name }}"</strong>.</p>
+                        <p>Это действие также удалит все лекарства, связанные с этим планом:</p>
+                        
+                        {% if medications %}
+                            <ul class="list-group mt-3">
+                                {% for medication in medications %}
+                                <li class="list-group-item">
+                                    <i class="fas fa-pills"></i> 
+                                    <strong>{{ medication.get_medication_name }}</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        {{ medication.dosage }} {{ medication.frequency }}
+                                    </small>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="text-muted">В плане нет лекарств.</p>
+                        {% endif %}
+                        
+                        <p class="mt-3 mb-0">
+                            <strong>Это действие нельзя отменить!</strong>
+                        </p>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> Удалить план лечения
+                            </button>
+                                                <a href="{% url 'treatment_management:plan_detail' owner_model=owner_model owner_id=owner.id pk=object.pk %}" 
+                       class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Отмена
+                    </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -11,6 +11,66 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 import json
 
+
+def redirect_to_treatment_management(request, **kwargs):
+    """
+    Функция для перенаправления старых URLs лечения на новое приложение treatment_management
+    """
+    # Определяем тип запроса и соответствующий URL в treatment_management
+    path = request.path
+    
+    if 'treatment-plans' in path:
+        if '/add/' in path:
+            # Создание плана лечения
+            encounter_pk = kwargs.get('encounter_pk')
+            return redirect('treatment_management:plan_create', 
+                          owner_model='encounter', owner_id=encounter_pk)
+        elif '/delete/' in path:
+            # Удаление плана лечения
+            plan_pk = kwargs.get('pk')
+            return redirect('treatment_management:plan_delete', pk=plan_pk)
+        elif '/medications/add/' in path:
+            # Добавление лекарства
+            plan_pk = kwargs.get('treatment_plan_pk')
+            return redirect('treatment_management:medication_create', plan_pk=plan_pk)
+        else:
+            # Список или детали плана лечения
+            encounter_pk = kwargs.get('encounter_pk') or kwargs.get('pk')
+            if encounter_pk:
+                return redirect('treatment_management:plan_list', 
+                              owner_model='encounter', owner_id=encounter_pk)
+            else:
+                plan_pk = kwargs.get('pk')
+                return redirect('treatment_management:plan_detail', pk=plan_pk)
+    
+    elif 'medications' in path:
+        if '/edit/' in path:
+            # Редактирование лекарства
+            medication_pk = kwargs.get('pk')
+            return redirect('treatment_management:medication_update', pk=medication_pk)
+        elif '/delete/' in path:
+            # Удаление лекарства
+            medication_pk = kwargs.get('pk')
+            return redirect('treatment_management:medication_delete', pk=medication_pk)
+    
+    elif 'quick-add' in path:
+        # Быстрое добавление лекарства
+        plan_pk = kwargs.get('plan_pk')
+        medication_name = kwargs.get('medication_name')
+        if medication_name:
+            return redirect('treatment_management:quick_add_medication_by_name', 
+                          plan_pk=plan_pk, medication_name=medication_name)
+        else:
+            return redirect('treatment_management:quick_add_medication', plan_pk=plan_pk)
+    
+    elif 'api/medication-info' in path:
+        # AJAX endpoint для информации о лекарстве
+        medication_id = kwargs.get('medication_id')
+        return redirect('treatment_management:medication_info', medication_id=medication_id)
+    
+    # Если не удалось определить URL, перенаправляем на главную страницу
+    return redirect('patients:home')
+
 from .models import Encounter, EncounterDiagnosis, TreatmentPlan, TreatmentMedication
 from .services.encounter_service import EncounterService
 from .services import TreatmentPlanService

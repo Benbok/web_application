@@ -1,0 +1,299 @@
+{% extends "patients/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+{% if messages %}
+<ul class="messages">
+    {% for message in messages %}
+    <li{% if message.tags == "error" %} class="alert alert-danger"{% elif message.tags %} class="alert alert-{{ message.tags }}"{% endif %}>{{ message }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h4 class="card-title mb-0">{{ title }}</h4>
+        <small class="text-muted">
+            {% if owner.patient %}
+                Пациент: {{ owner.patient.full_name }} | 
+            {% endif %}
+            План: {{ treatment_plan.name }}
+        </small>
+    </div>
+    <div class="card-body">
+        {% if recommended_medication %}
+        <div class="alert alert-info mb-3">
+            <h6><i class="fas fa-lightbulb"></i> Рекомендуемый препарат</h6>
+            <p class="mb-0"><strong>{{ recommended_medication.name }}</strong></p>
+            <small class="text-muted">Этот препарат выбран из рекомендаций по лечению</small>
+        </div>
+        {% endif %}
+        
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.medication.id_for_label }}" class="form-label">{{ form.medication.label }}</label>
+                        {% autoescape off %}
+                        {{ form.medication }}
+                        {% endautoescape %}
+                        {% if form.medication.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.medication.errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if form.medication.help_text %}
+                        <div class="form-text">{{ form.medication.help_text }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.custom_medication.id_for_label }}" class="form-label">{{ form.custom_medication.label }}</label>
+                        {{ form.custom_medication }}
+                        {% if form.custom_medication.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.custom_medication.errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if form.custom_medication.help_text %}
+                        <div class="form-text">{{ form.custom_medication.help_text }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Поле для отображения ссылки на источник информации -->
+            <div class="mb-3" id="external-link-container" style="display: none;">
+                <label class="form-label">Источник информации о препарате:</label>
+                <div id="external-link-content">
+                    <a href="#" id="external-link" target="_blank" class="btn btn-outline-info btn-sm">
+                        <i class="fas fa-external-link-alt"></i> Открыть информацию о препарате
+                    </a>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.dosage.id_for_label }}" class="form-label">{{ form.dosage.label }}</label>
+                        {{ form.dosage }}
+                        {% if form.dosage.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.dosage.errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if form.dosage.help_text %}
+                        <div class="form-text">{{ form.dosage.help_text }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.frequency.id_for_label }}" class="form-label">{{ form.frequency.label }}</label>
+                        {{ form.frequency }}
+                        {% if form.frequency.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.frequency.errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if form.frequency.help_text %}
+                        <div class="form-text">{{ form.frequency.help_text }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.route.id_for_label }}" class="form-label">{{ form.route.label }}</label>
+                        {{ form.route }}
+                        {% if form.route.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.route.errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.duration.id_for_label }}" class="form-label">{{ form.duration.label }}</label>
+                        {{ form.duration }}
+                        {% if form.duration.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.duration.errors %}
+                            {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if form.duration.help_text %}
+                        <div class="form-text">{{ form.duration.help_text }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="{{ form.instructions.id_for_label }}" class="form-label">{{ form.instructions.label }}</label>
+                {{ form.instructions }}
+                {% if form.instructions.errors %}
+                <div class="invalid-feedback d-block">
+                    {% for error in form.instructions.errors %}
+                    {{ error }}
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if form.instructions.help_text %}
+                <div class="form-text">{{ form.instructions.help_text }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-plus"></i> Добавить препарат
+                </button>
+                <a href="{% url 'treatment_management:plan_detail' owner_model=owner_model owner_id=owner.id pk=treatment_plan.pk %}" 
+                   class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Отмена
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="d-flex gap-2 mt-3">
+    <a href="{% url 'treatment_management:plan_detail' owner_model=owner_model owner_id=owner.id pk=treatment_plan.pk %}" 
+       class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> К плану лечения
+    </a>
+    <a href="{% url 'treatment_management:plan_list' owner_model=owner_model owner_id=owner.id %}" 
+       class="btn btn-outline-primary">
+        <i class="fas fa-list"></i> К списку планов
+    </a>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const medicationField = document.getElementById('{{ form.medication.id_for_label }}');
+    const customMedicationField = document.getElementById('{{ form.custom_medication.id_for_label }}');
+    const dosageField = document.getElementById('{{ form.dosage.id_for_label }}');
+    const frequencyField = document.getElementById('{{ form.frequency.id_for_label }}');
+    const routeField = document.getElementById('{{ form.route.id_for_label }}');
+    const durationField = document.getElementById('{{ form.duration.id_for_label }}');
+    const instructionsField = document.getElementById('{{ form.instructions.id_for_label }}');
+    const externalLinkContainer = document.getElementById('external-link-container');
+    const externalLink = document.getElementById('external-link');
+    
+    if (medicationField && customMedicationField) {
+        function toggleCustomField() {
+            const medicationValue = medicationField.value;
+            const customContainer = customMedicationField.closest('.col-md-6');
+            
+            if (medicationValue) {
+                customContainer.style.display = 'none';
+                customMedicationField.value = '';
+            } else {
+                customContainer.style.display = 'block';
+            }
+        }
+        
+        // Переменная для хранения ID торгового наименования
+        let currentTradeNameId = null;
+        
+        // Функция для автоматического заполнения полей дозировки
+        async function loadMedicationInfo(medicationId, tradeNameId = null) {
+            if (!medicationId) {
+                // Очищаем поля если препарат не выбран
+                if (dosageField) dosageField.value = '';
+                if (frequencyField) frequencyField.value = '';
+                if (routeField) routeField.value = 'oral';
+                if (durationField) durationField.value = '';
+                if (instructionsField) instructionsField.value = '';
+                // Скрываем ссылку на источник
+                if (externalLinkContainer) externalLinkContainer.style.display = 'none';
+                return;
+            }
+            
+            try {
+                // Передаем ID пациента для учета возрастной группы
+                const patientId = {% if patient %}{{ patient.id }}{% else %}null{% endif %};
+                const url = `{% url 'treatment_management:medication_info' 0 %}`.replace('0', medicationId);
+                let fullUrl = patientId ? `${url}?patient_id=${patientId}` : url;
+                
+                // Добавляем ID торгового наименования, если он есть
+                if (tradeNameId) {
+                    fullUrl += (fullUrl.includes('?') ? '&' : '?') + `trade_name_id=${tradeNameId}`;
+                }
+                
+                const response = await fetch(fullUrl);
+                const data = await response.json();
+                
+                if (data.success && data.medication) {
+                    const med = data.medication;
+                    
+                    // Заполняем поля автоматически
+                    if (dosageField && med.dosage) dosageField.value = med.dosage;
+                    if (frequencyField && med.frequency) frequencyField.value = med.frequency;
+                    if (routeField && med.route) routeField.value = med.route;
+                    if (durationField && med.duration) durationField.value = med.duration;
+                    if (instructionsField && med.instructions) instructionsField.value = med.instructions;
+                    
+                    // Обрабатываем внешнюю ссылку
+                    if (externalLinkContainer && externalLink) {
+                        if (med.external_url) {
+                            externalLink.href = med.external_url;
+                            externalLinkContainer.style.display = 'block';
+                        } else {
+                            externalLinkContainer.style.display = 'none';
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Ошибка при загрузке информации о препарате:', error);
+            }
+        }
+        
+        // Для select2 используем правильные события
+        $(medicationField).on('select2:select', function(e) {
+            toggleCustomField();
+            // Сохраняем ID торгового наименования
+            currentTradeNameId = e.params.data.trade_name_id || null;
+            loadMedicationInfo(e.params.data.id, currentTradeNameId);
+        });
+        
+        $(medicationField).on('select2:clear', function(e) {
+            toggleCustomField();
+            currentTradeNameId = null;
+            loadMedicationInfo('');
+        });
+        
+        // Также добавляем обычный слушатель change на случай
+        medicationField.addEventListener('change', function() {
+            toggleCustomField();
+            loadMedicationInfo(this.value, currentTradeNameId);
+        });
+        
+        // Вызываем функции сразу при загрузке
+        toggleCustomField();
+        if (medicationField.value) {
+            loadMedicationInfo(medicationField.value, currentTradeNameId);
+        }
+    }
+});
+</script>
+{% endblock %} 

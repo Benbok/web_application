@@ -57,6 +57,22 @@ class Patient(models.Model):
 
     def __str__(self):
         return f"{self.last_name} {self.first_name} {self.middle_name or ''}".strip()
+    
+    def get_age(self):
+        """
+        Возвращает возраст пациента в годах
+        """
+        if not self.birth_date:
+            return None
+        
+        today = datetime.date.today()
+        age = today.year - self.birth_date.year
+        
+        # Проверяем, прошел ли день рождения в этом году
+        if today.month < self.birth_date.month or (today.month == self.birth_date.month and today.day < self.birth_date.day):
+            age -= 1
+        
+        return age
 
 
 # FHIR: contact (представитель пациента)

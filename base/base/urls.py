@@ -32,6 +32,7 @@ urlpatterns = [
     path('lab_tests/', include('lab_tests.urls')),
     path('appointments/', include('appointments.urls')),
     path('diagnosis/', include('diagnosis.urls')),  # Добавляем URL-адреса diagnosis
+    path('treatment/', include('treatment_management.urls')),  # Добавляем URL-адреса treatment_management
 ]
 
 if settings.DEBUG:

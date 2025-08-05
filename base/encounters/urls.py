@@ -21,19 +21,19 @@ urlpatterns = [
     path('diagnoses/<int:pk>/edit/', views.EncounterDiagnosisUpdateView.as_view(), name='encounter_diagnosis_update'),
     path('diagnoses/<int:pk>/delete/', views.EncounterDiagnosisDeleteView.as_view(), name='encounter_diagnosis_delete'),
     
-    # Планы лечения
-    path('<int:encounter_pk>/treatment-plans/', views.TreatmentPlanListView.as_view(), name='treatment_plans'),
-    path('<int:encounter_pk>/treatment-plans/add/', views.TreatmentPlanCreateView.as_view(), name='treatment_plan_create'),
-    path('treatment-plans/<int:pk>/', views.TreatmentPlanDetailView.as_view(), name='treatment_plan_detail'),
-    path('treatment-plans/<int:pk>/delete/', views.TreatmentPlanDeleteView.as_view(), name='treatment_plan_delete'),
-    path('treatment-plans/<int:treatment_plan_pk>/medications/add/', views.TreatmentMedicationCreateView.as_view(), name='treatment_medication_create'),
-    path('medications/<int:pk>/edit/', views.TreatmentMedicationUpdateView.as_view(), name='treatment_medication_update'),
-    path('medications/<int:pk>/delete/', views.TreatmentMedicationDeleteView.as_view(), name='treatment_medication_delete'),
-    path('plans/<int:plan_pk>/quick-add/<int:medication_id>/', views.QuickAddMedicationView.as_view(), name='quick_add_medication'),
-    path('plans/<int:plan_pk>/quick-add-by-name/<str:medication_name>/', views.QuickAddMedicationView.as_view(), name='quick_add_medication_by_name'),
+    # Планы лечения (перенаправляем на treatment_management)
+    path('<int:encounter_pk>/treatment-plans/', views.redirect_to_treatment_management, name='treatment_plans'),
+    path('<int:encounter_pk>/treatment-plans/add/', views.redirect_to_treatment_management, name='treatment_plan_create'),
+    path('treatment-plans/<int:pk>/', views.redirect_to_treatment_management, name='treatment_plan_detail'),
+    path('treatment-plans/<int:pk>/delete/', views.redirect_to_treatment_management, name='treatment_plan_delete'),
+    path('treatment-plans/<int:treatment_plan_pk>/medications/add/', views.redirect_to_treatment_management, name='treatment_medication_create'),
+    path('medications/<int:pk>/edit/', views.redirect_to_treatment_management, name='treatment_medication_update'),
+    path('medications/<int:pk>/delete/', views.redirect_to_treatment_management, name='treatment_medication_delete'),
+    path('plans/<int:plan_pk>/quick-add/<int:medication_id>/', views.redirect_to_treatment_management, name='quick_add_medication'),
+    path('plans/<int:plan_pk>/quick-add-by-name/<str:medication_name>/', views.redirect_to_treatment_management, name='quick_add_medication_by_name'),
     
-    # AJAX endpoints
-    path('api/medication-info/<int:medication_id>/', views.MedicationInfoView.as_view(), name='medication_info'),
+    # AJAX endpoints (перенаправляем на treatment_management)
+    path('api/medication-info/<int:medication_id>/', views.redirect_to_treatment_management, name='medication_info'),
     
     # AJAX endpoints для схем лечения
     path('api/treatment-regimens/', views.TreatmentRegimensView.as_view(), name='treatment_regimens'),

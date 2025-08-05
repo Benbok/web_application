@@ -1,0 +1,145 @@
+{% extends "patients/base.html" %}
+{% load static %}
+
+{% block title %}Планы лечения{% endblock %}
+
+
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-pills"></i> Планы лечения
+                    </h4>
+                    <a href="{% url 'treatment_management:plan_create' owner_model=owner_model owner_id=owner.id %}" 
+                       class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Создать план лечения
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if treatment_plans %}
+                        <div class="row">
+                            {% for plan in treatment_plans %}
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-header">
+                                        <h6 class="card-title mb-0">{{ plan.name }}</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        {% if plan.description %}
+                                            <p class="card-text text-muted">{{ plan.description|truncatewords:20 }}</p>
+                                        {% endif %}
+                                        <p class="card-text">
+                                            <small class="text-muted">
+                                                <i class="fas fa-calendar"></i> {{ plan.created_at|date:"d.m.Y H:i" }}
+                                            </small>
+                                        </p>
+                                        <p class="card-text">
+                                            <small class="text-muted">
+                                                <i class="fas fa-pills"></i> {{ plan.medications.count }} лекарств
+                                            </small>
+                                        </p>
+                                    </div>
+                                    <div class="card-footer">
+                                        <div class="btn-group w-100" role="group">
+                                            <a href="{% url 'treatment_management:plan_detail' owner_model=owner_model owner_id=owner.id pk=plan.pk %}" 
+                                               class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-eye"></i> Просмотр
+                                            </a>
+                                            <a href="{% url 'treatment_management:plan_delete' owner_model=owner_model owner_id=owner.id pk=plan.pk %}" 
+                                               class="btn btn-outline-danger btn-sm">
+                                                <i class="fas fa-trash"></i> Удалить
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-pills fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">Планы лечения не найдены</h5>
+                            <p class="text-muted">Создайте первый план лечения для начала работы</p>
+                            <a href="{% url 'treatment_management:plan_create' owner_model=owner_model owner_id=owner.id %}" 
+                               class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Создать план лечения
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Рекомендации по лечению -->
+{% if recommendations %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-lightbulb"></i> Рекомендации по лечению
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        На основе основного диагноза рекомендованы следующие препараты:
+                    </p>
+                    <div class="row">
+                        {% for recommendation in recommendations %}
+                        <div class="col-md-6 col-lg-4 mb-2">
+                            <div class="card border-info">
+                                <div class="card-body p-2">
+                                    <h6 class="card-title mb-1">{{ recommendation.name }}</h6>
+                                    {% if recommendation.dosage %}
+                                        <small class="text-muted">Дозировка: {{ recommendation.dosage }}</small><br>
+                                    {% endif %}
+                                    {% if recommendation.frequency %}
+                                        <small class="text-muted">Частота: {{ recommendation.frequency }}</small>
+                                    {% endif %}
+                                </div>
+                                                                 <div class="card-footer p-2">
+                                     {% if treatment_plans %}
+                                         {% if treatment_plans.count == 1 %}
+                                             <a href="{% url 'treatment_management:quick_add_medication_by_name' plan_pk=treatment_plans.first.pk medication_name=recommendation.name %}" 
+                                                class="btn btn-outline-info btn-sm w-100">
+                                                 <i class="fas fa-plus"></i> Добавить
+                                             </a>
+                                         {% else %}
+                                             <div class="d-grid gap-1">
+                                                 {% for plan in treatment_plans %}
+                                                 <a href="{% url 'treatment_management:quick_add_medication_by_name' plan_pk=plan.pk medication_name=recommendation.name %}" 
+                                                    class="btn btn-outline-info btn-sm">
+                                                     <i class="fas fa-plus"></i> {{ plan.name }}
+                                                 </a>
+                                                 {% endfor %}
+                                             </div>
+                                         {% endif %}
+                                     {% else %}
+                                         <span class="text-muted small">Сначала создайте план лечения</span>
+                                     {% endif %}
+                                 </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Примечание:</strong> Рекомендации основаны на основном диагнозе. 
+                        Препараты добавляются вручную в план лечения.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+
+{% endblock %} 

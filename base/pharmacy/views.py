@@ -79,12 +79,16 @@ class MedicationAjaxSearchView(View):
                     results.append({
                         'id': medication.pk,
                         'text': f"{trade_name.name} ({medication.name})",
+                        'trade_name_id': trade_name.pk,  # Добавляем ID торгового наименования
+                        'trade_name': trade_name.name,   # Добавляем название торгового наименования
                     })
             else:
                 # Если поиск был по МНН, показываем МНН
                 results.append({
                     'id': medication.pk,
                     'text': f"{medication.name}",
+                    'trade_name_id': None,  # Нет торгового наименования
+                    'trade_name': None,
                 })
         
         return JsonResponse({

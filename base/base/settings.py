@@ -56,6 +56,7 @@ LOCAL_APPS = [
     'documents',
     'departments',
     'treatment_assignments',
+    'treatment_management',
     'pharmacy',
     'lab_tests',
     'instrumental_procedures',
@@ -167,3 +168,15 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Django Select2 настройки
+SELECT2_CACHE_BACKEND = "default"
+SELECT2_CACHE_PREFIX = "select2"
+
+# Настройки для Select2 виджетов
+SELECT2_JS = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js'
+SELECT2_CSS = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css'
+
+# Настройки для django-select2
+SELECT2_CACHE_BACKEND = "default"
+SELECT2_CACHE_PREFIX = "select2"

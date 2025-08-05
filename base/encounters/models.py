@@ -404,8 +404,22 @@ class Encounter(ArchivableModel, models.Model):
         return self.treatment_plans.order_by('-created_at').first()
     
     def create_treatment_plan(self, name, description=''):
-        """Создает новый план лечения"""
-        return self.treatment_plans.create(
+        """Создает новый план лечения для случая"""
+        from treatment_management.services import TreatmentPlanService
+        return TreatmentPlanService.create_treatment_plan(
+            owner=self,
             name=name,
             description=description
         )
+    
+    def get_treatment_plans(self):
+        """Получает все планы лечения для случая"""
+        from treatment_management.services import TreatmentPlanService
+        return TreatmentPlanService.get_treatment_plans(self)
+    
+    def get_main_diagnosis_for_recommendations(self):
+        """Получает основной диагноз для рекомендаций по лечению"""
+        main_diagnosis = self.get_main_diagnosis()
+        if main_diagnosis and main_diagnosis.diagnosis:
+            return main_diagnosis.diagnosis
+        return None

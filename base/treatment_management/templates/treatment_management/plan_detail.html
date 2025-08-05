@@ -1,0 +1,144 @@
+{% extends "patients/base.html" %}
+{% load static %}
+
+{% block title %}{{ treatment_plan.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="card-title mb-0">
+                            <i class="fas fa-pills"></i> {{ treatment_plan.name }}
+                        </h4>
+                        <small class="text-muted">
+                            {% if owner.patient %}
+                                Пациент: {{ owner.patient.full_name }}
+                            {% else %}
+                                {{ owner }}
+                            {% endif %}
+                        </small>
+                    </div>
+                    <div class="btn-group" role="group">
+                        <a href="{% url 'treatment_management:medication_create' plan_pk=treatment_plan.pk %}" 
+                           class="btn btn-success">
+                            <i class="fas fa-plus"></i> Добавить лекарство
+                        </a>
+                        <a href="{% url 'treatment_management:plan_delete' owner_model=owner_model owner_id=owner.id pk=treatment_plan.pk %}" 
+                           class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Удалить план
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if treatment_plan.description %}
+                        <div class="mb-3">
+                            <h6>Описание:</h6>
+                            <p class="text-muted">{{ treatment_plan.description }}</p>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <small class="text-muted">
+                            <i class="fas fa-calendar"></i> Создан: {{ treatment_plan.created_at|date:"d.m.Y H:i" }}
+                            {% if treatment_plan.updated_at != treatment_plan.created_at %}
+                                | Обновлен: {{ treatment_plan.updated_at|date:"d.m.Y H:i" }}
+                            {% endif %}
+                        </small>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h5>Лекарства в плане ({{ medications.count }})</h5>
+                    
+                    {% if medications %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Препарат</th>
+                                        <th>Дозировка</th>
+                                        <th>Частота</th>
+                                        <th>Способ</th>
+                                        <th>Длительность</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for medication in medications %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ medication.get_medication_name }}</strong>
+                                            {% if medication.instructions %}
+                                                <br><small class="text-muted">{{ medication.instructions|truncatewords:10 }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ medication.dosage }}</td>
+                                        <td>{{ medication.frequency }}</td>
+                                        <td>{{ medication.get_route_display_name }}</td>
+                                        <td>{{ medication.duration|default:"-" }}</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <a href="{% url 'treatment_management:medication_update' pk=medication.pk %}" 
+                                                   class="btn btn-outline-primary">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <a href="{% url 'treatment_management:medication_delete' pk=medication.pk %}" 
+                                                   class="btn btn-outline-danger">
+                                                    <i class="fas fa-trash"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-pills fa-2x text-muted mb-3"></i>
+                            <h6 class="text-muted">Лекарства не добавлены</h6>
+                            <p class="text-muted">Добавьте первое лекарство в план лечения</p>
+                            <a href="{% url 'treatment_management:medication_create' plan_pk=treatment_plan.pk %}" 
+                               class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Добавить лекарство
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Быстрые действия -->
+<div class="container-fluid mt-3">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Быстрые действия</h6>
+                </div>
+                <div class="card-body">
+                    <div class="btn-group" role="group">
+                        <a href="{% url 'treatment_management:plan_list' owner_model=owner_model owner_id=owner.id %}" 
+                           class="btn btn-outline-secondary">
+                            <i class="fas fa-list"></i> К списку планов
+                        </a>
+                        <a href="{% url 'treatment_management:medication_create' plan_pk=treatment_plan.pk %}" 
+                           class="btn btn-outline-success">
+                            <i class="fas fa-plus"></i> Добавить лекарство
+                        </a>
+                        <a href="{% url 'treatment_management:plan_delete' owner_model=owner_model owner_id=owner.id pk=treatment_plan.pk %}" 
+                           class="btn btn-outline-danger">
+                            <i class="fas fa-trash"></i> Удалить план
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
