@@ -21,7 +21,7 @@
       <li class="list-group-item">
         <strong>Пациент:</strong>
         <a href="{% url 'patients:patient_detail' encounter.patient.pk %}" {# Обновлен URL #}
-          >{{ encounter.patient.full_name }}</a
+          >{{ encounter.patient.get_full_name_with_age }}</a
         >
       </li>
       <li class="list-group-item">
