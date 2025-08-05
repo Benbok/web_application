@@ -73,6 +73,15 @@ class Patient(models.Model):
             age -= 1
         
         return age
+    
+    def get_full_name_with_age(self):
+        """
+        Возвращает ФИО пациента с возрастом в скобках
+        """
+        age = self.get_age()
+        if age is not None:
+            return f"{self.full_name} ({age} лет)"
+        return self.full_name
 
 
 # FHIR: contact (представитель пациента)

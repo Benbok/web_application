@@ -421,21 +421,21 @@ class TreatmentRecommendationService:
     @staticmethod
     def get_medication_recommendations(diagnosis_code, patient=None):
         """
-        Получает рекомендации по лекарствам для диагноза
+        Получает рекомендации по лекарствам для диагноза, сгруппированные по фармакологическим группам
         
         Args:
             diagnosis_code: Код диагноза
             patient: Пациент
         
         Returns:
-            list: Список рекомендованных лекарств
+            dict: Словарь с группами препаратов
         """
         try:
             # Получаем диагноз из pharmacy
             from pharmacy.models import Diagnosis
             diagnosis = Diagnosis.objects.get(code=diagnosis_code)
         except Diagnosis.DoesNotExist:
-            return []
+            return {}
         
         # Используем существующий сервис рекомендаций
         recommendations = PatientRecommendationService.get_patient_recommendations(
@@ -443,11 +443,29 @@ class TreatmentRecommendationService:
             diagnosis=diagnosis
         )
         
-        # Преобразуем результат в список для совместимости с шаблоном
-        result = []
+        # Группируем препараты по фармакологическим группам
+        grouped_recommendations = {}
+        
         for medication_name, medication_recommendations in recommendations.items():
+            # Получаем информацию о препарате и его фармакологической группе
+            try:
+                from pharmacy.models import Medication, TradeName
+                medication = Medication.objects.get(name=medication_name)
+                
+                # Ищем торговое наименование с фармакологической группой
+                trade_name = TradeName.objects.filter(medication=medication).first()
+                group_name = trade_name.medication_group.name if trade_name and trade_name.medication_group else "Другие препараты"
+                
+            except (Medication.DoesNotExist, AttributeError):
+                group_name = "Другие препараты"
+            
+            # Создаем группу, если её нет
+            if group_name not in grouped_recommendations:
+                grouped_recommendations[group_name] = []
+            
+            # Добавляем препараты в группу
             for recommendation in medication_recommendations:
-                result.append({
+                grouped_recommendations[group_name].append({
                     'name': medication_name,
                     'dosage': recommendation.get('dosing_instructions', [{}])[0].get('dose_description', ''),
                     'frequency': recommendation.get('dosing_instructions', [{}])[0].get('frequency', ''),
@@ -456,4 +474,4 @@ class TreatmentRecommendationService:
                     'notes': recommendation.get('notes', '')
                 })
         
-        return result 
+        return grouped_recommendations 

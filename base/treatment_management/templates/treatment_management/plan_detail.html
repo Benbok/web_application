@@ -13,13 +13,13 @@
                         <h4 class="card-title mb-0">
                             <i class="fas fa-pills"></i> {{ treatment_plan.name }}
                         </h4>
-                        <small class="text-muted">
-                            {% if owner.patient %}
-                                Пациент: {{ owner.patient.full_name }}
-                            {% else %}
-                                {{ owner }}
-                            {% endif %}
-                        </small>
+                                                 <small class="text-muted">
+                             {% if owner.patient %}
+                                 Пациент: {{ owner.patient.get_full_name_with_age }}
+                             {% else %}
+                                 {{ owner }}
+                             {% endif %}
+                         </small>
                     </div>
                     <div class="btn-group" role="group">
                         {% if owner_model == 'encounter' %}

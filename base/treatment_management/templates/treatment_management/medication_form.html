@@ -16,12 +16,12 @@
 <div class="card mt-4">
     <div class="card-header">
         <h4 class="card-title mb-0">{{ title }}</h4>
-        <small class="text-muted">
-            {% if owner.patient %}
-                Пациент: {{ owner.patient.full_name }} | 
-            {% endif %}
-            План: {{ treatment_plan.name }}
-        </small>
+                 <small class="text-muted">
+             {% if owner.patient %}
+                 Пациент: {{ owner.patient.get_full_name_with_age }} | 
+             {% endif %}
+             План: {{ treatment_plan.name }}
+         </small>
     </div>
     <div class="card-body">
         <form method="post" novalidate>

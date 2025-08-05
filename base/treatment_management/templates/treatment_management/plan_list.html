@@ -15,13 +15,13 @@
                         <h4 class="card-title mb-0">
                             <i class="fas fa-pills"></i> Планы лечения
                         </h4>
-                        <small class="text-muted">
-                            {% if owner.patient %}
-                                Пациент: {{ owner.patient.full_name }}
-                            {% else %}
-                                {{ owner }}
-                            {% endif %}
-                        </small>
+                                                 <small class="text-muted">
+                             {% if owner.patient %}
+                                 Пациент: {{ owner.patient.get_full_name_with_age }}
+                             {% else %}
+                                 {{ owner }}
+                             {% endif %}
+                         </small>
                     </div>
                     <div class="btn-group" role="group">
                         {% if owner_model == 'encounter' %}
@@ -111,49 +111,67 @@
                 </div>
                 <div class="card-body">
                     <p class="text-muted">
-                        На основе основного диагноза рекомендованы следующие препараты:
+                        На основе основного диагноза рекомендованы следующие препараты, сгруппированные по фармакологическим группам:
                     </p>
-                    <div class="row">
-                        {% for recommendation in recommendations %}
-                        <div class="col-md-6 col-lg-4 mb-2">
-                            <div class="card border-info">
-                                <div class="card-body p-2">
-                                    <h6 class="card-title mb-1">{{ recommendation.name }}</h6>
-                                    {% if recommendation.dosage %}
-                                        <small class="text-muted">Дозировка: {{ recommendation.dosage }}</small><br>
-                                    {% endif %}
-                                    {% if recommendation.frequency %}
-                                        <small class="text-muted">Частота: {{ recommendation.frequency }}</small>
-                                    {% endif %}
+                    
+                    {% for group_name, group_recommendations in recommendations.items %}
+                    <div class="mb-4">
+                        <h6 class="text-primary border-bottom pb-2">
+                            <i class="fas fa-pills"></i> {{ group_name }}
+                        </h6>
+                        <div class="row">
+                            {% for recommendation in group_recommendations %}
+                            <div class="col-md-6 col-lg-4 mb-2">
+                                <div class="card border-info h-100">
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title mb-1">{{ recommendation.name }}</h6>
+                                        {% if recommendation.dosage %}
+                                            <small class="text-muted">Дозировка: {{ recommendation.dosage }}</small><br>
+                                        {% endif %}
+                                        {% if recommendation.frequency %}
+                                            <small class="text-muted">Частота: {{ recommendation.frequency }}</small><br>
+                                        {% endif %}
+                                        {% if recommendation.route %}
+                                            <small class="text-muted">Способ: {{ recommendation.route }}</small><br>
+                                        {% endif %}
+                                        {% if recommendation.duration %}
+                                            <small class="text-muted">Длительность: {{ recommendation.duration }}</small>
+                                        {% endif %}
+                                        {% if recommendation.notes %}
+                                            <small class="text-muted d-block mt-1">{{ recommendation.notes }}</small>
+                                        {% endif %}
+                                    </div>
+                                    <div class="card-footer p-2">
+                                        {% if treatment_plans %}
+                                            {% if treatment_plans.count == 1 %}
+                                                <a href="{% url 'treatment_management:quick_add_medication_by_name' plan_pk=treatment_plans.first.pk medication_name=recommendation.name %}" 
+                                                   class="btn btn-outline-info btn-sm w-100">
+                                                    <i class="fas fa-plus"></i> Добавить
+                                                </a>
+                                            {% else %}
+                                                <div class="d-grid gap-1">
+                                                    {% for plan in treatment_plans %}
+                                                    <a href="{% url 'treatment_management:quick_add_medication_by_name' plan_pk=plan.pk medication_name=recommendation.name %}" 
+                                                       class="btn btn-outline-info btn-sm">
+                                                        <i class="fas fa-plus"></i> {{ plan.name }}
+                                                    </a>
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted small">Сначала создайте план лечения</span>
+                                        {% endif %}
+                                    </div>
                                 </div>
-                                                                 <div class="card-footer p-2">
-                                     {% if treatment_plans %}
-                                         {% if treatment_plans.count == 1 %}
-                                             <a href="{% url 'treatment_management:quick_add_medication_by_name' plan_pk=treatment_plans.first.pk medication_name=recommendation.name %}" 
-                                                class="btn btn-outline-info btn-sm w-100">
-                                                 <i class="fas fa-plus"></i> Добавить
-                                             </a>
-                                         {% else %}
-                                             <div class="d-grid gap-1">
-                                                 {% for plan in treatment_plans %}
-                                                 <a href="{% url 'treatment_management:quick_add_medication_by_name' plan_pk=plan.pk medication_name=recommendation.name %}" 
-                                                    class="btn btn-outline-info btn-sm">
-                                                     <i class="fas fa-plus"></i> {{ plan.name }}
-                                                 </a>
-                                                 {% endfor %}
-                                             </div>
-                                         {% endif %}
-                                     {% else %}
-                                         <span class="text-muted small">Сначала создайте план лечения</span>
-                                     {% endif %}
-                                 </div>
                             </div>
+                            {% endfor %}
                         </div>
-                        {% endfor %}
                     </div>
+                    {% endfor %}
+                    
                     <div class="alert alert-info mt-3">
                         <i class="fas fa-info-circle"></i>
-                        <strong>Примечание:</strong> Рекомендации основаны на основном диагнозе. 
+                        <strong>Примечание:</strong> Рекомендации основаны на основном диагнозе и сгруппированы по фармакологическим группам. 
                         Препараты добавляются вручную в план лечения.
                     </div>
                 </div>
