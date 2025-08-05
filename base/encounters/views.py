@@ -89,6 +89,19 @@ class EncounterDetailView(DetailView):
     template_name = 'encounters/detail.html'
     context_object_name = 'encounter'
 
+    def get_queryset(self):
+        """Оптимизируем queryset для избежания N+1 запросов"""
+        return Encounter.objects.select_related(
+            'patient',
+            'doctor',
+            'transfer_to_department'
+        ).prefetch_related(
+            'documents',
+            'diagnoses__diagnosis',
+            'treatment_plans__medications__medication',
+            'department_transfer_records'
+        )
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         encounter = self.get_object()
@@ -106,7 +119,7 @@ class EncounterDetailView(DetailView):
         context['command_history'] = service.get_command_history()
         context['last_command'] = service.get_last_command()
         
-        # Добавляем информацию о диагнозах
+        # Добавляем информацию о диагнозах (уже загружены через prefetch_related)
         context['main_diagnosis'] = encounter.get_main_diagnosis()
         context['complications'] = encounter.get_complications()
         context['comorbidities'] = encounter.get_comorbidities()

@@ -133,12 +133,15 @@ class EncounterService:
         Returns:
             Dict с информацией о случае, документах и номере обращения
         """
+        # Используем уже загруженные данные через prefetch_related
+        documents = list(self.encounter.documents.all())
+        
         return {
             'encounter': self.encounter,
-            'documents': self.encounter.documents.all(),
+            'documents': documents,
             'encounter_number': self._calculate_encounter_number(),
             'is_active': self.encounter.is_active,
-            'has_documents': self.encounter.documents.exists(),
+            'has_documents': len(documents) > 0,
         }
     
     def validate_for_closing(self) -> bool:
@@ -334,7 +337,8 @@ class EncounterService:
     
     def _calculate_encounter_number(self) -> int:
         """Вычисление номера обращения для пациента"""
+        # Используем более эффективный запрос с select_related
         return Encounter.objects.filter(
             patient_id=self.encounter.patient_id,
             date_start__lt=self.encounter.date_start
-        ).count() + 1 
+        ).select_related('patient').count() + 1 

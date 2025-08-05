@@ -58,6 +58,17 @@
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-save"></i> Создать план
                             </button>
+                            {% if owner_model == 'encounter' %}
+                                <a href="{% url 'encounters:encounter_detail' pk=owner.id %}" 
+                                   class="btn btn-outline-primary">
+                                    <i class="fas fa-arrow-left"></i> К случаю
+                                </a>
+                            {% elif owner_model == 'patientdepartmentstatus' %}
+                                <a href="{% url 'departments:patient_history' pk=owner.id %}" 
+                                   class="btn btn-outline-primary">
+                                    <i class="fas fa-arrow-left"></i> К истории
+                                </a>
+                            {% endif %}
                             <a href="{% url 'treatment_management:plan_list' owner_model=owner_model owner_id=owner.id %}" 
                                class="btn btn-secondary">
                                 <i class="fas fa-times"></i> Отмена

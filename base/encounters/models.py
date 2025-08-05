@@ -251,6 +251,23 @@ class Encounter(ArchivableModel, models.Model):
 
     objects = NotArchivedManager()
     all_objects = models.Manager()
+    
+    class OptimizedManager(models.Manager):
+        """Менеджер с оптимизированными запросами для избежания N+1 проблем"""
+        
+        def get_queryset(self):
+            return super().get_queryset().select_related(
+                'patient',
+                'doctor',
+                'transfer_to_department'
+            ).prefetch_related(
+                'documents',
+                'diagnoses__diagnosis',
+                'treatment_plans__medications__medication',
+                'department_transfer_records'
+            )
+    
+    optimized_objects = OptimizedManager()
 
     class Meta:
         verbose_name = "Случай обращения"

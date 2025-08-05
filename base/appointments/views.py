@@ -28,7 +28,16 @@ class AppointmentEventViewSet(viewsets.ModelViewSet):
     serializer_class = AppointmentEventSerializer
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        """Оптимизируем queryset для избежания N+1 запросов"""
+        queryset = AppointmentEvent.objects.select_related(
+            'patient',
+            'schedule__doctor',
+            'encounter'
+        ).prefetch_related(
+            'encounter__documents',
+            'encounter__diagnoses__diagnosis'
+        )
+        
         doctor_id = self.request.query_params.get('doctor')
         if doctor_id and doctor_id != '__all_free__':
             queryset = queryset.filter(schedule__doctor__id=doctor_id)
@@ -43,7 +52,11 @@ class AppointmentEventsAPI(View):
     def get(self, request, *args, **kwargs):
         appointments = AppointmentEvent.objects.select_related(
             'patient',
-            'schedule__doctor'
+            'schedule__doctor',
+            'encounter'
+        ).prefetch_related(
+            'encounter__documents',
+            'encounter__diagnoses__diagnosis'
         ).filter(status="scheduled")
 
         events = []
