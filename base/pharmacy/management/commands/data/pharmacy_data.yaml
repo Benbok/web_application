@@ -508,3 +508,90 @@ regimens:
         frequency_description: "2 раза в сутки"
         duration_description: "7-14 дней"
         route: "Местно (на слизистые)"
+
+# pharmacy/data/salbutamol_data.yaml
+# Данные для загрузки препарата Сальбутамол
+
+# --- Справочники ---
+medication_groups:
+  - name: "Бронходилатирующее средство - бета2-адреномиметик селективный"
+    description: "Стимулирует бета2-адренорецепторы, оказывая выраженный бронхолитический эффект, предупреждает и купирует бронхоспазм."
+
+release_forms:
+  - name: "Аэрозоль для ингаляций дозированный"
+    description: "Лекарственная форма, представляющая собой раствор или суспензию, находящиеся под давлением в баллоне с дозирующим клапаном."
+
+administration_methods:
+  - name: "Ингаляционно"
+    description: "Введение лекарственных средств через дыхательные пути."
+
+# --- Основные сущности ---
+medications: # Справочник МНН
+  - name: "Сальбутамол"
+    atc_code: "R03AC02"
+    medication_form: "inhaler" # Соответствует 'Ингалятор' в вашей модели
+    is_active: true
+    external_info_url: "https://www.vidal.ru/drugs/salbutamol__27359"
+
+trade_names: # Конкретные торговые продукты
+  - name: "Сальбутамол"
+    medication_name: "Сальбутамол"
+    group_name: "Бронходилатирующее средство - бета2-адреномиметик селективный"
+    release_form_name: "Аэрозоль для ингаляций дозированный"
+    atc_code: "R03AC02"
+    external_info_url: "https://www.vidal.ru/drugs/salbutamol__27359"
+
+# --- Схемы применения ---
+regimens:
+  - medication_name: "Сальбутамол"
+    name: "Купирование приступа бронхоспазма"
+    notes: "Применяется для быстрого снятия симптомов астмы при их возникновении. Не рекомендуется применять чаще 4-х раз в сутки."
+    indications:
+      - "J45"  # Бронхиальная астма
+      - "J44"  # ХОБЛ
+      - "J42"  # Хронический бронхит
+      - "J43"  # Эмфизема легких
+    population_criteria:
+      - name: "Взрослые"
+      - name: "Дети от 4 лет"
+        min_age_days: 1460 # 4 года
+    dosing_instructions:
+      - dose_type: "SINGLE" # Можно считать разовой дозой для снятия приступа
+        dose_description: "100-200 мкг (1-2 ингаляции)"
+        frequency_description: "При возникновении приступа"
+        duration_description: "По потребности"
+        route: "Ингаляционно"
+
+  - medication_name: "Сальбутамол"
+    name: "Профилактика приступов бронхоспазма"
+    notes: "Применяется перед предполагаемой физической нагрузкой или контактом с аллергеном."
+    indications:
+      - "J45" # Бронхиальная астма
+    population_criteria:
+      - name: "Взрослые"
+        notes: "За 10-15 минут до нагрузки/контакта с аллергеном"
+      - name: "Дети от 4 лет"
+        min_age_days: 1460
+        notes: "За 10-15 минут до нагрузки/контакта с аллергеном"
+    dosing_instructions:
+      - dose_type: "SINGLE"
+        dose_description: "200 мкг (2 ингаляции)"
+        frequency_description: "Однократно перед нагрузкой"
+        duration_description: "Профилактически"
+        route: "Ингаляционно"
+
+  - medication_name: "Сальбутамол"
+    name: "Длительная поддерживающая терапия"
+    notes: "Применяется как один из компонентов терапии. Повышенная потребность может свидетельствовать об ухудшении течения астмы."
+    indications:
+      - "J45" # Бронхиальная астма
+      - "J44" # ХОБЛ
+    population_criteria:
+      - name: "Взрослые и дети от 4 лет"
+        min_age_days: 1460
+    dosing_instructions:
+      - dose_type: "MAINTENANCE"
+        dose_description: "до 200 мкг (2 ингаляции)"
+        frequency_description: "4 раза в сутки"
+        duration_description: "Длительно, по назначению врача"
+        route: "Ингаляционно"
