@@ -325,6 +325,29 @@ class MedicationInfoView(View):
             from datetime import date
             medication = Medication.objects.get(pk=medication_id)
             
+            # Функция для преобразования текстового способа введения в код для формы
+            def map_route_to_form_value(route_text):
+                if not route_text:
+                    return 'oral'
+                
+                route_lower = route_text.lower()
+                if 'ректально' in route_lower:
+                    return 'rectal'
+                elif 'местно' in route_lower:
+                    return 'topical'
+                elif 'перорально' in route_lower or 'внутрь' in route_lower:
+                    return 'oral'
+                elif 'внутримышечно' in route_lower:
+                    return 'intramuscular'
+                elif 'внутривенно' in route_lower:
+                    return 'intravenous'
+                elif 'подкожно' in route_lower:
+                    return 'subcutaneous'
+                elif 'ингаляционно' in route_lower:
+                    return 'inhalation'
+                else:
+                    return 'other'
+            
             # Получаем информацию о пациенте из параметров запроса
             patient_id = request.GET.get('patient_id')
             patient = None
@@ -361,12 +384,45 @@ class MedicationInfoView(View):
                         dosing_instructions__isnull=False
                     ).distinct()
                     
+                    # Фильтруем схемы по совместимости с формой
+                    compatible_regimens = []
+                    for regimen in regimens:
+                        dosing_instruction = DosingInstruction.objects.filter(regimen=regimen).first()
+                        if dosing_instruction:
+                            # Если поле route не заполнено, считаем схему совместимой со всеми формами
+                            if not dosing_instruction.route:
+                                compatible_regimens.append(regimen)
+                                continue
+                            
+                            # Если поле route заполнено, проверяем совместимость
+                            route = dosing_instruction.route.name.lower()
+                            release_form = tn.release_form.name.lower() if tn.release_form else ''
+                            
+                            # Проверяем совместимость формы и схемы
+                            is_compatible = False
+                            if 'суппозитории' in release_form and 'ректально' in route:
+                                is_compatible = True
+                            elif 'гель' in release_form and 'местно' in route:
+                                is_compatible = True
+                            elif 'мазь' in release_form and 'местно' in route:
+                                is_compatible = True
+                            elif 'таблетки' in release_form and 'перорально' in route:
+                                is_compatible = True
+                            elif 'инъекции' in release_form and ('внутримышечно' in route or 'внутривенно' in route):
+                                is_compatible = True
+                            else:
+                                # Если не можем определить совместимость, считаем совместимым
+                                is_compatible = True
+                            
+                            if is_compatible:
+                                compatible_regimens.append(regimen)
+                    
                     # Получаем схемы с учетом возраста пациента
                     suitable_regimens = []
                     if patient and patient.birth_date:
                         age_days = (date.today() - patient.birth_date).days
                         
-                        for regimen in regimens:
+                        for regimen in compatible_regimens:
                             # Проверяем критерии населения для этой схемы
                             population_criteria = PopulationCriteria.objects.filter(regimen=regimen)
                             
@@ -395,8 +451,8 @@ class MedicationInfoView(View):
                                     suitable_regimens.append(regimen)
                                     break
                     else:
-                        # Если нет информации о пациенте, берем все схемы
-                        suitable_regimens = list(regimens)
+                        # Если нет информации о пациенте, берем совместимые схемы
+                        suitable_regimens = compatible_regimens
                     
                     # Собираем информацию о схемах
                     regimens_info = []
@@ -409,7 +465,7 @@ class MedicationInfoView(View):
                                 'notes': regimen.notes or '',
                                 'dosage': dosing_instruction.dose_description,
                                 'frequency': dosing_instruction.frequency_description,
-                                'route': dosing_instruction.route.name if dosing_instruction.route else 'oral',
+                                'route': map_route_to_form_value(dosing_instruction.route.name if dosing_instruction.route else 'oral'),
                                 'duration': dosing_instruction.duration_description,
                                 'instructions': regimen.notes or ''
                             }
@@ -525,7 +581,7 @@ class MedicationInfoView(View):
                     medication_info.update({
                         'dosage': dosing_instruction.dose_description,
                         'frequency': dosing_instruction.frequency_description,
-                        'route': dosing_instruction.route.name if dosing_instruction.route else 'oral',
+                        'route': map_route_to_form_value(dosing_instruction.route.name if dosing_instruction.route else 'oral'),
                         'duration': dosing_instruction.duration_description,
                         'instructions': regimen.notes or ''
                     })
@@ -566,6 +622,29 @@ class TradeNameInfoView(View):
                 except Patient.DoesNotExist:
                     pass
             
+            # Функция для преобразования текстового способа введения в код для формы
+            def map_route_to_form_value(route_text):
+                if not route_text:
+                    return 'oral'
+                
+                route_lower = route_text.lower()
+                if 'ректально' in route_lower:
+                    return 'rectal'
+                elif 'местно' in route_lower:
+                    return 'topical'
+                elif 'перорально' in route_lower or 'внутрь' in route_lower:
+                    return 'oral'
+                elif 'внутримышечно' in route_lower:
+                    return 'intramuscular'
+                elif 'внутривенно' in route_lower:
+                    return 'intravenous'
+                elif 'подкожно' in route_lower:
+                    return 'subcutaneous'
+                elif 'ингаляционно' in route_lower:
+                    return 'inhalation'
+                else:
+                    return 'other'
+            
             # Получаем информацию о торговой форме
             form_info = {
                 'id': trade_name.id,
@@ -585,7 +664,7 @@ class TradeNameInfoView(View):
                 'instructions': ''
             }
             
-            # Получаем все доступные схемы применения для этой формы
+            # Получаем схемы применения, совместимые с этой формой
             from pharmacy.models import Regimen, DosingInstruction, PopulationCriteria
             from datetime import date
             
@@ -595,11 +674,44 @@ class TradeNameInfoView(View):
                 dosing_instructions__isnull=False
             ).distinct()
             
-            # Собираем информацию о всех схемах
+            # Фильтруем схемы по совместимости с формой
+            compatible_regimens = []
+            for regimen in all_regimens:
+                dosing_instruction = DosingInstruction.objects.filter(regimen=regimen).first()
+                if dosing_instruction:
+                    # Если поле route не заполнено, считаем схему совместимой со всеми формами
+                    if not dosing_instruction.route:
+                        compatible_regimens.append(regimen)
+                        continue
+                    
+                    # Если поле route заполнено, проверяем совместимость
+                    route = dosing_instruction.route.name.lower()
+                    release_form = trade_name.release_form.name.lower() if trade_name.release_form else ''
+                    
+                    # Проверяем совместимость формы и схемы
+                    is_compatible = False
+                    if 'суппозитории' in release_form and 'ректально' in route:
+                        is_compatible = True
+                    elif 'гель' in release_form and 'местно' in route:
+                        is_compatible = True
+                    elif 'мазь' in release_form and 'местно' in route:
+                        is_compatible = True
+                    elif 'таблетки' in release_form and 'перорально' in route:
+                        is_compatible = True
+                    elif 'инъекции' in release_form and ('внутримышечно' in route or 'внутривенно' in route):
+                        is_compatible = True
+                    else:
+                        # Если не можем определить совместимость, считаем совместимым
+                        is_compatible = True
+                    
+                    if is_compatible:
+                        compatible_regimens.append(regimen)
+            
+            # Собираем информацию только о совместимых схемах
             all_regimens_info = []
             suitable_regimens = []
             
-            for regimen in all_regimens:
+            for regimen in compatible_regimens:
                 dosing_instruction = DosingInstruction.objects.filter(regimen=regimen).first()
                 if dosing_instruction:
                     regimen_info = {
@@ -608,7 +720,7 @@ class TradeNameInfoView(View):
                         'notes': regimen.notes or '',
                         'dosage': dosing_instruction.dose_description,
                         'frequency': dosing_instruction.frequency_description,
-                        'route': dosing_instruction.route.name if dosing_instruction.route else 'oral',
+                        'route': map_route_to_form_value(dosing_instruction.route.name if dosing_instruction.route else 'oral'),
                         'duration': dosing_instruction.duration_description,
                         'instructions': regimen.notes or '',
                         'is_suitable': False  # Будем определять пригодность ниже
