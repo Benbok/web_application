@@ -43,6 +43,19 @@ urlpatterns = [
          views.QuickAddMedicationView.as_view(), 
          name='quick_add_medication_by_name'),
     
+    # Рекомендации в планах лечения
+    path('plans/<int:plan_pk>/recommendations/add/', 
+         views.TreatmentRecommendationCreateView.as_view(), 
+         name='recommendation_create'),
+    
+    path('recommendations/<int:pk>/edit/', 
+         views.TreatmentRecommendationUpdateView.as_view(), 
+         name='recommendation_update'),
+    
+    path('recommendations/<int:pk>/delete/', 
+         views.TreatmentRecommendationDeleteView.as_view(), 
+         name='recommendation_delete'),
+    
     # AJAX endpoints
     path('api/medication-info/<int:medication_id>/', 
          views.MedicationInfoView.as_view(), 

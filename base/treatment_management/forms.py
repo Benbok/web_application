@@ -1,6 +1,6 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
-from .models import TreatmentPlan, TreatmentMedication
+from .models import TreatmentPlan, TreatmentMedication, TreatmentRecommendation
 from pharmacy.widgets import MedicationSelect2Widget
 
 
@@ -144,4 +144,27 @@ class QuickAddMedicationForm(TreatmentMedicationForm):
                         self.fields['custom_medication'].initial = recommended_medication.name
                 except:
                     # В случае ошибки заполняем как собственное
-                    self.fields['custom_medication'].initial = recommended_medication.name 
+                    self.fields['custom_medication'].initial = recommended_medication.name
+
+
+class TreatmentRecommendationForm(forms.ModelForm):
+    """
+    Форма для создания/редактирования рекомендаций в плане лечения
+    """
+    
+    class Meta:
+        model = TreatmentRecommendation
+        fields = ['text']
+        widgets = {
+            'text': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': _('Введите рекомендацию...')
+            })
+        }
+        labels = {
+            'text': _('Текст рекомендации')
+        }
+        help_texts = {
+            'text': _('Введите рекомендацию для пациента')
+        } 

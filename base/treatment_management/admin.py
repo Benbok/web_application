@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
-from .models import TreatmentPlan, TreatmentMedication
+from .models import TreatmentPlan, TreatmentMedication, TreatmentRecommendation
 
 
 class TreatmentMedicationInline(admin.TabularInline):
@@ -13,6 +13,16 @@ class TreatmentMedicationInline(admin.TabularInline):
     readonly_fields = ['created_at', 'updated_at']
 
 
+class TreatmentRecommendationInline(admin.TabularInline):
+    """
+    Inline для отображения рекомендаций в плане лечения
+    """
+    model = TreatmentRecommendation
+    extra = 0
+    fields = ['text']
+    readonly_fields = ['created_at', 'updated_at']
+
+
 @admin.register(TreatmentPlan)
 class TreatmentPlanAdmin(admin.ModelAdmin):
     """
@@ -22,7 +32,7 @@ class TreatmentPlanAdmin(admin.ModelAdmin):
     list_filter = ['created_at', 'content_type']
     search_fields = ['name', 'description']
     readonly_fields = ['created_at', 'updated_at']
-    inlines = [TreatmentMedicationInline]
+    inlines = [TreatmentMedicationInline, TreatmentRecommendationInline]
     
     fieldsets = (
         (_('Основная информация'), {
@@ -76,3 +86,29 @@ class TreatmentMedicationAdmin(admin.ModelAdmin):
         """Отображает название лекарства"""
         return obj.get_medication_name()
     medication_name.short_description = _('Лекарство')
+
+
+@admin.register(TreatmentRecommendation)
+class TreatmentRecommendationAdmin(admin.ModelAdmin):
+    """
+    Админ для рекомендаций в планах лечения
+    """
+    list_display = ['text_preview', 'treatment_plan', 'created_at']
+    list_filter = ['created_at', 'treatment_plan__content_type']
+    search_fields = ['text', 'treatment_plan__name']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = (
+        (_('Основная информация'), {
+            'fields': ('treatment_plan', 'text')
+        }),
+        (_('Метаданные'), {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def text_preview(self, obj):
+        """Отображает превью текста рекомендации"""
+        return obj.text[:100] + '...' if len(obj.text) > 100 else obj.text
+    text_preview.short_description = _('Текст рекомендации')

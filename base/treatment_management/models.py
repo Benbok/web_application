@@ -39,6 +39,29 @@ class TreatmentPlan(models.Model):
         if hasattr(self.owner, 'get_display_name'):
             return self.owner.get_display_name()
         return str(self.owner)
+    
+    def get_owner_model_name(self):
+        """Возвращает имя модели владельца для использования в шаблонах"""
+        return self.owner._meta.model_name
+    
+    @classmethod
+    def get_or_create_main_plan(cls, owner):
+        """
+        Получает или создает основной план лечения для указанного владельца
+        """
+        content_type = ContentType.objects.get_for_model(owner)
+        
+        # Пытаемся найти существующий основной план
+        main_plan, created = cls.objects.get_or_create(
+            content_type=content_type,
+            object_id=owner.id,
+            name="Основной",
+            defaults={
+                'description': 'Основной план лечения'
+            }
+        )
+        
+        return main_plan, created
 
 
 class TreatmentMedication(models.Model):
@@ -135,3 +158,27 @@ class TreatmentMedication(models.Model):
         if self.medication and hasattr(self.medication, 'medication_form'):
             return self.medication.medication_form
         return None
+
+
+class TreatmentRecommendation(models.Model):
+    """
+    Рекомендации в плане лечения
+    """
+    treatment_plan = models.ForeignKey(
+        TreatmentPlan, 
+        on_delete=models.CASCADE, 
+        related_name='recommendations',
+        verbose_name=_("План лечения")
+    )
+    
+    text = models.TextField(_("Текст рекомендации"), help_text=_("Введите рекомендацию"))
+    created_at = models.DateTimeField(_("Дата создания"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("Дата обновления"), auto_now=True)
+    
+    class Meta:
+        verbose_name = _("Рекомендация в плане лечения")
+        verbose_name_plural = _("Рекомендации в планах лечения")
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.text[:50]}..." if len(self.text) > 50 else self.text

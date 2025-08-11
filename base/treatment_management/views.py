@@ -11,8 +11,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import gettext_lazy as _
 from django.utils.decorators import method_decorator
 
-from .models import TreatmentPlan, TreatmentMedication
-from .forms import TreatmentPlanForm, TreatmentMedicationForm, QuickAddMedicationForm
+from .models import TreatmentPlan, TreatmentMedication, TreatmentRecommendation
+from .forms import TreatmentPlanForm, TreatmentMedicationForm, QuickAddMedicationForm, TreatmentRecommendationForm
 from .services import (
     TreatmentPlanService, TreatmentMedicationService, TreatmentRecommendationService
 )
@@ -52,6 +52,12 @@ class TreatmentPlanListView(LoginRequiredMixin, ListView):
             context['patient'] = self.owner.patient
         elif hasattr(self.owner, 'get_patient'):
             context['patient'] = self.owner.get_patient()
+        
+        # Автоматически создаем основной план лечения, если его нет
+        if not self.object_list.exists():
+            TreatmentPlan.get_or_create_main_plan(self.owner)
+            # Обновляем queryset
+            self.object_list = TreatmentPlanService.get_treatment_plans(self.owner)
         
         # Получаем рекомендации по лечению (если есть диагноз)
         if hasattr(self.owner, 'get_main_diagnosis_for_recommendations'):
@@ -125,6 +131,7 @@ class TreatmentPlanDetailView(LoginRequiredMixin, DetailView):
         context['owner'] = self.object.owner
         context['owner_model'] = self.object.owner._meta.model_name
         context['medications'] = self.object.medications.all()
+        context['recommendations'] = self.object.recommendations.all()
         
         # Получаем пациента
         if hasattr(self.object.owner, 'patient'):
@@ -807,3 +814,82 @@ class TradeNameInfoView(View):
                 'success': False,
                 'error': str(e)
             }, status=500)
+
+
+class TreatmentRecommendationCreateView(LoginRequiredMixin, CreateView):
+    """
+    Создание новой рекомендации в плане лечения
+    """
+    model = TreatmentRecommendation
+    form_class = TreatmentRecommendationForm
+    template_name = 'treatment_management/recommendation_form.html'
+    
+    def dispatch(self, request, *args, **kwargs):
+        # Получаем план лечения из URL параметров
+        self.treatment_plan = get_object_or_404(TreatmentPlan, pk=self.kwargs['plan_pk'])
+        return super().dispatch(request, *args, **kwargs)
+    
+    def form_valid(self, form):
+        form.instance.treatment_plan = self.treatment_plan
+        response = super().form_valid(form)
+        messages.success(self.request, _('Рекомендация успешно добавлена'))
+        return response
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['treatment_plan'] = self.treatment_plan
+        context['title'] = _('Добавить рекомендацию')
+        return context
+    
+    def get_success_url(self):
+        return reverse('treatment_management:plan_detail',
+                      kwargs={
+                          'owner_model': self.treatment_plan.owner._meta.model_name,
+                          'owner_id': self.treatment_plan.owner.id,
+                          'pk': self.treatment_plan.pk
+                      })
+
+
+class TreatmentRecommendationUpdateView(LoginRequiredMixin, UpdateView):
+    """
+    Редактирование рекомендации в плане лечения
+    """
+    model = TreatmentRecommendation
+    form_class = TreatmentRecommendationForm
+    template_name = 'treatment_management/recommendation_form.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['treatment_plan'] = self.object.treatment_plan
+        context['title'] = _('Редактировать рекомендацию')
+        return context
+    
+    def get_success_url(self):
+        return reverse('treatment_management:plan_detail',
+                      kwargs={
+                          'owner_model': self.object.treatment_plan.owner._meta.model_name,
+                          'owner_id': self.object.treatment_plan.owner.id,
+                          'pk': self.object.treatment_plan.pk
+                      })
+
+
+class TreatmentRecommendationDeleteView(LoginRequiredMixin, DeleteView):
+    """
+    Удаление рекомендации из плана лечения
+    """
+    model = TreatmentRecommendation
+    template_name = 'treatment_management/recommendation_confirm_delete.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['treatment_plan'] = self.object.treatment_plan
+        context['title'] = _('Удалить рекомендацию')
+        return context
+    
+    def get_success_url(self):
+        return reverse('treatment_management:plan_detail',
+                      kwargs={
+                          'owner_model': self.object.treatment_plan.owner._meta.model_name,
+                          'owner_id': self.object.treatment_plan.owner.id,
+                          'pk': self.object.treatment_plan.pk
+                      })
