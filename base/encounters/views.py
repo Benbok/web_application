@@ -448,6 +448,7 @@ class MedicationInfoView(View):
                 'name': medication.name,
                 'description': getattr(medication, 'description', ''),
                 'external_url': medication.external_info_url or '',
+                'medication_form': getattr(medication, 'medication_form', ''),
                 'dosage': '',
                 'frequency': '',
                 'route': 'oral',
@@ -455,17 +456,44 @@ class MedicationInfoView(View):
                 'instructions': ''
             }
             
-            # Получаем торговые названия
-            trade_names = medication.trade_names.all()
+            # Получаем торговые названия с подробной информацией
+            trade_names = medication.trade_names.all().select_related('release_form', 'medication_group')
             if trade_names.exists():
-                medication_info['trade_names'] = [
-                    {
+                # Собираем информацию о всех доступных формах
+                available_forms = []
+                for tn in trade_names:
+                    form_info = {
+                        'id': tn.id,
                         'name': tn.name,
                         'group': tn.medication_group.name if tn.medication_group else None,
-                        'release_form': tn.release_form.name if tn.release_form else None,
+                        'release_form': {
+                            'name': tn.release_form.name if tn.release_form else None,
+                            'description': tn.release_form.description if tn.release_form else None
+                        } if tn.release_form else None,
+                        'external_url': tn.external_info_url or medication.external_info_url or '',
+                        'atc_code': tn.atc_code
                     }
-                    for tn in trade_names
-                ]
+                    available_forms.append(form_info)
+                
+                medication_info['available_forms'] = available_forms
+                
+                # Если есть торговые названия, используем первое для получения дополнительной информации
+                first_trade_name = trade_names.first()
+                if first_trade_name:
+                    medication_info.update({
+                        'trade_name': first_trade_name.name,
+                        'generic_concept': first_trade_name.medication.name,
+                        'external_url': first_trade_name.external_info_url or medication.external_info_url or '',
+                        'medication_form': getattr(first_trade_name.release_form, 'name', '') if first_trade_name.release_form else medication_info['medication_form'],
+                        'selected_form_id': first_trade_name.id  # ID выбранной формы по умолчанию
+                    })
+            else:
+                # Если торговых наименований нет, используем базовую информацию
+                medication_info.update({
+                    'trade_name': None,
+                    'generic_concept': medication.name,
+                    'available_forms': []
+                })
             
             # Получаем стандартные дозировки из pharmacy app с учетом пациента
             from pharmacy.models import Regimen, DosingInstruction, PopulationCriteria
@@ -550,6 +578,135 @@ class MedicationInfoView(View):
             return JsonResponse({
                 'success': False,
                 'error': 'Препарат не найден'
+            }, status=404)
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class TradeNameInfoView(View):
+    """AJAX endpoint для получения информации о конкретной торговой форме препарата"""
+    
+    def get(self, request, trade_name_id):
+        try:
+            from pharmacy.models import TradeName
+            trade_name = TradeName.objects.select_related('release_form', 'medication_group', 'medication').get(pk=trade_name_id)
+            
+            # Получаем информацию о пациенте из параметров запроса
+            patient_id = request.GET.get('patient_id')
+            patient = None
+            if patient_id:
+                from patients.models import Patient
+                try:
+                    patient = Patient.objects.get(pk=patient_id)
+                except Patient.DoesNotExist:
+                    pass
+            
+            # Получаем информацию о торговой форме
+            form_info = {
+                'id': trade_name.id,
+                'name': trade_name.name,
+                'medication_name': trade_name.medication.name,
+                'group': trade_name.medication_group.name if trade_name.medication_group else None,
+                'release_form': {
+                    'name': trade_name.release_form.name if trade_name.release_form else None,
+                    'description': trade_name.release_form.description if trade_name.release_form else None
+                } if trade_name.release_form else None,
+                'external_url': trade_name.external_info_url or trade_name.medication.external_info_url or '',
+                'atc_code': trade_name.atc_code,
+                'dosage': '',
+                'frequency': '',
+                'route': 'oral',
+                'duration': '',
+                'instructions': ''
+            }
+            
+            # Получаем стандартные дозировки для этой формы
+            from pharmacy.models import Regimen, DosingInstruction, PopulationCriteria
+            from datetime import date
+            
+            if patient and patient.birth_date:
+                # Вычисляем возраст пациента в днях
+                age_days = (date.today() - patient.birth_date).days
+                
+                # Ищем схемы с подходящими возрастными критериями
+                suitable_regimens = []
+                
+                regimens_with_instructions = Regimen.objects.filter(
+                    medication=trade_name.medication,
+                    dosing_instructions__isnull=False
+                ).distinct()
+                
+                for regimen in regimens_with_instructions:
+                    # Проверяем критерии населения для этой схемы
+                    population_criteria = PopulationCriteria.objects.filter(regimen=regimen)
+                    
+                    if not population_criteria.exists():
+                        # Если нет критериев, считаем подходящим
+                        suitable_regimens.append(regimen)
+                        continue
+                    
+                    for criteria in population_criteria:
+                        # Проверяем возрастные критерии
+                        age_suitable = True
+                        if criteria.min_age_days and age_days < criteria.min_age_days:
+                            age_suitable = False
+                        if criteria.max_age_days and age_days > criteria.max_age_days:
+                            age_suitable = False
+                        
+                        # Проверяем весовые критерии (если есть)
+                        weight_suitable = True
+                        patient_weight = getattr(patient, 'weight', None)
+                        if patient_weight and criteria.min_weight_kg and patient_weight < criteria.min_weight_kg:
+                            weight_suitable = False
+                        if patient_weight and criteria.max_weight_kg and patient_weight > criteria.max_weight_kg:
+                            weight_suitable = False
+                        
+                        if age_suitable and weight_suitable:
+                            suitable_regimens.append(regimen)
+                            break
+                
+                # Если нашли подходящие схемы, берем первую
+                if suitable_regimens:
+                    regimen = suitable_regimens[0]
+                else:
+                    # Если не нашли подходящих, берем первую доступную
+                    regimen = regimens_with_instructions.first()
+            else:
+                # Если нет информации о пациенте, берем первую схему
+                regimens_with_instructions = Regimen.objects.filter(
+                    medication=trade_name.medication,
+                    dosing_instructions__isnull=False
+                ).distinct()
+                regimen = regimens_with_instructions.first() if regimens_with_instructions.exists() else None
+            
+            if regimen:
+                dosing_instruction = DosingInstruction.objects.filter(regimen=regimen).first()
+                if dosing_instruction:
+                    form_info['dosage'] = dosing_instruction.dose_description
+                    form_info['frequency'] = dosing_instruction.frequency_description
+                    form_info['route'] = dosing_instruction.route.name if dosing_instruction.route else 'oral'
+                    form_info['duration'] = dosing_instruction.duration_description
+                    form_info['instructions'] = regimen.notes or ''
+                    
+                    # Добавляем информацию о выбранной схеме
+                    form_info['selected_regimen'] = {
+                        'name': regimen.name,
+                        'notes': regimen.notes or ''
+                    }
+            
+            return JsonResponse({
+                'success': True,
+                'form_info': form_info
+            })
+            
+        except TradeName.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Торговая форма не найдена'
             }, status=404)
         except Exception as e:
             return JsonResponse({
@@ -832,3 +989,13 @@ class QuickAddMedicationView(CreateView):
     
     def get_success_url(self):
         return reverse('encounters:treatment_plan_detail', kwargs={'pk': self.treatment_plan.pk})
+
+class TestJavaScriptView(View):
+    """Простое представление для тестирования JavaScript"""
+    
+    def get(self, request):
+        from django.template.loader import render_to_string
+        from django.http import HttpResponse
+        
+        html_content = render_to_string('encounters/test_js.html')
+        return HttpResponse(html_content)

@@ -4,6 +4,7 @@ from collections import defaultdict
 from typing import List, Dict, Optional, Tuple
 from django.db.models import Q, Prefetch
 from django.core.exceptions import ValidationError
+from django.db import transaction
 
 from .models import (
     Medication, TradeName, Regimen, PopulationCriteria, 
@@ -339,3 +340,101 @@ def get_medication_recommendations(patient, diagnosis=None, allergies_med_ids=No
         diagnosis=diagnosis,
         exclude_medication_ids=allergies_med_ids
     )
+
+
+class MedicationSearchService:
+    """Сервис для интеллектуального поиска лекарств."""
+    
+    @staticmethod
+    def search(query: str, limit: int = 20):
+        """
+        Ищет активные ТОРГОВЫЕ ПРЕПАРАТЫ по их торговому названию
+        ИЛИ по названию их действующего вещества (МНН).
+        
+        :param query: Поисковый запрос
+        :param limit: Максимальное количество результатов
+        :return: QuerySet торговых препаратов
+        """
+        # Используем наш кастомный менеджер и его метод active()
+        return Medication.objects.active().trade_products().filter(
+            # Искать либо в торговом названии самого продукта...
+            Q(trade_name__icontains=query) | 
+            # ...либо в названии связанного с ним концепта (МНН).
+            Q(generic_concept__name__icontains=query)
+        ).select_related('generic_concept').order_by('trade_name')[:limit]
+    
+    @staticmethod
+    def search_generics(query: str, limit: int = 20):
+        """
+        Ищет МНН (действующие вещества) по названию.
+        
+        :param query: Поисковый запрос
+        :param limit: Максимальное количество результатов
+        :return: QuerySet МНН
+        """
+        return Medication.objects.active().generics().filter(
+            Q(name__icontains=query)
+        ).order_by('name')[:limit]
+    
+    @staticmethod
+    def search_all(query: str, limit: int = 20):
+        """
+        Ищет все активные препараты (и МНН, и торговые продукты).
+        
+        :param query: Поисковый запрос
+        :param limit: Максимальное количество результатов
+        :return: QuerySet всех препаратов
+        """
+        return Medication.objects.active().filter(
+            Q(name__icontains=query) |
+            Q(trade_name__icontains=query) |
+            Q(generic_concept__name__icontains=query)
+        ).select_related('generic_concept').order_by('name', 'trade_name')[:limit]
+
+    """Сервис для экспорта лекарств в CSV файлы."""
+    
+    @staticmethod
+    def export_to_csv(file_path: str, include_generics: bool = True, include_trade_products: bool = True):
+        """
+        Экспортирует лекарства в CSV файл.
+        
+        :param file_path: Путь к файлу для экспорта
+        :param include_generics: Включать ли МНН
+        :param include_trade_products: Включать ли торговые продукты
+        :return: Количество экспортированных записей
+        """
+        import csv
+        
+        queryset = Medication.objects.active()
+        
+        if include_generics and not include_trade_products:
+            queryset = queryset.generics()
+        elif include_trade_products and not include_generics:
+            queryset = queryset.trade_products()
+        
+        exported_count = 0
+        
+        with open(file_path, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            
+            # Записываем заголовки
+            writer.writerow([
+                'ID', 'Name', 'Trade Name', 'Generic Concept', 
+                'Medication Form', 'Code System', 'Code', 'Is Active'
+            ])
+            
+            # Записываем данные
+            for medication in queryset.select_related('generic_concept'):
+                writer.writerow([
+                    medication.id,
+                    medication.name,
+                    medication.trade_name or '',
+                    medication.generic_concept.name if medication.generic_concept else '',
+                    medication.medication_form or '',
+                    medication.code_system or '',
+                    medication.code or '',
+                    'Yes' if medication.is_active else 'No'
+                ])
+                exported_count += 1
+        
+        return exported_count

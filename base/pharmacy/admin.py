@@ -231,28 +231,17 @@ class AdministrationMethodAdmin(admin.ModelAdmin):
     medications_info.short_description = 'Препараты'
 
 
-class TradeNameInline(admin.TabularInline):
-    model = TradeName
-    extra = 0
-    fields = ('name', 'medication_group', 'atc_code', 'release_form', 'external_info_link')
-    readonly_fields = ('external_info_link',)
-    
-    def external_info_link(self, obj):
-        if obj.external_info_url:
-            return format_html('<a href="{}" target="_blank">Ссылка</a>', obj.external_info_url)
-        return '—'
-    external_info_link.short_description = 'Внешняя информация'
+
 
 
 @admin.register(Medication)
 class MedicationAdmin(admin.ModelAdmin):
-    list_display = ('name', 'external_info_link', 'trade_names_count', 'regimens_count', 'trade_names_link')
-    search_fields = ('name',)
-    list_filter = (HasTradeNamesFilter, HasRegimensFilter)
+    list_display = ('name', 'medication_type', 'medication_form', 'is_active', 'external_info_link', 'regimens_count')
+    search_fields = ('name', 'trade_name', 'generic_concept__name')
+    list_filter = ('is_active', 'medication_form', 'code_system')
     list_per_page = 50
-    inlines = [TradeNameInline]
     actions = ['add_external_info_template']
-    readonly_fields = ('trade_names_info', 'regimens_info', 'statistics_info')
+    readonly_fields = ('regimens_info', 'statistics_info')
     
     def get_fieldsets(self, request, obj=None):
         fieldsets = super().get_fieldsets(request, obj)
@@ -260,11 +249,6 @@ class MedicationAdmin(admin.ModelAdmin):
             # Добавляем секции с дополнительной информацией
             fieldsets = list(fieldsets) if fieldsets else []
             fieldsets.extend([
-                ('Торговые названия', {
-                    'fields': ('trade_names_info',),
-                    'classes': ('collapse',),
-                    'description': 'Список всех торговых названий этого препарата'
-                }),
                 ('Схемы применения', {
                     'fields': ('regimens_info',),
                     'classes': ('collapse',),
@@ -278,67 +262,22 @@ class MedicationAdmin(admin.ModelAdmin):
             ])
         return fieldsets
 
+    def medication_type(self, obj):
+        if obj.is_trade_product():
+            return f"Торговый продукт ({obj.generic_concept.name})"
+        else:
+            return "МНН (действующее вещество)"
+    medication_type.short_description = 'Тип препарата'
+    
     def external_info_link(self, obj):
         if obj.external_info_url:
             return format_html('<a href="{}" target="_blank">Ссылка</a>', obj.external_info_url)
         return '—'
     external_info_link.short_description = 'Внешняя информация'
 
-    def trade_names_count(self, obj):
-        return obj.trade_names.count()
-    trade_names_count.short_description = 'Торговых названий'
-
     def regimens_count(self, obj):
         return obj.regimens.count()
     regimens_count.short_description = 'Схем применения'
-
-    def trade_names_link(self, obj):
-        count = obj.trade_names.count()
-        if count > 0:
-            return format_html(
-                '<a href="{}?medication__id__exact={}">Просмотреть {} торговых названий</a>',
-                '/admin/pharmacy/tradename/',
-                obj.id,
-                count
-            )
-        return 'Нет торговых названий'
-    trade_names_link.short_description = 'Действия'
-
-    def trade_names_info(self, obj):
-        """Детальная информация о торговых названиях"""
-        trade_names = obj.trade_names.all()
-        
-        if not trade_names.exists():
-            return 'Нет торговых названий для этого препарата'
-        
-        result = []
-        for trade_name in trade_names:
-            trade_info = f"📦 {trade_name.name}"
-            
-            # Группа препаратов
-            if trade_name.medication_group:
-                trade_info += f"\n🏷️ Группа: {trade_name.medication_group.name}"
-            
-            # АТХ код
-            if trade_name.atc_code:
-                trade_info += f"\n🔢 АТХ: {trade_name.atc_code}"
-            
-            # Форма выпуска
-            if trade_name.release_form:
-                trade_info += f"\n💊 Форма: {trade_name.release_form.name}"
-            
-            # Внешняя ссылка
-            if trade_name.external_info_url:
-                trade_info += f"\n🔗 <a href='{trade_name.external_info_url}' target='_blank'>Внешняя информация</a>"
-            
-            # Ссылка на редактирование
-            trade_info += f"\n✏️ <a href='/admin/pharmacy/tradename/{trade_name.id}/change/'>Редактировать</a>"
-            
-            result.append(trade_info)
-        
-        return format_html('<br><br>'.join(result))
-    
-    trade_names_info.short_description = 'Торговые названия'
     
     def regimens_info(self, obj):
         """Детальная информация о схемах применения"""
@@ -411,7 +350,6 @@ class MedicationAdmin(admin.ModelAdmin):
     
     def statistics_info(self, obj):
         """Общая статистика по препарату"""
-        trade_names_count = obj.trade_names.count()
         regimens_count = obj.regimens.count()
         
         # Подсчет уникальных показаний
@@ -428,29 +366,20 @@ class MedicationAdmin(admin.ModelAdmin):
                     all_routes.add(instruction.route)
         routes_count = len(all_routes)
         
-        # Подсчет групп препаратов
-        groups = set()
-        for trade_name in obj.trade_names.all():
-            if trade_name.medication_group:
-                groups.add(trade_name.medication_group)
-        groups_count = len(groups)
-        
-        # Подсчет форм выпуска
-        forms = set()
-        for trade_name in obj.trade_names.all():
-            if trade_name.release_form:
-                forms.add(trade_name.release_form)
-        forms_count = len(forms)
+        # Определяем тип препарата
+        if obj.is_trade_product():
+            medication_type = f"Торговый продукт ({obj.generic_concept.name})"
+        else:
+            medication_type = "МНН (действующее вещество)"
         
         stats = f"""
         📊 <strong>Общая статистика препарата "{obj.name}"</strong><br><br>
         
-        💊 <strong>Торговые названия:</strong> {trade_names_count}<br>
+        💊 <strong>Тип препарата:</strong> {medication_type}<br>
         📋 <strong>Схемы применения:</strong> {regimens_count}<br>
         🏥 <strong>Уникальных показаний:</strong> {indications_count}<br>
         💉 <strong>Способов введения:</strong> {routes_count}<br>
-        🏷️ <strong>Фармакологических групп:</strong> {groups_count}<br>
-        💊 <strong>Форм выпуска:</strong> {forms_count}<br>
+        💊 <strong>Форма выпуска:</strong> {obj.medication_form or 'Не указана'}<br>
         """
         
         # Дополнительная информация

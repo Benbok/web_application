@@ -281,10 +281,10 @@ function displayRegimens(regimens, formId) {
                 <div class="card-body p-2">
                     <h6 class="card-title mb-1">${regimen.name}</h6>
                     <div class="small text-muted">
-                        <div class="regimen-dosage"><strong>Дозировка:</strong> ${regimen.dosage || 'Не указана'}</div>
-                        <div class="regimen-frequency"><strong>Частота:</strong> ${regimen.frequency || 'Не указана'}</div>
-                        <div class="regimen-route"><strong>Путь:</strong> ${regimen.route || 'Не указан'}</div>
-                        <div class="regimen-duration"><strong>Длительность:</strong> ${regimen.duration || 'Не указана'}</div>
+                        <div><strong>Дозировка:</strong> ${regimen.dosage || 'Не указана'}</div>
+                        <div><strong>Частота:</strong> ${regimen.frequency || 'Не указана'}</div>
+                        <div><strong>Путь:</strong> ${regimen.route || 'Не указан'}</div>
+                        <div><strong>Длительность:</strong> ${regimen.duration || 'Не указана'}</div>
                     </div>
                     ${regimen.notes ? `<div class="mt-2"><small class="text-info">${regimen.notes}</small></div>` : ''}
                     ${suitabilityText}
@@ -350,16 +350,11 @@ function selectRegimen(regimenId, regimenName) {
         regimenCards.forEach(card => {
             const onclickAttr = card.getAttribute('onclick');
             if (onclickAttr && onclickAttr.includes(`selectRegimen(${regimenId},`)) {
-                // Извлекаем данные схемы из карточки используя классы
-                const dosageElement = card.querySelector('.regimen-dosage');
-                const frequencyElement = card.querySelector('.regimen-frequency');
-                const routeElement = card.querySelector('.regimen-route');
-                const durationElement = card.querySelector('.regimen-duration');
-                
-                const dosageText = dosageElement ? dosageElement.textContent.replace('Дозировка:', '').trim() : '';
-                const frequencyText = frequencyElement ? frequencyElement.textContent.replace('Частота:', '').trim() : '';
-                const routeText = routeElement ? routeElement.textContent.replace('Путь:', '').trim() : '';
-                const durationText = durationElement ? durationElement.textContent.replace('Длительность:', '').trim() : '';
+                // Извлекаем данные схемы из карточки
+                const dosageText = card.querySelector('div:contains("Дозировка:")')?.textContent?.replace('Дозировка:', '').trim();
+                const frequencyText = card.querySelector('div:contains("Частота:")')?.textContent?.replace('Частота:', '').trim();
+                const routeText = card.querySelector('div:contains("Путь:")')?.textContent?.replace('Путь:', '').trim();
+                const durationText = card.querySelector('div:contains("Длительность:")')?.textContent?.replace('Длительность:', '').trim();
                 
                 selectedRegimen = {
                     id: regimenId,

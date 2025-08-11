@@ -79,13 +79,34 @@
                     <div class="col-md-6 mb-3">
                         <div class="card">
                             <div class="card-header d-flex justify-content-between align-items-center">
-                                <h6 class="mb-0">
+                                <div>
+                                    <h6 class="mb-0">
+                                        {% if medication.medication %}
+                                            {{ medication.medication.name }}
+                                        {% else %}
+                                            {{ medication.custom_medication }}
+                                        {% endif %}
+                                    </h6>
                                     {% if medication.medication %}
-                                        {{ medication.medication.name }}
-                                    {% else %}
-                                        {{ medication.custom_medication }}
+                                        {% if medication.medication.external_info_url %}
+                                            <small>
+                                                <a href="{{ medication.medication.external_info_url }}" target="_blank" class="text-info">
+                                                    <i class="fas fa-external-link-alt"></i> Информация о препарате
+                                                </a>
+                                            </small>
+                                        {% elif medication.medication.trade_names.exists %}
+                                            {% with first_tn=medication.medication.trade_names.first %}
+                                                {% if first_tn.external_info_url %}
+                                                    <small>
+                                                        <a href="{{ first_tn.external_info_url }}" target="_blank" class="text-info">
+                                                            <i class="fas fa-external-link-alt"></i> Информация о препарате
+                                                        </a>
+                                                    </small>
+                                                {% endif %}
+                                            {% endwith %}
+                                        {% endif %}
                                     {% endif %}
-                                </h6>
+                                </div>
                                 <div class="btn-group btn-group-sm">
                                     <a href="{% url 'encounters:treatment_medication_update' medication.pk %}" class="btn btn-outline-primary btn-sm">
                                         <i class="fas fa-edit"></i>
@@ -111,13 +132,31 @@
                                         <small class="text-muted">Способ:</small><br>
                                         <strong>{{ medication.get_route_display }}</strong>
                                     </div>
-                                    {% if medication.duration %}
+                                    <div class="col-6">
+                                        <small class="text-muted">Форма:</small><br>
+                                        {% if medication.medication and medication.medication.medication_form %}
+                                            <strong>{{ medication.medication.medication_form }}</strong>
+                                        {% elif medication.medication and medication.medication.trade_names.exists %}
+                                            {% with first_tn=medication.medication.trade_names.first %}
+                                                {% if first_tn.release_form %}
+                                                    <strong>{{ first_tn.release_form.name }}</strong>
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            {% endwith %}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% if medication.duration %}
+                                    <div class="row mt-2">
                                         <div class="col-6">
                                             <small class="text-muted">Длительность:</small><br>
                                             <strong>{{ medication.duration }}</strong>
                                         </div>
-                                    {% endif %}
-                                </div>
+                                    </div>
+                                {% endif %}
                                 {% if medication.instructions %}
                                     <div class="mt-2">
                                         <small class="text-muted">Особые указания:</small><br>

@@ -2,13 +2,14 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import (
-    ListView, CreateView, UpdateView, DeleteView, DetailView
+    ListView, CreateView, UpdateView, DeleteView, DetailView, View
 )
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.urls import reverse, reverse_lazy
 from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import gettext_lazy as _
+from django.utils.decorators import method_decorator
 
 from .models import TreatmentPlan, TreatmentMedication
 from .forms import TreatmentPlanForm, TreatmentMedicationForm, QuickAddMedicationForm
@@ -313,37 +314,384 @@ class QuickAddMedicationView(LoginRequiredMixin, CreateView):
                       })
 
 
-@csrf_exempt
-def medication_info_view(request, medication_id):
-    """
-    AJAX endpoint для получения информации о лекарстве
-    """
-    if request.method != 'GET':
-        return JsonResponse({'success': False, 'error': 'Method not allowed'})
+
+@method_decorator(csrf_exempt, name='dispatch')
+class MedicationInfoView(View):
+    """AJAX endpoint для получения информации о препарате"""
     
-    # Получаем ID пациента из параметров
-    patient_id = request.GET.get('patient_id')
-    patient = None
-    
-    if patient_id:
+    def get(self, request, medication_id):
         try:
-            patient = Patient.objects.get(id=patient_id)
-        except Patient.DoesNotExist:
-            pass
+            from pharmacy.models import Medication, Regimen, DosingInstruction, PopulationCriteria
+            from datetime import date
+            medication = Medication.objects.get(pk=medication_id)
+            
+            # Получаем информацию о пациенте из параметров запроса
+            patient_id = request.GET.get('patient_id')
+            patient = None
+            if patient_id:
+                from patients.models import Patient
+                try:
+                    patient = Patient.objects.get(pk=patient_id)
+                except Patient.DoesNotExist:
+                    pass
     
-    # Получаем ID торгового наименования из параметров
-    trade_name_id = request.GET.get('trade_name_id')
+            # Получаем информацию о препарате
+            medication_info = {
+                'id': medication.id,
+                'name': medication.name,
+                'description': getattr(medication, 'description', ''),
+                'external_url': medication.external_info_url or '',
+                'medication_form': getattr(medication, 'medication_form', ''),
+                'dosage': '',
+                'frequency': '',
+                'route': 'oral',
+                'duration': '',
+                'instructions': ''
+            }
+            
+            # Получаем торговые названия с подробной информацией и схемами применения
+            trade_names = medication.trade_names.all().select_related('release_form', 'medication_group')
+            if trade_names.exists():
+                # Собираем информацию о всех доступных формах с их схемами
+                available_forms = []
+                for tn in trade_names:
+                    # Получаем схемы применения для этой формы
+                    regimens = Regimen.objects.filter(
+                        medication=medication,
+                        dosing_instructions__isnull=False
+                    ).distinct()
+                    
+                    # Получаем схемы с учетом возраста пациента
+                    suitable_regimens = []
+                    if patient and patient.birth_date:
+                        age_days = (date.today() - patient.birth_date).days
+                        
+                        for regimen in regimens:
+                            # Проверяем критерии населения для этой схемы
+                            population_criteria = PopulationCriteria.objects.filter(regimen=regimen)
+                            
+                            if not population_criteria.exists():
+                                # Если нет критериев, считаем подходящим
+                                suitable_regimens.append(regimen)
+                                continue
+                            
+                            for criteria in population_criteria:
+                                # Проверяем возрастные критерии
+                                age_suitable = True
+                                if criteria.min_age_days and age_days < criteria.min_age_days:
+                                    age_suitable = False
+                                if criteria.max_age_days and age_days > criteria.max_age_days:
+                                    age_suitable = False
+                                
+                                # Проверяем весовые критерии (если есть)
+                                weight_suitable = True
+                                patient_weight = getattr(patient, 'weight', None)
+                                if patient_weight and criteria.min_weight_kg and patient_weight < criteria.min_weight_kg:
+                                    weight_suitable = False
+                                if patient_weight and criteria.max_weight_kg and patient_weight > criteria.max_weight_kg:
+                                    weight_suitable = False
+                                
+                                if age_suitable and weight_suitable:
+                                    suitable_regimens.append(regimen)
+                                    break
+                    else:
+                        # Если нет информации о пациенте, берем все схемы
+                        suitable_regimens = list(regimens)
+                    
+                    # Собираем информацию о схемах
+                    regimens_info = []
+                    for regimen in suitable_regimens:
+                        dosing_instruction = DosingInstruction.objects.filter(regimen=regimen).first()
+                        if dosing_instruction:
+                            regimen_info = {
+                                'id': regimen.id,
+                                'name': regimen.name,
+                                'notes': regimen.notes or '',
+                                'dosage': dosing_instruction.dose_description,
+                                'frequency': dosing_instruction.frequency_description,
+                                'route': dosing_instruction.route.name if dosing_instruction.route else 'oral',
+                                'duration': dosing_instruction.duration_description,
+                                'instructions': regimen.notes or ''
+                            }
+                            regimens_info.append(regimen_info)
+                    
+                    form_info = {
+                        'id': tn.id,
+                        'name': tn.name,
+                        'group': tn.medication_group.name if tn.medication_group else None,
+                        'release_form': {
+                            'name': tn.release_form.name if tn.release_form else None,
+                            'description': tn.release_form.description if tn.release_form else None
+                        } if tn.release_form else None,
+                        'external_url': tn.external_info_url or medication.external_info_url or '',
+                        'atc_code': tn.atc_code,
+                        'regimens': regimens_info  # Добавляем схемы применения
+                    }
+                    available_forms.append(form_info)
+                
+                medication_info['available_forms'] = available_forms
+                
+                # Если есть торговые названия, используем первое для получения дополнительной информации
+                first_trade_name = trade_names.first()
+                if first_trade_name:
+                    medication_info.update({
+                        'trade_name': first_trade_name.name,
+                        'generic_concept': first_trade_name.medication.name,
+                        'external_url': first_trade_name.external_info_url or medication.external_info_url or '',
+                        'medication_form': getattr(first_trade_name.release_form, 'name', '') if first_trade_name.release_form else medication_info['medication_form'],
+                        'selected_form_id': first_trade_name.id  # ID выбранной формы по умолчанию
+                    })
+                    
+                    # Добавляем схемы для первой формы по умолчанию
+                    if available_forms and available_forms[0]['regimens']:
+                        first_regimen = available_forms[0]['regimens'][0]
+                        medication_info.update({
+                            'dosage': first_regimen['dosage'],
+                            'frequency': first_regimen['frequency'],
+                            'route': first_regimen['route'],
+                            'duration': first_regimen['duration'],
+                            'instructions': first_regimen['instructions']
+                        })
+            else:
+                # Если торговых наименований нет, используем базовую информацию
+                medication_info.update({
+                    'trade_name': None,
+                    'generic_concept': medication.name,
+                    'available_forms': []
+                })
+            
+            # Получаем стандартные дозировки из pharmacy app с учетом пациента
+            from pharmacy.models import Regimen, DosingInstruction, PopulationCriteria
+            from datetime import date
+            
+            if patient and patient.birth_date:
+                # Вычисляем возраст пациента в днях
+                age_days = (date.today() - patient.birth_date).days
+                
+                # Ищем схемы с подходящими возрастными критериями
+                suitable_regimens = []
+                
+                regimens_with_instructions = Regimen.objects.filter(
+                    medication=medication,
+                    dosing_instructions__isnull=False
+                ).distinct()
+                
+                for regimen in regimens_with_instructions:
+                    # Проверяем критерии населения для этой схемы
+                    population_criteria = PopulationCriteria.objects.filter(regimen=regimen)
+                    
+                    if not population_criteria.exists():
+                        # Если нет критериев, считаем подходящим
+                        suitable_regimens.append(regimen)
+                        continue
+                    
+                    for criteria in population_criteria:
+                        # Проверяем возрастные критерии
+                        age_suitable = True
+                        if criteria.min_age_days and age_days < criteria.min_age_days:
+                            age_suitable = False
+                        if criteria.max_age_days and age_days > criteria.max_age_days:
+                            age_suitable = False
+                        
+                        # Проверяем весовые критерии (если есть)
+                        weight_suitable = True
+                        patient_weight = getattr(patient, 'weight', None)
+                        if patient_weight and criteria.min_weight_kg and patient_weight < criteria.min_weight_kg:
+                            weight_suitable = False
+                        if patient_weight and criteria.max_weight_kg and patient_weight > criteria.max_weight_kg:
+                            weight_suitable = False
+                        
+                        if age_suitable and weight_suitable:
+                            suitable_regimens.append(regimen)
+                            break
+                
+                # Если нашли подходящие схемы, берем первую
+                if suitable_regimens:
+                    regimen = suitable_regimens[0]
+                else:
+                    # Если не нашли подходящих, берем первую доступную
+                    regimen = regimens_with_instructions.first()
+            else:
+                # Если нет информации о пациенте, берем первую схему
+                regimens_with_instructions = Regimen.objects.filter(
+                    medication=medication,
+                    dosing_instructions__isnull=False
+                ).distinct()
+                regimen = regimens_with_instructions.first() if regimens_with_instructions.exists() else None
+            
+            if regimen:
+                dosing_instruction = DosingInstruction.objects.filter(regimen=regimen).first()
+                if dosing_instruction:
+                    medication_info.update({
+                        'dosage': dosing_instruction.dose_description,
+                        'frequency': dosing_instruction.frequency_description,
+                        'route': dosing_instruction.route.name if dosing_instruction.route else 'oral',
+                        'duration': dosing_instruction.duration_description,
+                        'instructions': regimen.notes or ''
+                    })
+            
+            return JsonResponse({
+                'success': True,
+                'medication': medication_info
+            })
+            
+        except Medication.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Препарат не найден'
+            }, status=404)
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class TradeNameInfoView(View):
+    """AJAX endpoint для получения информации о конкретной торговой форме препарата"""
     
-    # Получаем информацию о лекарстве
-    medication_info = TreatmentMedicationService.get_medication_info(medication_id, patient, trade_name_id)
-    
-    if medication_info:
-        return JsonResponse({
-            'success': True,
-            'medication': medication_info
-        })
-    else:
-        return JsonResponse({
-            'success': False,
-            'error': 'Medication not found'
-        })
+    def get(self, request, trade_name_id):
+        try:
+            from pharmacy.models import TradeName
+            trade_name = TradeName.objects.select_related('release_form', 'medication_group', 'medication').get(pk=trade_name_id)
+            
+            # Получаем информацию о пациенте из параметров запроса
+            patient_id = request.GET.get('patient_id')
+            patient = None
+            if patient_id:
+                from patients.models import Patient
+                try:
+                    patient = Patient.objects.get(pk=patient_id)
+                except Patient.DoesNotExist:
+                    pass
+            
+            # Получаем информацию о торговой форме
+            form_info = {
+                'id': trade_name.id,
+                'name': trade_name.name,
+                'medication_name': trade_name.medication.name,
+                'group': trade_name.medication_group.name if trade_name.medication_group else None,
+                'release_form': {
+                    'name': trade_name.release_form.name if trade_name.release_form else None,
+                    'description': trade_name.release_form.description if trade_name.release_form else None
+                } if trade_name.release_form else None,
+                'external_url': trade_name.external_info_url or trade_name.medication.external_info_url or '',
+                'atc_code': trade_name.atc_code,
+                'dosage': '',
+                'frequency': '',
+                'route': 'oral',
+                'duration': '',
+                'instructions': ''
+            }
+            
+            # Получаем все доступные схемы применения для этой формы
+            from pharmacy.models import Regimen, DosingInstruction, PopulationCriteria
+            from datetime import date
+            
+            # Получаем все схемы для этого препарата
+            all_regimens = Regimen.objects.filter(
+                medication=trade_name.medication,
+                dosing_instructions__isnull=False
+            ).distinct()
+            
+            # Собираем информацию о всех схемах
+            all_regimens_info = []
+            suitable_regimens = []
+            
+            for regimen in all_regimens:
+                dosing_instruction = DosingInstruction.objects.filter(regimen=regimen).first()
+                if dosing_instruction:
+                    regimen_info = {
+                        'id': regimen.id,
+                        'name': regimen.name,
+                        'notes': regimen.notes or '',
+                        'dosage': dosing_instruction.dose_description,
+                        'frequency': dosing_instruction.frequency_description,
+                        'route': dosing_instruction.route.name if dosing_instruction.route else 'oral',
+                        'duration': dosing_instruction.duration_description,
+                        'instructions': regimen.notes or '',
+                        'is_suitable': False  # Будем определять пригодность ниже
+                    }
+                    all_regimens_info.append(regimen_info)
+                    
+                    # Проверяем пригодность для пациента
+                    if patient and patient.birth_date:
+                        age_days = (date.today() - patient.birth_date).days
+                        
+                        # Проверяем критерии населения для этой схемы
+                        population_criteria = PopulationCriteria.objects.filter(regimen=regimen)
+                        
+                        if not population_criteria.exists():
+                            # Если нет критериев, считаем подходящим
+                            suitable_regimens.append(regimen_info)
+                            regimen_info['is_suitable'] = True
+                            continue
+                        
+                        for criteria in population_criteria:
+                            # Проверяем возрастные критерии
+                            age_suitable = True
+                            if criteria.min_age_days and age_days < criteria.min_age_days:
+                                age_suitable = False
+                            if criteria.max_age_days and age_days > criteria.max_age_days:
+                                age_suitable = False
+                            
+                            # Проверяем весовые критерии (если есть)
+                            weight_suitable = True
+                            patient_weight = getattr(patient, 'weight', None)
+                            if patient_weight and criteria.min_weight_kg and patient_weight < criteria.min_weight_kg:
+                                weight_suitable = False
+                            if patient_weight and criteria.max_weight_kg and patient_weight > criteria.max_weight_kg:
+                                weight_suitable = False
+                            
+                            if age_suitable and weight_suitable:
+                                suitable_regimens.append(regimen_info)
+                                regimen_info['is_suitable'] = True
+                                break
+                    else:
+                        # Если нет информации о пациенте, считаем все подходящими
+                        suitable_regimens.append(regimen_info)
+                        regimen_info['is_suitable'] = True
+            
+            # Добавляем все схемы в информацию о форме
+            form_info['all_regimens'] = all_regimens_info
+            form_info['suitable_regimens'] = suitable_regimens
+            
+            # Если есть подходящие схемы, используем первую для заполнения полей по умолчанию
+            if suitable_regimens:
+                first_suitable = suitable_regimens[0]
+                form_info.update({
+                    'dosage': first_suitable['dosage'],
+                    'frequency': first_suitable['frequency'],
+                    'route': first_suitable['route'],
+                    'duration': first_suitable['duration'],
+                    'instructions': first_suitable['instructions'],
+                    'selected_regimen_id': first_suitable['id']
+                })
+            elif all_regimens_info:
+                # Если нет подходящих, используем первую доступную
+                first_available = all_regimens_info[0]
+                form_info.update({
+                    'dosage': first_available['dosage'],
+                    'frequency': first_available['frequency'],
+                    'route': first_available['route'],
+                    'duration': first_available['duration'],
+                    'instructions': first_available['instructions'],
+                    'selected_regimen_id': first_available['id']
+                })
+            
+            return JsonResponse({
+                'success': True,
+                'form_info': form_info
+            })
+            
+        except TradeName.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Торговая форма не найдена'
+            }, status=404)
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)

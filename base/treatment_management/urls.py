@@ -45,6 +45,10 @@ urlpatterns = [
     
     # AJAX endpoints
     path('api/medication-info/<int:medication_id>/', 
-         views.medication_info_view, 
+         views.MedicationInfoView.as_view(), 
          name='medication_info'),
+    
+    path('api/trade-name-info/<int:trade_name_id>/', 
+         views.TradeNameInfoView.as_view(), 
+         name='trade_name_info'),
 ] 

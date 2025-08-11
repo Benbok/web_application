@@ -48,7 +48,7 @@ def medication_detail_api(request, pk):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class MedicationAjaxSearchView(View):
-    """AJAX endpoint для поиска препаратов по МНН и торговым названиям"""
+    """AJAX endpoint для поиска препаратов с использованием нового MedicationSearchService"""
     
     def get(self, request, *args, **kwargs):
         query = request.GET.get('q', '')
@@ -60,35 +60,32 @@ class MedicationAjaxSearchView(View):
                 'pagination': {'more': False}
             })
         
-        from django.db.models import Q
+        # Используем новый сервис для поиска
+        from .services import MedicationSearchService
         
-        # Поиск по МНН и торговым названиям
-        medications = Medication.objects.filter(
-            Q(name__icontains=query) |  # Поиск по МНН
-            Q(trade_names__name__icontains=query)  # Поиск по торговым названиям
-        ).distinct().order_by('name')[:20]
+        # Ищем торговые продукты (основной поиск)
+        trade_products = MedicationSearchService.search(query, limit=20)
         
         results = []
-        for medication in medications:
-            # Получаем торговые названия для этого препарата
-            trade_names = medication.trade_names.filter(name__icontains=query)
-            
-            if trade_names.exists():
-                # Если найдены торговые названия, показываем их
-                for trade_name in trade_names:
-                    results.append({
-                        'id': medication.pk,
-                        'text': f"{trade_name.name} ({medication.name})",
-                        'trade_name_id': trade_name.pk,  # Добавляем ID торгового наименования
-                        'trade_name': trade_name.name,   # Добавляем название торгового наименования
-                    })
-            else:
-                # Если поиск был по МНН, показываем МНН
+        for product in trade_products:
+            results.append({
+                'id': product.pk,
+                'text': f"{product.trade_name} ({product.generic_concept.name})",
+                'trade_name_id': product.pk,  # ID торгового продукта
+                'trade_name': product.trade_name,
+                'generic_concept': product.generic_concept.name,
+            })
+        
+        # Если торговых продуктов мало, добавляем МНН
+        if len(results) < 10:
+            generics = MedicationSearchService.search_generics(query, limit=10)
+            for generic in generics:
                 results.append({
-                    'id': medication.pk,
-                    'text': f"{medication.name}",
-                    'trade_name_id': None,  # Нет торгового наименования
+                    'id': generic.pk,
+                    'text': f"{generic.name} (МНН)",
+                    'trade_name_id': None,
                     'trade_name': None,
+                    'generic_concept': generic.name,
                 })
         
         return JsonResponse({

@@ -1,0 +1,510 @@
+# pharmacy/data/pharmacy_data.yaml
+# Данные для загрузки через кастомный скрипт
+
+# --- Справочники ---
+medication_groups:
+  - name: "Антибиотик группы аминогликозидов"
+    description: "Группа бактерицидных антибиотиков III поколения широкого спектра действия."
+
+release_forms:
+  - name: "Порошок для приготовления раствора для в/в и в/м введения"
+    description: "Белый или почти белый гигроскопичный кристаллический порошок."
+
+administration_methods:
+  - name: "Внутривенно (капельно)"
+  - name: "Внутримышечно"
+
+# --- Основные сущности ---
+medications: # Справочник МНН
+  - name: "Амикацин"
+    medication_form: "powder"
+    is_active: true
+
+trade_names: # Конкретные торговые продукты
+  - name: "Амикацин"
+    medication_name: "Амикацин" # Связь с МНН по имени
+    group_name: "Антибиотик группы аминогликозидов" # Связь с группой по имени
+    release_form_name: "Порошок для приготовления раствора для в/в и в/м введения" # Связь с формой по имени
+    atc_code: "J01GB06"
+    external_info_url: "https://www.vidal.ru/drugs/amikacin__45105"
+
+# --- Схемы применения ---
+regimens:
+  - medication_name: "Амикацин" # К какому МНН относится схема
+    name: "Стандартная терапия при тяжелых инфекциях"
+    notes: "Дозу рассчитывают исходя из массы тела пациента. Лечение продолжают в течение 7-10 дней. При неосложненных инфекциях, вызванных чувствительными микроорганизмами, положительный эффект наблюдается через 24-48 ч."
+    indications: # Связь с диагнозами по коду МКБ-10
+      - "A40"
+      - "A41"
+      - "G00"
+      - "I33"
+      - "J15"
+      - "J85"
+      - "J86"
+      - "K65.0"
+      - "K81.0"
+      - "K81.1"
+      - "K83.0"
+      - "L01"
+      - "L02"
+      - "L03"
+      - "L08.0"
+      - "L08.8"
+      - "M00"
+      - "M86"
+      - "N10"
+      - "N11"
+      - "N30"
+      - "N34"
+      - "T79.3"
+    population_criteria:
+      - name: "Взрослые и дети старше 12 лет"
+        min_age_days: 4380
+    dosing_instructions:
+      - dose_type: "MAINTENANCE"
+        dose_description: "5 мг/кг"
+        frequency_description: "каждые 8 часов"
+        duration_description: "7-10 дней"
+        route: "Внутримышечно"
+      - dose_type: "MAINTENANCE"
+        dose_description: "7.5 мг/кг"
+        frequency_description: "каждые 12 часов"
+        duration_description: "7-10 дней"
+        route: "Внутримышечно"
+
+  - medication_name: "Амикацин"
+    name: "Терапия для новорожденных и детей"
+    notes: "Для новорожденных и недоношенных детей применяется нагрузочная доза, затем поддерживающая."
+    indications:
+      - "P36"
+      - "G00"
+      - "J15"
+      - "M86"
+    population_criteria:
+      - name: "Новорожденные"
+        min_age_days: 0
+        max_age_days: 28
+      - name: "Дети (от 4 недель до 12 лет)"
+        min_age_days: 29
+        max_age_days: 4379
+    dosing_instructions:
+      - dose_type: "LOADING"
+        dose_description: "10 мг/кг"
+        frequency_description: "Однократно"
+        duration_description: "В начале терапии"
+        route: "Внутривенно (капельно)"
+      - dose_type: "MAINTENANCE"
+        dose_description: "7.5 мг/кг"
+        frequency_description: "каждые 12 часов"
+        duration_description: "Согласно клиническим показаниям"
+        route: "Внутривенно (капельно)"
+
+  - medication_name: "Амикацин"
+    name: "Корректировка дозы при почечной недостаточности"
+    notes: "Пациентам с почечной недостаточностью требуется снижение дозы или увеличение интервалов между введениями."
+    indications: ["A40", "A41", "J15", "N10", "N11", "N30", "N34"]
+    population_criteria:
+      - name: "Пациенты с нарушением функции почек"
+    adjustments:
+      - condition: "КК (клиренс креатинина) 50-90 мл/мин"
+        adjustment_description: "Вводить 7.5 мг/кг каждые 12 часов"
+      - condition: "КК (клиренс креатинина) 10-50 мл/мин"
+        adjustment_description: "Вводить 7.5 мг/кг каждые 24-48 часов"
+
+# pharmacy/data/ceftriaxone_data.yaml
+# Данные для загрузки через кастомный скрипт с актуальными кодами МКБ-10
+
+# --- Справочники ---
+medication_groups:
+  - name: "Цефалоспорин III поколения"
+    description: "Группа бета-лактамных антибиотиков широкого спектра действия."
+
+release_forms:
+  - name: "Порошок для приготовления раствора для в/в и в/м введения"
+    description: "Кристаллический порошок, почти белый или желтоватый."
+
+administration_methods:
+  - name: "Внутривенно (капельно)"
+  - name: "Внутримышечно"
+
+# --- Основные сущности ---
+medications: # Справочник МНН
+  - name: "Цефтриаксон"
+    atc_code: "J01DD04"
+    medication_form: "powder"
+    is_active: true
+
+trade_names: # Конкретные торговые продукты
+  - name: "Цефтриаксон"
+    medication_name: "Цефтриаксон"
+    group_name: "Цефалоспорин III поколения"
+    release_form_name: "Порошок для приготовления раствора для в/в и в/м введения"
+    atc_code: "J01DD04"
+    external_info_url: "https://www.vidal.ru/drugs/ceftriaxone-1"
+
+# --- Схемы применения ---
+regimens:
+  - medication_name: "Цефтриаксон"
+    name: "Стандартная терапия (Взрослые и дети старше 12 лет)"
+    notes: "Стандартная доза для большинства инфекций. При тяжелых случаях, таких как менингит, доза может быть увеличена."
+    indications: # ОБНОВЛЕНО: Полный список кодов для общей терапии
+      - "A01"
+      - "A02"
+      - "A03"
+      - "A40"
+      - "A41"
+      - "G00"
+      - "J15"
+      - "J85"
+      - "J86"
+      - "K65.0"
+      - "K81.0"
+      - "K81.1"
+      - "K83.0"
+      - "L01"
+      - "L02"
+      - "L03"
+      - "L08.0"
+      - "L08.8"
+      - "M00"
+      - "M86"
+      - "N10"
+      - "N11"
+      - "N30"
+      - "N34"
+      - "N41"
+      - "N70"
+      - "N71"
+      - "N72"
+      - "N73.5"
+      - "T79.3"
+      - "Z22.0"
+    population_criteria:
+      - name: "Взрослые и дети старше 12 лет"
+        min_age_days: 4380
+        min_weight_kg: 50.0
+    dosing_instructions:
+      - dose_type: "MAINTENANCE"
+        dose_description: "1-2 г"
+        frequency_description: "1 раз в сутки"
+        duration_description: "В зависимости от течения заболевания"
+        route: "Внутривенно (капельно)"
+      - dose_type: "MAINTENANCE"
+        dose_description: "1-2 г"
+        frequency_description: "1 раз в сутки"
+        duration_description: "В зависимости от течения заболевания"
+        route: "Внутримышечно"
+
+  - medication_name: "Цефтриаксон"
+    name: "Терапия для новорожденных и детей до 12 лет"
+    notes: "Дозировка для детей зависит от возраста и массы тела."
+    indications: # ОБНОВЛЕНО: Коды, релевантные для педиатрии
+      - "A41"
+      - "G00"
+      - "J15"
+      - "M86"
+      - "P36"
+    population_criteria:
+      - name: "Новорожденные (до 2 недель)"
+        min_age_days: 0
+        max_age_days: 14
+      - name: "Грудные дети и дети младшего возраста (с 15 дня до 12 лет)"
+        min_age_days: 15
+        max_age_days: 4379
+    dosing_instructions:
+      - dose_type: "MAINTENANCE"
+        dose_description: "20-50 мг/кг"
+        frequency_description: "1 раз в сутки"
+        duration_description: "Согласно клиническим показаниям"
+        route: "Внутривенно (капельно)"
+
+  - medication_name: "Цефтриаксон"
+    name: "Профилактика послеоперационных инфекций"
+    notes: "Однократное введение за 30-90 минут до предполагаемого разреза."
+    indications: # ОБНОВЛЕНО: Точный код для профилактической химиотерапии
+      - "Z29.2"
+    population_criteria:
+      - name: "Пациенты перед оперативным вмешательством"
+    dosing_instructions:
+      - dose_type: "SINGLE"
+        dose_description: "1 г"
+        frequency_description: "Однократно"
+        duration_description: "За 30-90 мин до операции"
+        route: "Внутривенно (капельно)"
+
+# pharmacy/data/sulbacin_data.yaml
+# Данные для загрузки препарата Сульбацин (Ампициллин + Сульбактам)
+
+# --- Справочники ---
+medication_groups:
+  - name: "Антибиотик группы пенициллинов с ингибитором бета-лактамаз"
+    description: "Комбинированный антибактериальный препарат, состоящий из полусинтетического пенициллина и ингибитора бета-лактамаз."
+
+release_forms:
+  # Используем существующую запись "Порошок для приготовления раствора для в/в и в/м введения"
+  # Новая не требуется
+
+administration_methods:
+  # Используем существующие "Внутривенно (капельно)" и "Внутримышечно"
+  # Новая не требуется
+
+# --- Основные сущности ---
+medications: # Справочник МНН
+  - name: "Ампициллин + Сульбактам"
+    atc_code: "J01CR01"
+    medication_form: "powder"
+    is_active: true
+    external_info_url: "https://www.vidal.ru/drugs/sulbacin__4015"
+
+trade_names: # Конкретные торговые продукты
+  - name: "Сульбацин®"
+    medication_name: "Ампициллин + Сульбактам"
+    group_name: "Антибиотик группы пенициллинов с ингибитором бета-лактамаз"
+    release_form_name: "Порошок для приготовления раствора для в/в и в/м введения"
+    atc_code: "J01CR01"
+    external_info_url: "https://www.vidal.ru/drugs/sulbacin__4015"
+
+# --- Схемы применения ---
+regimens:
+  - medication_name: "Ампициллин + Сульбактам"
+    name: "Стандартная терапия (Взрослые)"
+    notes: "Доза зависит от тяжести течения инфекции. Курс лечения 5-14 дней. После нормализации температуры лечение продолжают еще 48 ч."
+    indications:
+      - "A02"
+      - "A03"
+      - "A09"
+      - "A38"
+      - "A40"
+      - "A41"
+      - "A46"
+      - "G00"
+      - "H66"
+      - "I33"
+      - "J01"
+      - "J02"
+      - "J03"
+      - "J04"
+      - "J15"
+      - "J20"
+      - "J31.2"
+      - "J32"
+      - "J37"
+      - "J42"
+      - "J85"
+      - "J86"
+      - "K65.0"
+      - "K81.0"
+      - "K81.1"
+      - "K83.0"
+      - "L01"
+      - "L02"
+      - "L03"
+      - "L08.0"
+      - "L08.8"
+      - "L30.3"
+      - "M00"
+      - "M86"
+      - "N10"
+      - "N11"
+      - "N30"
+      - "N34"
+      - "N37.0"
+      - "N41"
+      - "N70"
+      - "N71"
+      - "N72"
+      - "N73.5"
+      - "T79.3"
+      - "Z22.1"
+    population_criteria:
+      - name: "Взрослые"
+    dosing_instructions:
+      - dose_type: "MAINTENANCE"
+        dose_description: "1.5-3 г"
+        frequency_description: "каждые 12 часов"
+        duration_description: "5-14 дней"
+        route: "Внутривенно (капельно)"
+      - dose_type: "MAINTENANCE"
+        dose_description: "1.5-3 г"
+        frequency_description: "каждые 12 часов"
+        duration_description: "5-14 дней"
+        route: "Внутримышечно"
+
+  - medication_name: "Ампициллин + Сульбактам"
+    name: "Терапия для детей"
+    notes: "Суточная доза рассчитывается исходя из массы тела."
+    indications:
+      - "A40"
+      - "A41"
+      - "G00"
+      - "J15"
+      - "M86"
+    population_criteria:
+      - name: "Дети с массой тела < 40 кг"
+        max_weight_kg: 39.9
+      - name: "Дети с массой тела ≥ 40 кг"
+        min_weight_kg: 40.0
+    dosing_instructions:
+      - dose_type: "MAINTENANCE"
+        dose_description: "150 мг/кг/сутки"
+        frequency_description: "разделенная на 3-4 введения"
+        duration_description: "Согласно клиническим показаниям"
+        route: "Внутривенно (капельно)"
+      - dose_type: "MAINTENANCE"
+        dose_description: "Применять дозы для взрослых"
+        frequency_description: "каждые 6-8 часов"
+        duration_description: "Согласно клиническим показаниям"
+        route: "Внутривенно (капельно)"
+
+  - medication_name: "Ампициллин + Сульбактам"
+    name: "Терапия неосложненной гонореи"
+    notes: "Однократное введение препарата."
+    indications:
+      - "A54"
+      - "N74.3"
+    population_criteria:
+      - name: "Взрослые"
+    dosing_instructions:
+      - dose_type: "SINGLE"
+        dose_description: "1.5 г"
+        frequency_description: "Однократно"
+        duration_description: "Один раз"
+        route: "Внутримышечно"
+
+  - medication_name: "Ампициллин + Сульбактам"
+    name: "Корректировка дозы при почечной недостаточности"
+    notes: "Требуется увеличение интервалов между введениями в зависимости от клиренса креатинина (КК)."
+    indications: ["N10", "N11", "N30", "N34"]
+    population_criteria:
+      - name: "Пациенты с нарушением функции почек"
+    adjustments:
+      - condition: "КК ≥ 30 мл/мин"
+        adjustment_description: "Интервал 6-8 часов (стандартный)"
+      - condition: "КК 15-29 мл/мин"
+        adjustment_description: "Интервал 12 часов"
+      - condition: "КК 5-14 мл/мин"
+        adjustment_description: "Интервал 24 часа"
+
+# pharmacy/data/viferon_data.yaml
+# Данные для загрузки препарата Виферон (Интерферон альфа-2b)
+
+# --- Справочники ---
+medication_groups:
+  - name: "Иммуномодулирующий препарат с противовирусным действием"
+    description: "Цитокин. Препараты, содержащие интерферон альфа-2b, обладают противовирусными, иммуномодулирующими, антипролиферативными свойствами."
+
+release_forms:
+  - name: "Суппозитории ректальные"
+    description: "Суппозитории пулевидной формы, от бело-желтого до желтого цвета, однородной консистенции."
+  - name: "Гель для местного и наружного применения"
+    description: "Гелеобразная, однородная, вязкая масса белого цвета с сероватым оттенком."
+
+administration_methods:
+  - name: "Ректально"
+  - name: "Местно (на слизистые)"
+  - name: "Наружно (на кожу)"
+
+# --- Основные сущности ---
+medications: # Справочник МНН
+  - name: "Интерферон альфа-2b"
+    atc_code: "L03AB05"
+    medication_form: "suppository" # Основная форма - суппозитории
+    is_active: true
+    external_info_url: "https://www.vidal.ru/drugs/viferon__17497"
+
+trade_names: # Разные формы одного торгового продукта
+  - name: "Виферон® (суппозитории)"
+    medication_name: "Интерферон альфа-2b"
+    group_name: "Иммуномодулирующий препарат с противовирусным действием"
+    release_form_name: "Суппозитории ректальные"
+    atc_code: "L03AB05"
+    external_info_url: "https://www.vidal.ru/drugs/viferon__17497"
+  - name: "Виферон® (гель)"
+    medication_name: "Интерферон альфа-2b"
+    group_name: "Иммуномодулирующий препарат с противовирусным действием"
+    release_form_name: "Гель для местного и наружного применения"
+    atc_code: "L03AB05"
+    external_info_url: "https://www.vidal.ru/drugs/viferon__17497"
+
+# --- Схемы применения ---
+regimens:
+  - medication_name: "Интерферон альфа-2b"
+    name: "ОРВИ, грипп, пневмония (Суппозитории, Взрослые и дети > 7 лет)"
+    notes: "Применяется в составе комплексной терапии."
+    indications: ["J06.9", "J10", "J15", "J20", "J42"]
+    population_criteria:
+      - name: "Взрослые и дети старше 7 лет"
+        min_age_days: 2555 # 7 лет
+    dosing_instructions:
+      - dose_type: "MAINTENANCE"
+        dose_description: "500 000 МЕ"
+        frequency_description: "2 раза в сутки (каждые 12 часов)"
+        duration_description: "5-10 суток"
+        route: "Ректально"
+
+  - medication_name: "Интерферон альфа-2b"
+    name: "ОРВИ, грипп, пневмония (Суппозитории, Дети < 7 лет)"
+    notes: "Применяется в составе комплексной терапии. Перерыв между курсами составляет 5 суток."
+    indications: ["J06.9", "J10", "J15", "J20"]
+    population_criteria:
+      - name: "Дети до 7 лет (включая новорожденных > 34 нед. гестации)"
+        min_age_days: 0
+        max_age_days: 2554
+    dosing_instructions:
+      - dose_type: "MAINTENANCE"
+        dose_description: "150 000 МЕ"
+        frequency_description: "2 раза в сутки (каждые 12 часов)"
+        duration_description: "5 суток"
+        route: "Ректально"
+
+  - medication_name: "Интерферон альфа-2b"
+    name: "Герпетическая инфекция (Суппозитории, Взрослые)"
+    notes: "Рекомендуется начинать лечение сразу при появлении первых признаков заболевания."
+    indications: ["A60", "B00", "B02", "N72"]
+    population_criteria:
+      - name: "Взрослые"
+    dosing_instructions:
+      - dose_type: "MAINTENANCE"
+        dose_description: "1 000 000 МЕ"
+        frequency_description: "2 раза в сутки (каждые 12 часов)"
+        duration_description: "10 суток и более"
+        route: "Ректально"
+
+  - medication_name: "Интерферон альфа-2b"
+    name: "ОРВИ, грипп (Гель, Лечение)"
+    notes: "Полоску геля длиной не более 0.5 см наносят на слизистую носа и/или миндалины."
+    indications: ["J06.9", "J10"]
+    population_criteria:
+      - name: "Взрослые и дети"
+    dosing_instructions:
+      - dose_type: "MAINTENANCE"
+        dose_description: "Полоска геля 0.5 см (36 000 МЕ)"
+        frequency_description: "3-5 раз в сутки"
+        duration_description: "5 дней"
+        route: "Местно (на слизистые)"
+        
+  - medication_name: "Интерферон альфа-2b"
+    name: "ОРВИ, грипп (Гель, Профилактика)"
+    notes: "В период подъема заболеваемости."
+    indications: ["Z29.8"] # Другие уточненные профилактические меры
+    population_criteria:
+      - name: "Взрослые и дети"
+    dosing_instructions:
+      - dose_type: "MAINTENANCE"
+        dose_description: "Полоска геля 0.5 см (36 000 МЕ)"
+        frequency_description: "2 раза в сутки"
+        duration_description: "2-4 недели"
+        route: "Местно (на слизистые)"
+        
+  - medication_name: "Интерферон альфа-2b"
+    name: "Герпетический цервицит (Гель)"
+    notes: "Гель наносят на предварительно очищенную от слизи поверхность шейки матки."
+    indications: ["N72", "A60"]
+    population_criteria:
+      - name: "Взрослые"
+    dosing_instructions:
+      - dose_type: "MAINTENANCE"
+        dose_description: "1 мл геля"
+        frequency_description: "2 раза в сутки"
+        duration_description: "7-14 дней"
+        route: "Местно (на слизистые)"

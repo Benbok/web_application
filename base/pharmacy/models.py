@@ -9,49 +9,254 @@ from patients.models import Patient
 class MedicationGroup(models.Model):
     name = models.CharField(max_length=150, unique=True, verbose_name=_("Название группы"))
     description = models.TextField(blank=True, null=True, verbose_name=_("Описание группы"))
+    
     class Meta:
         verbose_name = _("Группа препаратов")
         verbose_name_plural = _("Группы препаратов")
         ordering = ['name']
+    
     def __str__(self):
         return self.name
+    
+    @classmethod
+    def get_or_create_smart(cls, name, description=None):
+        """
+        Умный метод для получения или создания группы препаратов.
+        Автоматически создает новую группу, если она не существует.
+        """
+        try:
+            group = cls.objects.get(name=name)
+            return group, False
+        except cls.DoesNotExist:
+            group = cls.objects.create(
+                name=name,
+                description=description or f"Автоматически созданная группа: {name}"
+            )
+            return group, True
 
 class ReleaseForm(models.Model):
     name = models.CharField(max_length=100, unique=True, verbose_name=_("Название формы выпуска"))
     description = models.TextField(blank=True, null=True, verbose_name=_("Описание формы выпуска"))
+    
     class Meta:
         verbose_name = _("Форма выпуска")
         verbose_name_plural = _("Формы выпуска")
         ordering = ['name']
+    
     def __str__(self):
         return self.name
+    
+    @classmethod
+    def get_or_create_smart(cls, name, description=None):
+        """
+        Умный метод для получения или создания формы выпуска.
+        Автоматически создает новую форму, если она не существует.
+        """
+        try:
+            form = cls.objects.get(name=name)
+            return form, False
+        except cls.DoesNotExist:
+            form = cls.objects.create(
+                name=name,
+                description=description or f"Автоматически созданная форма выпуска: {name}"
+            )
+            return form, True
 
 class AdministrationMethod(models.Model):
     name = models.CharField(max_length=100, unique=True, verbose_name=_("Название способа введения"))
     description = models.TextField(blank=True, null=True, verbose_name=_("Описание способа введения"))
+    
     class Meta:
         verbose_name = _("Способ введения")
         verbose_name_plural = _("Способы введения")
         ordering = ['name']
+    
     def __str__(self):
         return self.name
+    
+    @classmethod
+    def get_or_create_smart(cls, name, description=None):
+        """
+        Умный метод для получения или создания способа введения.
+        Автоматически создает новый способ, если он не существует.
+        
+        Args:
+            name (str): Название способа введения
+            description (str, optional): Описание способа введения
+            
+        Returns:
+            tuple: (AdministrationMethod, created) - объект и флаг создания
+        """
+        try:
+            # Пытаемся найти существующий способ
+            method = cls.objects.get(name=name)
+            return method, False
+        except cls.DoesNotExist:
+            # Если не найден - создаем новый
+            method = cls.objects.create(
+                name=name,
+                description=description or f"Автоматически созданный способ введения: {name}"
+            )
+            return method, True
+
+class MedicationQuerySet(models.QuerySet):
+    """Набор кастомных методов для фильтрации."""
+    
+    def active(self):
+        """Возвращает только активные препараты."""
+        return self.filter(is_active=True)
+
+    def generics(self):
+        """Возвращает только МНН/концепты."""
+        return self.filter(generic_concept__isnull=True)
+
+    def trade_products(self):
+        """Возвращает только торговые препараты."""
+        return self.filter(generic_concept__isnull=False)
+
+    def by_generic(self, generic_name):
+        """Найти все торговые продукты по МНН."""
+        return self.filter(generic_concept__name=generic_name)
+
+    def with_forms(self, *forms):
+        """Фильтр по лекарственным формам."""
+        return self.filter(medication_form__in=forms)
+
+    def by_code_system(self, code_system):
+        """Фильтр по системе кодирования."""
+        return self.filter(code_system=code_system)
+
+
+class MedicationManager(models.Manager):
+    """Кастомный менеджер для модели."""
+    
+    def get_queryset(self):
+        return MedicationQuerySet(self.model, using=self._db)
+
+    # Добавляем прямые доступы к методам QuerySet
+    def active(self):
+        return self.get_queryset().active()
+        
+    def generics(self):
+        return self.get_queryset().generics()
+        
+    def trade_products(self):
+        return self.get_queryset().trade_products()
+        
+    def by_generic(self, generic_name):
+        return self.get_queryset().by_generic(generic_name)
+        
+    def with_forms(self, *forms):
+        return self.get_queryset().with_forms(*forms)
+        
+    def by_code_system(self, code_system):
+        return self.get_queryset().by_code_system(code_system)
+
 
 class Medication(models.Model):
     """
     Модель-справочник. Хранит только основную информацию о препарате.
     """
+    
+    # Создаем классы для хранения констант
+    class MedicationForm(models.TextChoices):
+        TABLET = 'tablet', _('Таблетки')
+        CAPSULE = 'capsule', _('Капсулы')
+        SOLUTION = 'solution', _('Раствор')
+        OINTMENT = 'ointment', _('Мазь')
+        SUPPOSITORY = 'suppository', _('Суппозитории')
+        GEL = 'gel', _('Гель')
+        CREAM = 'cream', _('Крем')
+        SYRUP = 'syrup', _('Сироп')
+        SUSPENSION = 'suspension', _('Суспензия')
+        POWDER = 'powder', _('Порошок')
+        INJECTION = 'injection', _('Инъекции')
+        DROPS = 'drops', _('Капли')
+        SPRAY = 'spray', _('Спрей')
+        PATCH = 'patch', _('Пластырь')
+        INHALER = 'inhaler', _('Ингалятор')
+
+    class CodeSystem(models.TextChoices):
+        ATC = 'atc', _('АТХ (Анатомо-терапевтическо-химическая классификация)')
+        RXNORM = 'rxnorm', _('RxNorm')
+        SNOMED = 'snomed', _('SNOMED CT')
+        ICD10 = 'icd10', _('МКБ-10')
+        WHO = 'who', _('ВОЗ')
+        LOCAL = 'local', _('Локальная система')
+
+    id = models.AutoField(primary_key=True)
     name = models.CharField("Название препарата (МНН)", max_length=255, unique=True,
                             help_text="Международное непатентованное наименование")
     
+    # Применяем choices к полям
+    medication_form = models.CharField(
+        max_length=100, 
+        choices=MedicationForm.choices,
+        blank=True,
+        verbose_name=_("Лекарственная форма")
+    )
+    code_system = models.CharField(
+        max_length=50, 
+        choices=CodeSystem.choices,
+        default=CodeSystem.ATC,
+        verbose_name=_("Система кодирования")
+    )
+    code = models.CharField(max_length=50, blank=True, verbose_name=_("Код препарата"))
+    
     # Ссылка на внешний источник полной информации
     external_info_url = models.URLField(max_length=500, blank=True, null=True, verbose_name=_("Ссылка на полную информацию о препарате"))
+    
+    # ДОБАВЛЯЕМ ЭТО ПОЛЕ - связь МНН и торговых названий
+    generic_concept = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("Основа (МНН)"),
+        help_text=_("Если это торговый препарат, укажите его действующее вещество (МНН) из этой же таблицы.")
+    )
+    
+    # Добавляем поле для торгового названия
+    trade_name = models.CharField(
+        max_length=255, 
+        blank=True, 
+        null=True,
+        verbose_name=_("Торговое название"),
+        help_text=_("Торговое название препарата (если отличается от МНН)")
+    )
+    
+    # Добавляем поле активности
+    is_active = models.BooleanField(default=True, verbose_name=_("Активен"))
 
     class Meta:
         verbose_name = "Препарат"
         verbose_name_plural = "Препараты"
         ordering = ['name']
+    
+    # Добавляем наш новый менеджер
+    objects = MedicationManager()
 
     def __str__(self):
+        # Немного улучшим строковое представление
+        if self.generic_concept:
+            # Это торговый продукт
+            return f"{self.trade_name} ({self.name})"
+        else:
+            # Это концепт/МНН
+            return self.name
+    
+    def is_generic(self):
+        """Это МНН/действующее вещество?"""
+        return self.generic_concept is None
+
+    def is_trade_product(self):
+        """Это торговый продукт?"""
+        return self.generic_concept is not None
+
+    def get_display_name(self):
+        """Полное название для отображения"""
+        if self.is_trade_product():
+            return f"{self.trade_name} ({self.generic_concept.name})"
         return self.name
 
 class TradeName(models.Model):

@@ -32,10 +32,14 @@ urlpatterns = [
     path('plans/<int:plan_pk>/quick-add/<int:medication_id>/', views.redirect_to_treatment_management, name='quick_add_medication'),
     path('plans/<int:plan_pk>/quick-add-by-name/<str:medication_name>/', views.redirect_to_treatment_management, name='quick_add_medication_by_name'),
     
-    # AJAX endpoints (перенаправляем на treatment_management)
-    path('api/medication-info/<int:medication_id>/', views.redirect_to_treatment_management, name='medication_info'),
+    # AJAX endpoints
+    path('api/medication-info/<int:medication_id>/', views.MedicationInfoView.as_view(), name='medication_info'),
+    path('api/trade-name-info/<int:trade_name_id>/', views.TradeNameInfoView.as_view(), name='trade_name_info'),
     
     # AJAX endpoints для схем лечения
     path('api/treatment-regimens/', views.TreatmentRegimensView.as_view(), name='treatment_regimens'),
     path('api/patient-recommendations/', views.PatientRecommendationsView.as_view(), name='patient_recommendations'),
+    
+    # Тестирование
+    path('test-js/', views.TestJavaScriptView.as_view(), name='test_js'),
 ]

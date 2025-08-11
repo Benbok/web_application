@@ -23,7 +23,7 @@
                 <ul class="list-group list-group-flush">
                     <li class="list-group-item">
                         <strong>Пациент:</strong>
-                        <a href="{% url 'patients:patient_detail' patient_status.patient.pk %}">{{ patient_status.patient.full_name }}</a>
+                        <a href="{% url 'patients:patient_detail' patient_status.patient.pk %}">{{ patient_status.patient.get_full_name_with_age }}</a>
                     </li>
                     <li class="list-group-item">
                         <strong>Отделение:</strong> {{ patient_status.department.name }}

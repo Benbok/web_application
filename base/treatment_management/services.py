@@ -111,12 +111,33 @@ class TreatmentMedicationService:
             'name': medication.name,
             'description': getattr(medication, 'description', ''),
             'external_url': medication.external_info_url or '',
+            'medication_form': getattr(medication, 'medication_form', ''),
             'dosage': '',
             'frequency': '',
             'route': 'oral',
             'duration': '',
             'instructions': ''
         }
+        
+        # Если указано торговое наименование, получаем дополнительную информацию
+        if trade_name_id:
+            try:
+                from pharmacy.models import TradeName
+                trade_name = TradeName.objects.get(id=trade_name_id)
+                medication_info.update({
+                    'trade_name': trade_name.name,
+                    'generic_concept': trade_name.medication.name,
+                    'external_url': trade_name.external_info_url or medication.external_info_url or '',
+                    'medication_form': getattr(trade_name.release_form, 'name', '') if trade_name.release_form else medication_info['medication_form']
+                })
+            except TradeName.DoesNotExist:
+                pass
+        else:
+            # Если торговое наименование не указано, используем базовую информацию
+            medication_info.update({
+                'trade_name': None,
+                'generic_concept': medication.name
+            })
         
         # Получаем подходящую схему применения
         try:
@@ -447,16 +468,21 @@ class TreatmentRecommendationService:
         grouped_recommendations = {}
         
         for medication_name, medication_recommendations in recommendations.items():
-            # Получаем информацию о препарате и его фармакологической группе
-            try:
-                from pharmacy.models import Medication, TradeName
-                medication = Medication.objects.get(name=medication_name)
+            # Используем новый сервис поиска для получения информации о препарате
+            from pharmacy.services import MedicationSearchService
+            
+            # Ищем препарат по названию
+            medications = MedicationSearchService.search_all(medication_name, limit=1)
+            
+            if medications.exists():
+                medication = medications.first()
                 
-                # Ищем торговое наименование с фармакологической группой
-                trade_name = TradeName.objects.filter(medication=medication).first()
-                group_name = trade_name.medication_group.name if trade_name and trade_name.medication_group else "Другие препараты"
-                
-            except (Medication.DoesNotExist, AttributeError):
+                # Определяем группу на основе типа препарата
+                if medication.is_trade_product():
+                    group_name = f"Торговые продукты ({medication.generic_concept.name})"
+                else:
+                    group_name = "МНН (действующие вещества)"
+            else:
                 group_name = "Другие препараты"
             
             # Создаем группу, если её нет

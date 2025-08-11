@@ -123,3 +123,15 @@ class TreatmentMedication(models.Model):
     def get_route_display_name(self):
         """Возвращает читаемое название способа введения"""
         return dict(self.ROUTE_CHOICES).get(self.route, self.route)
+    
+    def get_external_info_url(self):
+        """Возвращает ссылку на внешнюю информацию о препарате"""
+        if self.medication and self.medication.external_info_url:
+            return self.medication.external_info_url
+        return None
+    
+    def get_medication_form(self):
+        """Возвращает лекарственную форму препарата"""
+        if self.medication and hasattr(self.medication, 'medication_form'):
+            return self.medication.medication_form
+        return None
