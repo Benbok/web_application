@@ -170,6 +170,16 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
         context['lab_test_assignments_page_obj'] = self.paginate_queryset(labs, 'lab_test_assignments_page')
         context['instrumental_procedure_assignments_page_obj'] = self.paginate_queryset(procedures, 'instrumental_procedure_assignments_page')
         context['title'] = f"История пациента: {patient_status.patient.full_name} в {patient_status.department.name}"
+        
+        # Добавляем информацию о планах лечения
+        from treatment_management.models import TreatmentPlan
+        
+        content_type = ContentType.objects.get_for_model(patient_status)
+        treatment_plans = TreatmentPlan.objects.filter(
+            content_type=content_type,
+            object_id=patient_status.id
+        )
+        context['treatment_plans'] = treatment_plans
 
         return context
 

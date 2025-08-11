@@ -120,6 +120,17 @@ class EncounterDetailView(DetailView):
         context['encounter_number'] = details['encounter_number']
         context['title'] = f'Обращение #{context["encounter_number"]}'
         
+        # Добавляем информацию о планах лечения
+        from treatment_management.models import TreatmentPlan
+        from django.contrib.contenttypes.models import ContentType
+        
+        content_type = ContentType.objects.get_for_model(encounter)
+        treatment_plans = TreatmentPlan.objects.filter(
+            content_type=content_type,
+            object_id=encounter.id
+        )
+        context['treatment_plans'] = treatment_plans
+        
         return context
 
 

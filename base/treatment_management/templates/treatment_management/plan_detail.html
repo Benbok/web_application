@@ -22,28 +22,10 @@
                          </small>
                     </div>
                     <div class="btn-group" role="group">
-                        {% if owner_model == 'encounter' %}
-                            <a href="{% url 'encounters:encounter_detail' pk=owner.id %}" 
-                               class="btn btn-primary">
-                                <i class="fas fa-arrow-left"></i> К случаю
-                            </a>
-                        {% elif owner_model == 'patientdepartmentstatus' %}
-                            <a href="{% url 'departments:patient_history' pk=owner.id %}" 
-                               class="btn btn-primary">
-                                <i class="fas fa-arrow-left"></i> К истории
-                            </a>
-                        {% endif %}
-                        <a href="{% url 'treatment_management:recommendation_create' plan_pk=treatment_plan.pk %}" 
-                           class="btn btn-info">
-                            <i class="fas fa-clipboard-list"></i> Добавить рекомендацию
-                        </a>
+                        
                         <a href="{% url 'treatment_management:medication_create' plan_pk=treatment_plan.pk %}" 
                            class="btn btn-success">
                             <i class="fas fa-plus"></i> Добавить лекарство
-                        </a>
-                        <a href="{% url 'treatment_management:plan_delete' owner_model=owner_model owner_id=owner.id pk=treatment_plan.pk %}" 
-                           class="btn btn-danger">
-                            <i class="fas fa-trash"></i> Удалить план
                         </a>
                     </div>
                 </div>
