@@ -5,6 +5,94 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block content %}
+<style>
+    .card {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        transform: translateY(-2px);
+    }
+    
+    .card-header {
+        border-bottom: none;
+    }
+    
+    .form-label.fw-bold {
+        color: #495057;
+    }
+    
+    .text-primary {
+        color: #0d6efd !important;
+    }
+    
+    .text-success {
+        color: #198754 !important;
+    }
+    
+    .text-info {
+        color: #0dcaf0 !important;
+    }
+    
+    #forms-grid .card,
+    #regimens-grid .card {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    #forms-grid .card:hover,
+    #regimens-grid .card:hover {
+        transform: scale(1.02);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    }
+    
+    .border-primary {
+        border-color: #bbdefb !important;
+    }
+    
+    .border-success {
+        border-color: #c8e6c9 !important;
+    }
+    
+    .border-warning {
+        border-color: #fff3cd !important;
+    }
+    
+    .border-info {
+        border-color: #b2dfdb !important;
+    }
+    
+    /* Мягкие цвета для заголовков карточек */
+    .bg-primary {
+        background-color: #e3f2fd !important;
+        color: #1565c0 !important;
+    }
+    
+    .bg-info {
+        background-color: #e0f2f1 !important;
+        color: #00695c !important;
+    }
+    
+    .bg-success {
+        background-color: #e8f5e8 !important;
+        color: #2e7d32 !important;
+    }
+    
+    /* Дополнительные мягкие цвета для текста внутри карточек */
+    .text-primary {
+        color: #1976d2 !important;
+    }
+    
+    .text-success {
+        color: #388e3c !important;
+    }
+    
+    .text-info {
+        color: #0097a7 !important;
+    }
+</style>
 {% if messages %}
 <ul class="messages">
     {% for message in messages %}
@@ -35,133 +123,173 @@
                 </div>
             {% endif %}
             
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="{{ form.medication.id_for_label }}" class="form-label">{{ form.medication.label }}</label>
-                        {% autoescape off %}
-                        {{ form.medication|add_class:"form-select" }}
-                        {% endautoescape %}
-                        {% if form.medication.help_text %}
-                            <div class="form-text">{{ form.medication.help_text }}</div>
-                        {% endif %}
-                        {% for error in form.medication.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
-                    </div>
+            <!-- БЛОК 1: Выбор препарата -->
+            <div class="card mb-4 border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-pills"></i> Выбор препарата
+                    </h5>
                 </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="{{ form.custom_medication.id_for_label }}" class="form-label">{{ form.custom_medication.label }}</label>
-                        {{ form.custom_medication|add_class:"form-control" }}
-                        {% if form.custom_medication.help_text %}
-                            <div class="form-text">{{ form.custom_medication.help_text }}</div>
-                        {% endif %}
-                        {% for error in form.custom_medication.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Выбор доступных форм препарата -->
-            <div class="mb-3" id="available-forms-container" style="display: none;">
-                <label class="form-label">Доступные формы препарата:</label>
-                <div id="available-forms-content">
-                    <div class="row" id="forms-grid">
-                        <!-- Формы будут добавлены динамически -->
-                    </div>
-                    <small class="text-muted">Выберите форму для получения соответствующей информации о дозировке</small>
-                </div>
-            </div>
-            
-            <!-- Выбор схемы применения -->
-            <div class="mb-3" id="regimens-container" style="display: none;">
-                <label class="form-label">Схемы применения:</label>
-                <div id="regimens-content">
-                    <div class="row" id="regimens-grid">
-                        <!-- Схемы будут добавлены динамически -->
-                    </div>
-                    <small class="text-muted">Выберите схему для автоматического заполнения полей дозировки</small>
-                </div>
-            </div>
-            
-            <!-- Поле для отображения ссылки на источник информации -->
-            <div class="mb-3" id="external-link-container" style="display: none;">
-                <label class="form-label">Источник информации о препарате:</label>
-                <div id="external-link-content">
-                    <div class="d-flex align-items-center gap-2">
-                        <a href="#" id="external-link" target="_blank" class="btn btn-outline-info btn-sm">
-                            <i class="fas fa-external-link-alt"></i> Открыть информацию о препарате
-                        </a>
-                        <small class="text-muted" id="medication-info-text"></small>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.medication.id_for_label }}" class="form-label fw-bold">{{ form.medication.label }}</label>
+                                {% autoescape off %}
+                                {{ form.medication|add_class:"form-select" }}
+                                {% endautoescape %}
+                                {% if form.medication.help_text %}
+                                    <div class="form-text">{{ form.medication.help_text }}</div>
+                                {% endif %}
+                                {% for error in form.medication.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.custom_medication.id_for_label }}" class="form-label fw-bold">{{ form.custom_medication.label }}</label>
+                                {{ form.custom_medication|add_class:"form-control" }}
+                                {% if form.custom_medication.help_text %}
+                                    <div class="form-text">{{ form.custom_medication.help_text }}</div>
+                                {% endif %}
+                                {% for error in form.custom_medication.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
             
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="{{ form.dosage.id_for_label }}" class="form-label">{{ form.dosage.label }}</label>
-                        {{ form.dosage|add_class:"form-control" }}
-                        {% if form.dosage.help_text %}
-                            <div class="form-text">{{ form.dosage.help_text }}</div>
-                        {% endif %}
-                        {% for error in form.dosage.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
-                    </div>
+            <!-- БЛОК 2: Выбор формы и схемы применения -->
+            <div class="card mb-4 border-info" id="forms-schemes-container" style="display: none;">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list-ul"></i> Выбор формы и схемы применения
+                    </h5>
                 </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="{{ form.frequency.id_for_label }}" class="form-label">{{ form.frequency.label }}</label>
-                        {{ form.frequency|add_class:"form-control" }}
-                        {% if form.frequency.help_text %}
-                            <div class="form-text">{{ form.frequency.help_text }}</div>
-                        {% endif %}
-                        {% for error in form.frequency.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
+                <div class="card-body">
+                    <!-- Выбор доступных форм препарата -->
+                    <div class="mb-4" id="available-forms-container" style="display: none;">
+                        <label class="form-label fw-bold text-primary">
+                            <i class="fas fa-capsules"></i> Доступные формы препарата:
+                        </label>
+                        <div id="available-forms-content">
+                            <div class="row" id="forms-grid">
+                                <!-- Формы будут добавлены динамически -->
+                            </div>
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle"></i> Выберите форму для получения соответствующей информации о дозировке
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <!-- Выбор схемы применения -->
+                    <div class="mb-3" id="regimens-container" style="display: none;">
+                        <label class="form-label fw-bold text-success">
+                            <i class="fas fa-clipboard-list"></i> Схемы применения:
+                        </label>
+                        <div id="regimens-content">
+                            <div class="row" id="regimens-grid">
+                                <!-- Схемы будут добавлены динамически -->
+                            </div>
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle"></i> Выберите схему для автоматического заполнения полей дозировки
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <!-- Поле для отображения ссылки на источник информации -->
+                    <div class="mb-3" id="external-link-container" style="display: none;">
+                        <label class="form-label fw-bold text-info">
+                            <i class="fas fa-external-link-alt"></i> Источник информации о препарате:
+                        </label>
+                        <div id="external-link-content">
+                            <div class="d-flex align-items-center gap-2">
+                                <a href="#" id="external-link" target="_blank" class="btn btn-outline-info btn-sm">
+                                    <i class="fas fa-external-link-alt"></i> Открыть информацию о препарате
+                                </a>
+                                <small class="text-muted" id="medication-info-text"></small>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
             
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="{{ form.route.id_for_label }}" class="form-label">{{ form.route.label }}</label>
-                        {{ form.route|add_class:"form-select" }}
-                        {% if form.route.help_text %}
-                            <div class="form-text">{{ form.route.help_text }}</div>
-                        {% endif %}
-                        {% for error in form.route.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
-                    </div>
+            <!-- БЛОК 3: Детали назначения -->
+            <div class="card mb-4 border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-clipboard-prescription"></i> Детали назначения
+                    </h5>
                 </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="{{ form.duration.id_for_label }}" class="form-label">{{ form.duration.label }}</label>
-                        {{ form.duration|add_class:"form-control" }}
-                        {% if form.duration.help_text %}
-                            <div class="form-text">{{ form.duration.help_text }}</div>
-                        {% endif %}
-                        {% for error in form.duration.errors %}
-                            <div class="text-danger small">{{ error }}</div>
-                        {% endfor %}
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.dosage.id_for_label }}" class="form-label fw-bold">{{ form.dosage.label }}</label>
+                                {{ form.dosage|add_class:"form-control" }}
+                                {% if form.dosage.help_text %}
+                                    <div class="form-text">{{ form.dosage.help_text }}</div>
+                                {% endif %}
+                                {% for error in form.dosage.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.frequency.id_for_label }}" class="form-label fw-bold">{{ form.frequency.label }}</label>
+                                {{ form.frequency|add_class:"form-control" }}
+                                {% if form.frequency.help_text %}
+                                    <div class="form-text">{{ form.frequency.help_text }}</div>
+                                {% endif %}
+                                {% for error in form.frequency.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
             
-            <div class="mb-3">
-                <label for="{{ form.instructions.id_for_label }}" class="form-label">{{ form.instructions.label }}</label>
-                {{ form.instructions|add_class:"form-control" }}
-                {% if form.instructions.help_text %}
-                    <div class="form-text">{{ form.instructions.help_text }}</div>
-                {% endif %}
-                {% for error in form.instructions.errors %}
-                    <div class="text-danger small">{{ error }}</div>
-                {% endfor %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.route.id_for_label }}" class="form-label fw-bold">{{ form.route.label }}</label>
+                                {{ form.route|add_class:"form-select" }}
+                                {% if form.route.help_text %}
+                                    <div class="form-text">{{ form.route.help_text }}</div>
+                                {% endif %}
+                                {% for error in form.route.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.duration.id_for_label }}" class="form-label fw-bold">{{ form.duration.label }}</label>
+                                {{ form.duration|add_class:"form-control" }}
+                                {% if form.duration.help_text %}
+                                    <div class="form-text">{{ form.duration.help_text }}</div>
+                                {% endif %}
+                                {% for error in form.duration.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+            
+                    <div class="mb-3">
+                        <label for="{{ form.instructions.id_for_label }}" class="form-label fw-bold">{{ form.instructions.label }}</label>
+                        {{ form.instructions|add_class:"form-control" }}
+                        {% if form.instructions.help_text %}
+                            <div class="form-text">{{ form.instructions.help_text }}</div>
+                        {% endif %}
+                        {% for error in form.instructions.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
             
             <div class="d-flex gap-2">
@@ -240,6 +368,12 @@ function displayAvailableForms(forms, selectedFormId = null) {
     
     // Показываем контейнер
     container.style.display = 'block';
+    
+    // Показываем основной контейнер форм и схем
+    const formsSchemesContainer = document.getElementById('forms-schemes-container');
+    if (formsSchemesContainer) {
+        formsSchemesContainer.style.display = 'block';
+    }
     
     // Если выбрана форма, показываем схемы для неё
     if (selectedFormId) {
@@ -496,6 +630,12 @@ function updateFormWithTradeNameInfo(formInfo) {
         const regimensContainer = document.getElementById('regimens-container');
         if (regimensContainer) regimensContainer.style.display = 'none';
     }
+    
+    // Показываем основной контейнер форм и схем
+    const formsSchemesContainer = document.getElementById('forms-schemes-container');
+    if (formsSchemesContainer) {
+        formsSchemesContainer.style.display = 'block';
+    }
 }
 
 function updateFormWithRegimenInfo(regimenInfo) {
@@ -565,6 +705,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // Скрываем контейнер с схемами
             const regimensContainer = document.getElementById('regimens-container');
             if (regimensContainer) regimensContainer.style.display = 'none';
+            // Скрываем основной контейнер форм и схем
+            const formsSchemesContainer = document.getElementById('forms-schemes-container');
+            if (formsSchemesContainer) formsSchemesContainer.style.display = 'none';
             return;
         }
         
