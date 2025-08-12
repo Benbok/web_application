@@ -892,4 +892,4 @@ class TreatmentRecommendationDeleteView(LoginRequiredMixin, DeleteView):
                           'owner_model': self.object.treatment_plan.owner._meta.model_name,
                           'owner_id': self.object.treatment_plan.owner.id,
                           'pk': self.object.treatment_plan.pk
-                      })
+        })
