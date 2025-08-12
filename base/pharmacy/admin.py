@@ -88,11 +88,12 @@ class MedicationGroupAdmin(admin.ModelAdmin):
         return fieldsets
 
     def medications_count(self, obj):
-        return obj.medications.count()
+        # Получаем количество торговых названий в этой группе
+        return obj.tradename_set.count()
     medications_count.short_description = 'Препаратов в группе'
 
     def medications_link(self, obj):
-        count = obj.medications.count()
+        count = obj.tradename_set.count()
         if count > 0:
             return format_html(
                 '<a href="{}?medication_group__id__exact={}">Просмотреть {} препаратов</a>',
@@ -105,7 +106,7 @@ class MedicationGroupAdmin(admin.ModelAdmin):
 
     def medications_info(self, obj):
         # Получаем все торговые названия в этой группе
-        trade_names = obj.medications.all()
+        trade_names = obj.tradename_set.all()
         
         if not trade_names.exists():
             return 'В этой группе нет препаратов'
@@ -117,7 +118,7 @@ class MedicationGroupAdmin(admin.ModelAdmin):
             # Создаем ссылку на препарат
             medication_link = format_html(
                 '<a href="{}">💊 {}</a>',
-                f'/admin/pharmacy/medication/{medication.id}/change/',
+                f'/admin/pharmacy/tradename/{trade_name.id}/change/',
                 medication.name
             )
             
@@ -150,7 +151,8 @@ class ReleaseFormAdmin(admin.ModelAdmin):
     list_per_page = 50
 
     def medications_count(self, obj):
-        return obj.medications.count()
+        # Получаем количество торговых названий с этой формой выпуска
+        return obj.tradename_set.count()
     medications_count.short_description = 'Препаратов в форме'
 
     def description_preview(self, obj):
@@ -527,7 +529,7 @@ class PopulationCriteriaInline(admin.TabularInline):
 class DosingInstructionInline(admin.TabularInline):
     model = DosingInstruction
     extra = 1
-    fields = ('dose_type', 'dose_description', 'frequency_description', 'duration_description', 'route')
+    fields = ('dose_type', 'dose_description', 'frequency_description', 'duration_description', 'route', 'compatible_forms')
 
 
 class RegimenAdjustmentInline(admin.TabularInline):
@@ -679,11 +681,20 @@ class PopulationCriteriaAdmin(admin.ModelAdmin):
 
 @admin.register(DosingInstruction)
 class DosingInstructionAdmin(admin.ModelAdmin):
-    list_display = ('regimen', 'dose_type', 'dose_description', 'frequency_description', 'duration_description', 'route', 'completeness_indicator')
-    list_filter = ('dose_type', 'route', 'regimen__medication')
+    list_display = ('regimen', 'dose_type', 'dose_description', 'frequency_description', 'duration_description', 'route', 'compatible_forms_count', 'completeness_indicator')
+    list_filter = ('dose_type', 'route', 'regimen__medication', 'compatible_forms')
     search_fields = ('regimen__name', 'regimen__medication__name', 'dose_description')
-    autocomplete_fields = ('regimen', 'route')
+    autocomplete_fields = ('regimen', 'route', 'compatible_forms')
     list_per_page = 50
+
+    def compatible_forms_count(self, obj):
+        """Количество совместимых форм выпуска"""
+        count = obj.compatible_forms.count()
+        if count == 0:
+            return format_html('<span style="color: gray;">Все формы</span>')
+        else:
+            return format_html('<span style="color: blue;">{} форм</span>', count)
+    compatible_forms_count.short_description = 'Совместимые формы'
 
     def completeness_indicator(self, obj):
         """Индикатор полноты инструкции"""

@@ -359,39 +359,14 @@ class RegimenManager(models.Manager):
             dosing_instructions__isnull=False
         ).distinct()
         
-        # Фильтрация по совместимости с формой выпуска
-        form_name = release_form.name.lower()
+        # Используем новое поле compatible_forms для проверки совместимости
+        # Если у инструкции не указаны совместимые формы, считаем её совместимой со всеми
+        compatible_regimens = queryset.filter(
+            Q(dosing_instructions__compatible_forms=release_form) |
+            Q(dosing_instructions__compatible_forms__isnull=True)
+        ).distinct()
         
-        # Для инъекционных форм (порошок, раствор) считаем все схемы совместимыми
-        # так как они обычно не содержат специфических ключевых слов в названиях
-        if any(keyword in form_name for keyword in ['порошок', 'раствор', 'инъекции', 'внутривенно', 'внутримышечно']):
-            return queryset
-        
-        # Маппинг форм выпуска на ключевые слова в названиях схем
-        form_keywords = {
-            'гель': ['гель', 'гелевая', 'местно'],
-            'мазь': ['мазь', 'мазевая', 'местно'],
-            'суппозитории': ['суппозитории', 'ректально', 'свечи'],
-            'таблетки': ['таблетки', 'перорально', 'внутрь'],
-            'капсулы': ['капсулы', 'перорально', 'внутрь'],
-        }
-        
-        # Определяем тип формы выпуска
-        form_type = None
-        for key, keywords in form_keywords.items():
-            if any(keyword in form_name for keyword in keywords):
-                form_type = key
-                break
-        
-        if not form_type:
-            return queryset  # Если не можем определить тип, считаем подходящей
-        
-        # Строим фильтр по ключевым словам
-        keyword_filter = Q()
-        for keyword in form_keywords[form_type]:
-            keyword_filter |= Q(name__icontains=keyword)
-        
-        return queryset.filter(keyword_filter)
+        return compatible_regimens
 
 
 class Regimen(models.Model):
@@ -479,6 +454,14 @@ class DosingInstruction(models.Model):
 
     route = models.ForeignKey(AdministrationMethod, on_delete=models.SET_NULL, null=True, blank=True,
                               verbose_name=_("Путь введения"))
+    
+    # Явно указываем, для каких форм выпуска подходит эта инструкция
+    compatible_forms = models.ManyToManyField(
+        'ReleaseForm',
+        blank=True,
+        verbose_name=_("Совместимые формы выпуска"),
+        help_text=_("Формы выпуска, для которых подходит эта инструкция по дозированию")
+    )
 
     class Meta:
         verbose_name = _("Инструкция по дозированию")

@@ -18,6 +18,37 @@ from .services import (
 )
 from patients.models import Patient
 
+# Общая функция для преобразования текстового способа введения в код для формы
+def map_route_to_form_value(route_text):
+    """
+    Преобразует текстовое описание способа введения в код для формы.
+    Теперь использует надежную логику вместо поиска подстрок.
+    """
+    if not route_text:
+        return 'oral'
+    
+    route_lower = route_text.lower()
+    
+    # Более надежная логика с использованием точных совпадений
+    route_mapping = {
+        'ректально': 'rectal',
+        'местно': 'topical',
+        'перорально': 'oral',
+        'внутрь': 'oral',
+        'внутримышечно': 'intramuscular',
+        'внутривенно': 'intravenous',
+        'подкожно': 'subcutaneous',
+        'ингаляционно': 'inhalation',
+    }
+    
+    # Ищем точное совпадение
+    for route_key, form_value in route_mapping.items():
+        if route_key in route_lower:
+            return form_value
+    
+    # Если не нашли точного совпадения, возвращаем 'other'
+    return 'other'
+
 
 class OwnerContextMixin:
     """
@@ -353,28 +384,7 @@ class MedicationInfoView(View):
             from datetime import date
             medication = Medication.objects.get(pk=medication_id)
             
-            # Функция для преобразования текстового способа введения в код для формы
-            def map_route_to_form_value(route_text):
-                if not route_text:
-                    return 'oral'
-                
-                route_lower = route_text.lower()
-                if 'ректально' in route_lower:
-                    return 'rectal'
-                elif 'местно' in route_lower:
-                    return 'topical'
-                elif 'перорально' in route_lower or 'внутрь' in route_lower:
-                    return 'oral'
-                elif 'внутримышечно' in route_lower:
-                    return 'intramuscular'
-                elif 'внутривенно' in route_lower:
-                    return 'intravenous'
-                elif 'подкожно' in route_lower:
-                    return 'subcutaneous'
-                elif 'ингаляционно' in route_lower:
-                    return 'inhalation'
-                else:
-                    return 'other'
+            # Используем общую функцию map_route_to_form_value
             
             # Получаем информацию о пациенте из параметров запроса
             patient_id = request.GET.get('patient_id')
@@ -417,11 +427,9 @@ class MedicationInfoView(View):
                     
                     # Собираем информацию о схемах
                     regimens_info = []
-                    print(f"DEBUG: Обрабатываем {compatible_regimens.count()} совместимых схем для формы {tn.name}")
                     
                     for regimen in compatible_regimens:
                         dosing_instruction = regimen.dosing_instructions.first()
-                        print(f"DEBUG: Схема {regimen.id}: {regimen.name}, инструкция: {dosing_instruction}")
                         
                         if dosing_instruction:
                             regimen_info = {
@@ -435,11 +443,6 @@ class MedicationInfoView(View):
                                 'instructions': regimen.notes or ''
                             }
                             regimens_info.append(regimen_info)
-                            print(f"DEBUG: Добавлена схема: {regimen_info}")
-                        else:
-                            print(f"DEBUG: Схема {regimen.id} без инструкций по дозировке")
-                    
-                    print(f"DEBUG: Для формы {tn.name} собрано {len(regimens_info)} схем")
                     
                     form_info = {
                         'id': tn.id,
@@ -541,28 +544,7 @@ class TradeNameInfoView(View):
                 except Patient.DoesNotExist:
                     pass
             
-            # Функция для преобразования текстового способа введения в код для формы
-            def map_route_to_form_value(route_text):
-                if not route_text:
-                    return 'oral'
-                
-                route_lower = route_text.lower()
-                if 'ректально' in route_lower:
-                    return 'rectal'
-                elif 'местно' in route_lower:
-                    return 'topical'
-                elif 'перорально' in route_lower or 'внутрь' in route_lower:
-                    return 'oral'
-                elif 'внутримышечно' in route_lower:
-                    return 'intramuscular'
-                elif 'внутривенно' in route_lower:
-                    return 'intravenous'
-                elif 'подкожно' in route_lower:
-                    return 'subcutaneous'
-                elif 'ингаляционно' in route_lower:
-                    return 'inhalation'
-                else:
-                    return 'other'
+            # Используем общую функцию map_route_to_form_value
             
             # Получаем информацию о торговой форме
             form_info = {
