@@ -19,7 +19,61 @@ from .services import (
 from patients.models import Patient
 
 
-class TreatmentPlanListView(LoginRequiredMixin, ListView):
+class OwnerContextMixin:
+    """
+    Миксин для получения контекста владельца и пациента
+    Устраняет дублирование кода в различных view классах
+    """
+    
+    def get_owner(self):
+        """
+        Получает объект-владелец из URL параметров
+        
+        Returns:
+            Объект-владелец (encounter, department_stay, etc.)
+        """
+        owner_model = self.kwargs.get('owner_model')
+        owner_id = self.kwargs.get('owner_id')
+        
+        if not owner_model or not owner_id:
+            raise ValueError("owner_model и owner_id должны быть указаны в URL")
+        
+        # Получаем ContentType для модели владельца
+        content_type = ContentType.objects.get(model=owner_model)
+        owner_class = content_type.model_class()
+        owner = get_object_or_404(owner_class, id=owner_id)
+        
+        return owner
+    
+    def get_patient_from_owner(self, owner):
+        """
+        Получает пациента из владельца
+        
+        Args:
+            owner: Объект-владелец
+            
+        Returns:
+            Patient или None
+        """
+        if hasattr(owner, 'patient'):
+            return owner.patient
+        elif hasattr(owner, 'get_patient'):
+            return owner.get_patient()
+        return None
+    
+    def setup_owner_context(self):
+        """
+        Настраивает контекст владельца и пациента
+        Должен вызываться в dispatch() или get_context_data()
+        """
+        if not hasattr(self, 'owner'):
+            self.owner = self.get_owner()
+        
+        if not hasattr(self, 'patient'):
+            self.patient = self.get_patient_from_owner(self.owner)
+
+
+class TreatmentPlanListView(LoginRequiredMixin, OwnerContextMixin, ListView):
     """
     Список планов лечения для указанного владельца
     """
@@ -28,30 +82,15 @@ class TreatmentPlanListView(LoginRequiredMixin, ListView):
     context_object_name = 'treatment_plans'
     
     def get_queryset(self):
-        # Получаем владельца из URL параметров
-        owner_model = self.kwargs.get('owner_model')
-        owner_id = self.kwargs.get('owner_id')
-        
-        # Получаем ContentType для модели владельца
-        content_type = ContentType.objects.get(model=owner_model)
-        owner_class = content_type.model_class()
-        owner = get_object_or_404(owner_class, id=owner_id)
-        
-        # Сохраняем владельца в контексте
-        self.owner = owner
-        
-        return TreatmentPlanService.get_treatment_plans(owner)
+        # Настраиваем контекст владельца
+        self.setup_owner_context()
+        return TreatmentPlanService.get_treatment_plans(self.owner)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['owner'] = self.owner
         context['owner_model'] = self.owner._meta.model_name
-        
-        # Получаем пациента (если владелец имеет связь с пациентом)
-        if hasattr(self.owner, 'patient'):
-            context['patient'] = self.owner.patient
-        elif hasattr(self.owner, 'get_patient'):
-            context['patient'] = self.owner.get_patient()
+        context['patient'] = self.patient
         
         # Автоматически создаем основной план лечения, если его нет
         if not self.object_list.exists():
@@ -62,16 +101,16 @@ class TreatmentPlanListView(LoginRequiredMixin, ListView):
         # Получаем рекомендации по лечению (если есть диагноз)
         if hasattr(self.owner, 'get_main_diagnosis_for_recommendations'):
             main_diagnosis = self.owner.get_main_diagnosis_for_recommendations()
-            if main_diagnosis and context.get('patient'):
+            if main_diagnosis and self.patient:
                 recommendations = TreatmentRecommendationService.get_medication_recommendations(
-                    main_diagnosis.code, context.get('patient')
+                    main_diagnosis.code, self.patient
                 )
                 context['recommendations'] = recommendations
         
         return context
 
 
-class TreatmentPlanCreateView(LoginRequiredMixin, CreateView):
+class TreatmentPlanCreateView(LoginRequiredMixin, OwnerContextMixin, CreateView):
     """
     Создание нового плана лечения
     """
@@ -80,14 +119,8 @@ class TreatmentPlanCreateView(LoginRequiredMixin, CreateView):
     template_name = 'treatment_management/plan_form.html'
     
     def dispatch(self, request, *args, **kwargs):
-        # Получаем владельца из URL параметров
-        owner_model = self.kwargs.get('owner_model')
-        owner_id = self.kwargs.get('owner_id')
-        
-        content_type = ContentType.objects.get(model=owner_model)
-        owner_class = content_type.model_class()
-        self.owner = get_object_or_404(owner_class, id=owner_id)
-        
+        # Настраиваем контекст владельца
+        self.setup_owner_context()
         return super().dispatch(request, *args, **kwargs)
     
     def form_valid(self, form):
@@ -118,7 +151,7 @@ class TreatmentPlanCreateView(LoginRequiredMixin, CreateView):
         return context
 
 
-class TreatmentPlanDetailView(LoginRequiredMixin, DetailView):
+class TreatmentPlanDetailView(LoginRequiredMixin, OwnerContextMixin, DetailView):
     """
     Детальный просмотр плана лечения
     """
@@ -133,16 +166,13 @@ class TreatmentPlanDetailView(LoginRequiredMixin, DetailView):
         context['medications'] = self.object.medications.all()
         context['recommendations'] = self.object.recommendations.all()
         
-        # Получаем пациента
-        if hasattr(self.object.owner, 'patient'):
-            context['patient'] = self.object.owner.patient
-        elif hasattr(self.object.owner, 'get_patient'):
-            context['patient'] = self.object.owner.get_patient()
+        # Получаем пациента через миксин
+        context['patient'] = self.get_patient_from_owner(self.object.owner)
         
         return context
 
 
-class TreatmentPlanDeleteView(LoginRequiredMixin, DeleteView):
+class TreatmentPlanDeleteView(LoginRequiredMixin, OwnerContextMixin, DeleteView):
     """
     Удаление плана лечения
     """
@@ -165,7 +195,7 @@ class TreatmentPlanDeleteView(LoginRequiredMixin, DeleteView):
                       })
 
 
-class TreatmentMedicationCreateView(LoginRequiredMixin, CreateView):
+class TreatmentMedicationCreateView(LoginRequiredMixin, OwnerContextMixin, CreateView):
     """
     Добавление лекарства в план лечения
     """
@@ -190,11 +220,8 @@ class TreatmentMedicationCreateView(LoginRequiredMixin, CreateView):
         context['owner_model'] = self.treatment_plan.owner._meta.model_name
         context['title'] = _('Добавить лекарство')
         
-        # Получаем пациента
-        if hasattr(self.treatment_plan.owner, 'patient'):
-            context['patient'] = self.treatment_plan.owner.patient
-        elif hasattr(self.treatment_plan.owner, 'get_patient'):
-            context['patient'] = self.treatment_plan.owner.get_patient()
+        # Получаем пациента через миксин
+        context['patient'] = self.get_patient_from_owner(self.treatment_plan.owner)
         
         return context
     
@@ -207,7 +234,7 @@ class TreatmentMedicationCreateView(LoginRequiredMixin, CreateView):
                       })
 
 
-class TreatmentMedicationUpdateView(LoginRequiredMixin, UpdateView):
+class TreatmentMedicationUpdateView(LoginRequiredMixin, OwnerContextMixin, UpdateView):
     """
     Редактирование лекарства в плане лечения
     """
@@ -222,11 +249,8 @@ class TreatmentMedicationUpdateView(LoginRequiredMixin, UpdateView):
         context['owner_model'] = self.object.treatment_plan.owner._meta.model_name
         context['title'] = _('Редактировать лекарство')
         
-        # Получаем пациента
-        if hasattr(self.object.treatment_plan.owner, 'patient'):
-            context['patient'] = self.object.treatment_plan.owner.patient
-        elif hasattr(self.object.treatment_plan.owner, 'get_patient'):
-            context['patient'] = self.object.treatment_plan.owner.get_patient()
+        # Получаем пациента через миксин
+        context['patient'] = self.get_patient_from_owner(self.object.treatment_plan.owner)
         
         return context
     
@@ -263,7 +287,7 @@ class TreatmentMedicationDeleteView(LoginRequiredMixin, DeleteView):
                       })
 
 
-class QuickAddMedicationView(LoginRequiredMixin, CreateView):
+class QuickAddMedicationView(LoginRequiredMixin, OwnerContextMixin, CreateView):
     """
     Быстрое добавление рекомендованного лекарства
     """
@@ -304,11 +328,8 @@ class QuickAddMedicationView(LoginRequiredMixin, CreateView):
         context['recommended_medication'] = self.recommended_medication
         context['title'] = _('Быстрое добавление лекарства')
         
-        # Получаем пациента
-        if hasattr(self.treatment_plan.owner, 'patient'):
-            context['patient'] = self.treatment_plan.owner.patient
-        elif hasattr(self.treatment_plan.owner, 'get_patient'):
-            context['patient'] = self.treatment_plan.owner.get_patient()
+        # Получаем пациента через миксин
+        context['patient'] = self.get_patient_from_owner(self.treatment_plan.owner)
         
         return context
     
