@@ -272,9 +272,12 @@ class ObserverManager:
     
     def register_observer(self, name: str, observer: Observer) -> None:
         """Регистрирует наблюдателя"""
-        self.observers[name] = observer
-        self.subject.attach(observer)
-        print(f"Наблюдатель {name} зарегистрирован")
+        if name not in self.observers:  # Проверяем, не зарегистрирован ли уже
+            self.observers[name] = observer
+            self.subject.attach(observer)
+            print(f"Наблюдатель {name} зарегистрирован")
+        # else:
+        #     print(f"Наблюдатель {name} уже зарегистрирован")
     
     def unregister_observer(self, name: str) -> None:
         """Отменяет регистрацию наблюдателя"""
@@ -310,9 +313,24 @@ class ObserverManager:
 # Глобальный менеджер наблюдателей
 observer_manager = ObserverManager()
 
-# Регистрация стандартных наблюдателей
-observer_manager.register_observer('logging', LoggingObserver())
-observer_manager.register_observer('metrics', MetricsObserver())
-observer_manager.register_observer('notifications', NotificationObserver())
-observer_manager.register_observer('audit', AuditObserver())
-observer_manager.register_observer('performance', PerformanceObserver()) 
+# Флаг для предотвращения повторной регистрации
+_observers_registered = False
+
+def register_default_observers():
+    """Регистрирует стандартных наблюдателей только один раз"""
+    global _observers_registered
+    
+    if _observers_registered:
+        return
+    
+    # Регистрация стандартных наблюдателей
+    observer_manager.register_observer('logging', LoggingObserver())
+    observer_manager.register_observer('metrics', MetricsObserver())
+    observer_manager.register_observer('notifications', NotificationObserver())
+    observer_manager.register_observer('audit', AuditObserver())
+    observer_manager.register_observer('performance', PerformanceObserver())
+    
+    _observers_registered = True
+
+# Регистрируем наблюдателей при первом импорте
+register_default_observers() 
