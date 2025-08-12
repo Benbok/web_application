@@ -119,6 +119,13 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
+        # Импорты моделей
+        from pharmacy.models import (
+            AdministrationMethod, MedicationGroup, ReleaseForm, 
+            Medication, TradeName, Regimen, DosingInstruction, 
+            PopulationCriteria, RegimenAdjustment
+        )
+        
         yaml_file = options['yaml_file']
         force_mode = options.get('force', False)
         
@@ -129,11 +136,6 @@ class Command(BaseCommand):
         
         if force_mode:
             self.stdout.write(self.style.WARNING("🔧 Режим --force: Удаление всех существующих данных..."))
-            from pharmacy.models import (
-                RegimenAdjustment, DosingInstruction, PopulationCriteria,
-                Regimen, TradeName, Medication, MedicationGroup,
-                ReleaseForm, AdministrationMethod
-            )
             RegimenAdjustment.objects.all().delete()
             DosingInstruction.objects.all().delete()
             PopulationCriteria.objects.all().delete()
@@ -183,7 +185,13 @@ class Command(BaseCommand):
                 try:
                     medication = Medication.objects.get(name=tn_data['medication_name'])
                     group = MedicationGroup.objects.get(name=tn_data['group_name'])
-                    release_form = ReleaseForm.objects.get(name=tn_data['release_form_name'])
+                    
+                    # Создаем или получаем ReleaseForm на основе полного описания
+                    release_form, created = ReleaseForm.objects.get_or_create(
+                        name=tn_data['release_form_name']
+                    )
+                    if created:
+                        self.stdout.write(f"   ✅ Создана новая форма выпуска: {tn_data['release_form_name']}")
                     
                     tn_defaults = {
                         'medication_group': group,
@@ -196,7 +204,7 @@ class Command(BaseCommand):
                         medication=medication,
                         defaults=tn_defaults
                     )
-                except (Medication.DoesNotExist, MedicationGroup.DoesNotExist, ReleaseForm.DoesNotExist) as e:
+                except (Medication.DoesNotExist, MedicationGroup.DoesNotExist) as e:
                     self.stdout.write(self.style.ERROR(f"   ❌ Пропуск '{tn_data['name']}': не найдена связанная запись. Ошибка: {e}"))
             self.stdout.write("   ✅ Торговые названия загружены.")
             

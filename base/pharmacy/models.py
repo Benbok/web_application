@@ -260,25 +260,20 @@ class Medication(models.Model):
         return self.name
 
 class TradeName(models.Model):
-    """Торговое наименование препарата."""
-    
-    name = models.CharField("Торговое название", max_length=255)
-    medication = models.ForeignKey(Medication, on_delete=models.CASCADE, related_name='trade_names',
-                                   verbose_name="Активное вещество (МНН)")
-    # Ссылка на внешний источник полной информации
-    external_info_url = models.URLField(max_length=500, blank=True, null=True, verbose_name=_("Ссылка на полную информацию о препарате"))
+    name = models.CharField(max_length=255, verbose_name=_("Название"))
+    medication = models.ForeignKey(Medication, on_delete=models.CASCADE, related_name='trade_names', verbose_name=_("МНН"))
+    medication_group = models.ForeignKey(MedicationGroup, on_delete=models.CASCADE, verbose_name=_("Группа препаратов"))
+    release_form = models.ForeignKey(ReleaseForm, on_delete=models.CASCADE, verbose_name=_("Форма выпуска"))
+    atc_code = models.CharField(max_length=20, blank=True, null=True, verbose_name=_("ATC код"))
+    external_info_url = models.URLField(blank=True, null=True, verbose_name=_("Внешняя ссылка"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активен"))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Дата создания"))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Дата обновления"))
 
-    # Классификация и форма выпуска
-    medication_group = models.ForeignKey(MedicationGroup, on_delete=models.SET_NULL, null=True, blank=True,
-                                   related_name='medications', verbose_name=_("Фармакологическая группа"))
-    atc_code = models.CharField(max_length=10, blank=True, null=True, verbose_name=_("АТХ код"))
-
-    release_form = models.ForeignKey(ReleaseForm, on_delete=models.SET_NULL, null=True, blank=True,
-                                     related_name='medications', verbose_name=_("Лекарственная форма"))
-    
     class Meta:
-        verbose_name = "Торговое наименование"
-        verbose_name_plural = "Торговые наименования"
+        verbose_name = _("Торговое название")
+        verbose_name_plural = _("Торговые названия")
+        unique_together = ['name', 'medication']
 
     def __str__(self):
         return f"{self.name} ({self.medication.name})"

@@ -212,7 +212,18 @@ class EncounterDiagnosisAdvancedView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = 'Диагнозы'
-        context['diagnoses'] = self.object.diagnoses.all().select_related('diagnosis')
+        context['patient'] = self.object.patient
+        
+        # Получаем все диагнозы
+        all_diagnoses = self.object.diagnoses.all().select_related('diagnosis')
+        
+
+        
+        # Разделяем по типам
+        context['main_diagnosis'] = all_diagnoses.filter(diagnosis_type='main').first()
+        context['complications'] = all_diagnoses.filter(diagnosis_type='complication')
+        context['comorbidities'] = all_diagnoses.filter(diagnosis_type='comorbidity')
+        
         return context
 
 
@@ -226,8 +237,12 @@ class EncounterDiagnosisCreateView(CreateView):
         super().setup(request, *args, **kwargs)
         self.encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
     
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['encounter'] = self.encounter
+        return kwargs
+    
     def form_valid(self, form):
-        form.instance.encounter = self.encounter
         response = super().form_valid(form)
         messages.success(self.request, 'Диагноз успешно добавлен')
         return response
@@ -235,6 +250,7 @@ class EncounterDiagnosisCreateView(CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['encounter'] = self.encounter
+        context['patient'] = self.encounter.patient
         context['title'] = 'Добавить диагноз'
         return context
     
@@ -248,8 +264,15 @@ class EncounterDiagnosisUpdateView(UpdateView):
     form_class = EncounterDiagnosisAdvancedForm
     template_name = 'encounters/diagnosis_edit.html'
     
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['encounter'] = self.object.encounter
+        return kwargs
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context['encounter'] = self.object.encounter
+        context['patient'] = self.object.encounter.patient
         context['title'] = 'Редактировать диагноз'
         return context
     
@@ -266,6 +289,13 @@ class EncounterDiagnosisDeleteView(DeleteView):
     """Представление для удаления диагноза"""
     model = EncounterDiagnosis
     template_name = 'encounters/diagnosis_confirm_delete.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['encounter'] = self.object.encounter
+        context['patient'] = self.object.encounter.patient
+        context['title'] = 'Удалить диагноз'
+        return context
     
     def get_success_url(self):
         return reverse('encounters:encounter_diagnosis_advanced', kwargs={'pk': self.object.encounter.pk})

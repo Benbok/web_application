@@ -21,6 +21,9 @@
         <form method="post" novalidate>
             {% csrf_token %}
             
+            <!-- Скрытое поле encounter -->
+            {{ form.encounter }}
+            
             {% if form.non_field_errors %}
                 <div class="alert alert-danger">
                     {% for error in form.non_field_errors %}

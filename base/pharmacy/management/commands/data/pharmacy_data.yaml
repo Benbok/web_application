@@ -595,3 +595,182 @@ regimens:
         frequency_description: "4 раза в сутки"
         duration_description: "Длительно, по назначению врача"
         route: "Ингаляционно"
+
+---
+# --- Справочники ---
+medication_groups:
+  - name: "Противовирусный препарат, ингибитор нейраминидазы"
+    description: "Противовирусное средство, активное в отношении вирусов гриппа А и В, подавляет фермент нейраминидазу."
+
+release_forms:
+  - name: "Капсулы"
+    description: "Твердая дозированная лекарственная форма для приема внутрь."
+
+administration_methods:
+  - name: "Перорально"
+    description: "Прием лекарственного средства через рот."
+
+# --- Основные сущности ---
+medications: # Справочник МНН
+  - name: "Осельтамивир"
+    atc_code: "J05AH02"
+    medication_form: "capsule"
+    is_active: true
+    external_info_url: "https://www.vidal.ru/drugs/oseltamivir-6"
+
+trade_names: # Конкретные торговые продукты
+  - name: "Осельтамивир"
+    medication_name: "Осельтамивир"
+    group_name: "Противовирусный препарат, ингибитор нейраминидазы"
+    release_form_name: "Капсулы"
+    atc_code: "J05AH02"
+    external_info_url: "https://www.vidal.ru/drugs/oseltamivir-6"
+
+# --- Схемы применения ---
+regimens:
+  - medication_name: "Осельтамивир"
+    name: "Лечение гриппа"
+    notes: "Прием следует начинать не позднее 2 суток с момента развития симптомов."
+    indications:
+      - "J10"   # Грипп, вызванный идентифицированным вирусом гриппа A
+      - "J11"   # Грипп, вирус не идентифицирован
+    
+    population_criteria:
+      - name: "Взрослые и дети >40 кг"
+      - name: "Дети 23-40 кг"
+      - name: "Дети 15-23 кг"
+      - name: "Дети <15 кг"
+
+    dosing_instructions:
+      - dose_description: "75 мг"
+        frequency_description: "2 раза в сутки"
+        duration_description: "5 дней"
+        route: "Перорально"
+      - dose_description: "60 мг"
+        frequency_description: "2 раза в сутки"
+        duration_description: "5 дней"
+        route: "Перорально"
+      - dose_description: "45 мг"
+        frequency_description: "2 раза в сутки"
+        duration_description: "5 дней"
+        route: "Перорально"
+      - dose_description: "30 мг"
+        frequency_description: "2 раза в сутки"
+        duration_description: "5 дней"
+        route: "Перорально"
+
+  - medication_name: "Осельтамивир"
+    name: "Профилактика гриппа"
+    notes: "Постконтактная или сезонная профилактика."
+    indications:
+      - "Z29.2" # Профилактическая химиотерапия
+
+    population_criteria:
+      - name: "Взрослые и дети >40 кг"
+      - name: "Дети 23-40 кг"
+      - name: "Дети 15-23 кг"
+      - name: "Дети <15 кг"
+
+    dosing_instructions:
+      - dose_description: "75 мг"
+        frequency_description: "1 раз в сутки"
+        duration_description: "10 дней (постконтактная) или до 6 недель (сезонная)"
+        route: "Перорально"
+      - dose_description: "60 мг"
+        frequency_description: "1 раз в сутки"
+        duration_description: "10 дней"
+        route: "Перорально"
+      - dose_description: "45 мг"
+        frequency_description: "1 раз в сутки"
+        duration_description: "10 дней"
+        route: "Перорально"
+      - dose_description: "30 мг"
+        frequency_description: "1 раз в сутки"
+        duration_description: "10 дней"
+        route: "Перорально"
+  
+  - medication_name: "Осельтамивир"
+    name: "Коррекция дозы при почечной недостаточности"
+    notes: "Коррекция дозы требуется для пациентов со значительным снижением функции почек."
+    indications: ["J10", "J11", "Z29.2"]
+
+    population_criteria:
+      - name: "Пациенты с КК 30-60 мл/мин"
+        notes: "Лечение: 30 мг 2 раза/сут. Профилактика: 30 мг 1 раз/сут."
+      - name: "Пациенты с КК 10-30 мл/мин"
+        notes: "Лечение: 30 мг 1 раз/сут. Профилактика: 30 мг через день."
+      - name: "Пациенты на гемодиализе"
+        notes: "Лечение: 30 мг после каждого сеанса. Профилактика: 30 мг после каждого второго сеанса."
+
+---
+# --- Справочники ---
+medication_groups:
+  - name: "Противовирусный препарат"
+    description: "Средство, предназначенное для лечения и профилактики вирусных инфекций."
+
+release_forms:
+  - name: "Порошок для ингаляций дозированный"
+    description: "Лекарственная форма в виде порошка, дозированного для введения в дыхательные пути с помощью специального устройства (ингалятора)."
+
+administration_methods:
+  - name: "Ингаляционно"
+    description: "Введение лекарственных средств через дыхательные пути."
+
+# --- Основные сущности ---
+medications: # Справочник МНН
+  - name: "Занамивир"
+    atc_code: "J05AH01"
+    medication_form: "inhaler"
+    is_active: true
+    external_info_url: "https://www.vidal.ru/drugs/relenza__15779"
+
+trade_names: # Конкретные торговые продукты
+  - name: "Реленза (Relenza)"
+    medication_name: "Занамивир"
+    group_name: "Противовирусный препарат"
+    release_form_name: "Порошок для ингаляций дозированный 5 мг/1 доза: ротадиски 4 дозы 5 шт. в компл. с Дискхалером"
+    atc_code: "J05AH01"
+    external_info_url: "https://www.vidal.ru/drugs/relenza__15779"
+
+# --- Схемы применения ---
+regimens:
+  - medication_name: "Занамивир"
+    name: "Лечение гриппа"
+    notes: "Для достижения оптимального эффекта лечение следует начинать как можно раньше (в течение 2 дней) после появления симптомов. При совместном назначении с бронходилататорами, последние применяются до ингаляции Релензы."
+    indications:
+      - "J10"   # Грипп, вызванный идентифицированным вирусом гриппа
+      - "J11"   # Грипп, вирус не идентифицирован
+    
+    population_criteria:
+      - name: "Взрослые и дети"
+      
+    dosing_instructions:
+      - dose_description: "10 мг (2 ингаляции по 5 мг)"
+        frequency_description: "2 раза в сутки"
+        duration_description: "5 дней"
+        route: "Ингаляционно"
+
+  - medication_name: "Занамивир"
+    name: "Профилактика гриппа"
+    notes: "Профилактическая терапия может быть продлена до 1 месяца, если период риска превышает 10 дней."
+    indications:
+      - "Z29.2" # Профилактическая химиотерапия
+
+    population_criteria:
+      - name: "Взрослые и дети"
+
+    dosing_instructions:
+      - dose_description: "10 мг (2 ингаляции по 5 мг)"
+        frequency_description: "1 раз в сутки"
+        duration_description: "10 дней"
+        route: "Ингаляционно"
+
+  - medication_name: "Занамивир"
+    name: "Применение у особых групп пациентов"
+    notes: "Коррекция дозы для данных групп пациентов не требуется."
+    indications: ["J10", "J11", "Z29.2"]
+
+    population_criteria:
+      - name: "Пациенты пожилого возраста"
+      - name: "Пациенты с нарушением функции почек"
+      - name: "Пациенты с нарушением функции печени"

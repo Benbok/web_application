@@ -491,12 +491,16 @@ class TreatmentRecommendationService:
             
             # Добавляем препараты в группу
             for recommendation in medication_recommendations:
+                # Безопасно получаем инструкции по дозировке
+                dosing_instructions = recommendation.get('dosing_instructions', [])
+                first_instruction = dosing_instructions[0] if dosing_instructions else {}
+                
                 grouped_recommendations[group_name].append({
                     'name': medication_name,
-                    'dosage': recommendation.get('dosing_instructions', [{}])[0].get('dose_description', ''),
-                    'frequency': recommendation.get('dosing_instructions', [{}])[0].get('frequency', ''),
-                    'route': recommendation.get('dosing_instructions', [{}])[0].get('route', ''),
-                    'duration': recommendation.get('dosing_instructions', [{}])[0].get('duration', ''),
+                    'dosage': first_instruction.get('dose_description', ''),
+                    'frequency': first_instruction.get('frequency', ''),
+                    'route': first_instruction.get('route', ''),
+                    'duration': first_instruction.get('duration', ''),
                     'notes': recommendation.get('notes', '')
                 })
         

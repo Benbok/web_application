@@ -55,6 +55,12 @@ class EncounterDiagnosisForm(forms.ModelForm):
 class EncounterDiagnosisAdvancedForm(forms.ModelForm):
     """Форма для работы с расширенной структурой диагнозов"""
     
+    encounter = forms.ModelChoiceField(
+        queryset=None,  # Будет установлен в __init__
+        widget=forms.HiddenInput(),
+        required=True
+    )
+    
     diagnosis_type = forms.ChoiceField(
         choices=EncounterDiagnosis.DIAGNOSIS_TYPE_CHOICES,
         label="Тип диагноза",
@@ -87,12 +93,22 @@ class EncounterDiagnosisAdvancedForm(forms.ModelForm):
     
     class Meta:
         model = EncounterDiagnosis
-        fields = ['diagnosis_type', 'diagnosis', 'custom_diagnosis', 'description']
+        fields = ['encounter', 'diagnosis_type', 'diagnosis', 'custom_diagnosis', 'description']
+    
+    def __init__(self, *args, **kwargs):
+        encounter = kwargs.pop('encounter', None)
+        super().__init__(*args, **kwargs)
+        
+        if encounter:
+            self.fields['encounter'].queryset = Encounter.objects.filter(pk=encounter.pk)
+            self.fields['encounter'].initial = encounter
     
     def clean(self):
         cleaned_data = super().clean()
         diagnosis = cleaned_data.get('diagnosis')
         custom_diagnosis = cleaned_data.get('custom_diagnosis')
+        
+
         
         if not diagnosis and not custom_diagnosis:
             raise ValidationError("Необходимо выбрать диагноз из справочника или ввести собственный диагноз")

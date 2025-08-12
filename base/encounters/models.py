@@ -68,6 +68,8 @@ class EncounterDiagnosis(models.Model):
     
     def clean(self):
         """Проверяем, что либо выбран диагноз из справочника, либо введен собственный"""
+
+        
         if not self.diagnosis and not self.custom_diagnosis:
             raise ValidationError("Необходимо выбрать диагноз из справочника или ввести собственный диагноз")
         
