@@ -2,6 +2,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 
 from diagnosis.models import Diagnosis 
 from patients.models import Patient 
@@ -278,6 +279,121 @@ class TradeName(models.Model):
     def __str__(self):
         return f"{self.name} ({self.medication.name})"
 
+class RegimenManager(models.Manager):
+    """
+    Менеджер для модели Regimen с оптимизированными методами фильтрации
+    """
+    
+    def get_suitable_for_patient(self, medication, patient=None, release_form=None):
+        """
+        Получает схемы применения, подходящие для пациента и формы выпуска
+        
+        Args:
+            medication: Препарат
+            patient: Пациент (опционально)
+            release_form: Форма выпуска (опционально)
+            
+        Returns:
+            QuerySet: Подходящие схемы применения
+        """
+        # Базовый фильтр: только схемы с инструкциями по дозировке
+        queryset = self.filter(
+            medication=medication,
+            dosing_instructions__isnull=False
+        ).distinct()
+        
+        # Если нет данных о пациенте, возвращаем все схемы с инструкциями
+        if not patient or not patient.birth_date:
+            return queryset
+        
+        from datetime import date
+        
+        age_days = (date.today() - patient.birth_date).days
+        patient_weight = getattr(patient, 'weight', None)
+        
+        # Условия для фильтрации по возрасту
+        age_filter = (
+            Q(population_criteria__min_age_days__lte=age_days) |
+            Q(population_criteria__min_age_days__isnull=True)
+        ) & (
+            Q(population_criteria__max_age_days__gte=age_days) |
+            Q(population_criteria__max_age_days__isnull=True)
+        )
+        
+        # Условия для фильтрации по весу
+        weight_filter = Q()
+        if patient_weight:
+            weight_filter = (
+                Q(population_criteria__min_weight_kg__lte=patient_weight) |
+                Q(population_criteria__min_weight_kg__isnull=True)
+            ) & (
+                Q(population_criteria__max_weight_kg__gte=patient_weight) |
+                Q(population_criteria__max_weight_kg__isnull=True)
+            )
+        
+        # Фильтруем схемы, которые либо не имеют критериев, либо соответствуют им
+        return queryset.filter(
+            Q(population_criteria__isnull=True) | (age_filter & weight_filter)
+        ).distinct()
+    
+    def get_compatible_with_form(self, medication, release_form):
+        """
+        Получает схемы применения, совместимые с формой выпуска
+        
+        Args:
+            medication: Препарат
+            release_form: Форма выпуска
+            
+        Returns:
+            QuerySet: Совместимые схемы применения
+        """
+        if not release_form:
+            return self.filter(
+                medication=medication,
+                dosing_instructions__isnull=False
+            ).distinct()
+        
+        # Базовый фильтр по препарату и наличию инструкций
+        queryset = self.filter(
+            medication=medication,
+            dosing_instructions__isnull=False
+        ).distinct()
+        
+        # Фильтрация по совместимости с формой выпуска
+        form_name = release_form.name.lower()
+        
+        # Для инъекционных форм (порошок, раствор) считаем все схемы совместимыми
+        # так как они обычно не содержат специфических ключевых слов в названиях
+        if any(keyword in form_name for keyword in ['порошок', 'раствор', 'инъекции', 'внутривенно', 'внутримышечно']):
+            return queryset
+        
+        # Маппинг форм выпуска на ключевые слова в названиях схем
+        form_keywords = {
+            'гель': ['гель', 'гелевая', 'местно'],
+            'мазь': ['мазь', 'мазевая', 'местно'],
+            'суппозитории': ['суппозитории', 'ректально', 'свечи'],
+            'таблетки': ['таблетки', 'перорально', 'внутрь'],
+            'капсулы': ['капсулы', 'перорально', 'внутрь'],
+        }
+        
+        # Определяем тип формы выпуска
+        form_type = None
+        for key, keywords in form_keywords.items():
+            if any(keyword in form_name for keyword in keywords):
+                form_type = key
+                break
+        
+        if not form_type:
+            return queryset  # Если не можем определить тип, считаем подходящей
+        
+        # Строим фильтр по ключевым словам
+        keyword_filter = Q()
+        for keyword in form_keywords[form_type]:
+            keyword_filter |= Q(name__icontains=keyword)
+        
+        return queryset.filter(keyword_filter)
+
+
 class Regimen(models.Model):
     """
     Схема (режим) применения препарата для определённого клинического случая.
@@ -294,6 +410,9 @@ class Regimen(models.Model):
                                          help_text=_("Диагнозы, при которых применяется эта схема"))
 
     notes = models.TextField(_("Общие примечания к схеме"), blank=True, null=True)
+    
+    # Используем кастомный менеджер
+    objects = RegimenManager()
 
     class Meta:
         verbose_name = _("Схема применения")

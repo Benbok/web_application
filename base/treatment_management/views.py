@@ -406,86 +406,23 @@ class MedicationInfoView(View):
                 # Собираем информацию о всех доступных формах с их схемами
                 available_forms = []
                 for tn in trade_names:
-                    # Получаем схемы применения для этой формы
-                    regimens = Regimen.objects.filter(
-                        medication=medication,
-                        dosing_instructions__isnull=False
-                    ).distinct()
+                            # Получаем все подходящие схемы для пациента (без фильтрации по форме выпуска)
+                    suitable_regimens = Regimen.objects.get_suitable_for_patient(
+                        medication=medication, 
+                        patient=patient
+                    ).prefetch_related('dosing_instructions', 'dosing_instructions__route')
                     
-                    # Фильтруем схемы по совместимости с формой
-                    compatible_regimens = []
-                    for regimen in regimens:
-                        dosing_instruction = DosingInstruction.objects.filter(regimen=regimen).first()
-                        if dosing_instruction:
-                            # Если поле route не заполнено, считаем схему совместимой со всеми формами
-                            if not dosing_instruction.route:
-                                compatible_regimens.append(regimen)
-                                continue
-                            
-                            # Если поле route заполнено, проверяем совместимость
-                            route = dosing_instruction.route.name.lower()
-                            release_form = tn.release_form.name.lower() if tn.release_form else ''
-                            
-                            # Проверяем совместимость формы и схемы
-                            is_compatible = False
-                            if 'суппозитории' in release_form and 'ректально' in route:
-                                is_compatible = True
-                            elif 'гель' in release_form and 'местно' in route:
-                                is_compatible = True
-                            elif 'мазь' in release_form and 'местно' in route:
-                                is_compatible = True
-                            elif 'таблетки' in release_form and 'перорально' in route:
-                                is_compatible = True
-                            elif 'инъекции' in release_form and ('внутримышечно' in route or 'внутривенно' in route):
-                                is_compatible = True
-                            else:
-                                # Если не можем определить совместимость, считаем совместимым
-                                is_compatible = True
-                            
-                            if is_compatible:
-                                compatible_regimens.append(regimen)
-                    
-                    # Получаем схемы с учетом возраста пациента
-                    suitable_regimens = []
-                    if patient and patient.birth_date:
-                        age_days = (date.today() - patient.birth_date).days
-                        
-                        for regimen in compatible_regimens:
-                            # Проверяем критерии населения для этой схемы
-                            population_criteria = PopulationCriteria.objects.filter(regimen=regimen)
-                            
-                            if not population_criteria.exists():
-                                # Если нет критериев, считаем подходящим
-                                suitable_regimens.append(regimen)
-                                continue
-                            
-                            for criteria in population_criteria:
-                                # Проверяем возрастные критерии
-                                age_suitable = True
-                                if criteria.min_age_days and age_days < criteria.min_age_days:
-                                    age_suitable = False
-                                if criteria.max_age_days and age_days > criteria.max_age_days:
-                                    age_suitable = False
-                                
-                                # Проверяем весовые критерии (если есть)
-                                weight_suitable = True
-                                patient_weight = getattr(patient, 'weight', None)
-                                if patient_weight and criteria.min_weight_kg and patient_weight < criteria.min_weight_kg:
-                                    weight_suitable = False
-                                if patient_weight and criteria.max_weight_kg and patient_weight > criteria.max_weight_kg:
-                                    weight_suitable = False
-                                
-                                if age_suitable and weight_suitable:
-                                    suitable_regimens.append(regimen)
-                                    break
-                    else:
-                        # Если нет информации о пациенте, берем совместимые схемы
-                        suitable_regimens = compatible_regimens
+                    # Используем все подходящие схемы (не фильтруем по форме выпуска)
+                    compatible_regimens = suitable_regimens
                     
                     # Собираем информацию о схемах
                     regimens_info = []
-                    for regimen in suitable_regimens:
-                        dosing_instruction = DosingInstruction.objects.filter(regimen=regimen).first()
+                    print(f"DEBUG: Обрабатываем {compatible_regimens.count()} совместимых схем для формы {tn.name}")
+                    
+                    for regimen in compatible_regimens:
+                        dosing_instruction = regimen.dosing_instructions.first()
+                        print(f"DEBUG: Схема {regimen.id}: {regimen.name}, инструкция: {dosing_instruction}")
+                        
                         if dosing_instruction:
                             regimen_info = {
                                 'id': regimen.id,
@@ -498,6 +435,11 @@ class MedicationInfoView(View):
                                 'instructions': regimen.notes or ''
                             }
                             regimens_info.append(regimen_info)
+                            print(f"DEBUG: Добавлена схема: {regimen_info}")
+                        else:
+                            print(f"DEBUG: Схема {regimen.id} без инструкций по дозировке")
+                    
+                    print(f"DEBUG: Для формы {tn.name} собрано {len(regimens_info)} схем")
                     
                     form_info = {
                         'id': tn.id,
@@ -544,67 +486,16 @@ class MedicationInfoView(View):
                     'available_forms': []
                 })
             
-            # Получаем стандартные дозировки из pharmacy app с учетом пациента
-            from pharmacy.models import Regimen, DosingInstruction, PopulationCriteria
-            from datetime import date
+            # Получаем стандартные дозировки с учетом пациента через оптимизированный менеджер
+            suitable_regimens = Regimen.objects.get_suitable_for_patient(
+                medication=medication, 
+                patient=patient
+            ).prefetch_related('dosing_instructions', 'dosing_instructions__route')
             
-            if patient and patient.birth_date:
-                # Вычисляем возраст пациента в днях
-                age_days = (date.today() - patient.birth_date).days
-                
-                # Ищем схемы с подходящими возрастными критериями
-                suitable_regimens = []
-                
-                regimens_with_instructions = Regimen.objects.filter(
-                    medication=medication,
-                    dosing_instructions__isnull=False
-                ).distinct()
-                
-                for regimen in regimens_with_instructions:
-                    # Проверяем критерии населения для этой схемы
-                    population_criteria = PopulationCriteria.objects.filter(regimen=regimen)
-                    
-                    if not population_criteria.exists():
-                        # Если нет критериев, считаем подходящим
-                        suitable_regimens.append(regimen)
-                        continue
-                    
-                    for criteria in population_criteria:
-                        # Проверяем возрастные критерии
-                        age_suitable = True
-                        if criteria.min_age_days and age_days < criteria.min_age_days:
-                            age_suitable = False
-                        if criteria.max_age_days and age_days > criteria.max_age_days:
-                            age_suitable = False
-                        
-                        # Проверяем весовые критерии (если есть)
-                        weight_suitable = True
-                        patient_weight = getattr(patient, 'weight', None)
-                        if patient_weight and criteria.min_weight_kg and patient_weight < criteria.min_weight_kg:
-                            weight_suitable = False
-                        if patient_weight and criteria.max_weight_kg and patient_weight > criteria.max_weight_kg:
-                            weight_suitable = False
-                        
-                        if age_suitable and weight_suitable:
-                            suitable_regimens.append(regimen)
-                            break
-                
-                # Если нашли подходящие схемы, берем первую
-                if suitable_regimens:
-                    regimen = suitable_regimens[0]
-                else:
-                    # Если не нашли подходящих, берем первую доступную
-                    regimen = regimens_with_instructions.first()
-            else:
-                # Если нет информации о пациенте, берем первую схему
-                regimens_with_instructions = Regimen.objects.filter(
-                    medication=medication,
-                    dosing_instructions__isnull=False
-                ).distinct()
-                regimen = regimens_with_instructions.first() if regimens_with_instructions.exists() else None
+            regimen = suitable_regimens.first()
             
             if regimen:
-                dosing_instruction = DosingInstruction.objects.filter(regimen=regimen).first()
+                dosing_instruction = regimen.dosing_instructions.first()
                 if dosing_instruction:
                     medication_info.update({
                         'dosage': dosing_instruction.dose_description,
@@ -692,55 +583,22 @@ class TradeNameInfoView(View):
                 'instructions': ''
             }
             
-            # Получаем схемы применения, совместимые с этой формой
-            from pharmacy.models import Regimen, DosingInstruction, PopulationCriteria
-            from datetime import date
+            # Получаем схемы применения, совместимые с этой формой через оптимизированный менеджер
+            from pharmacy.models import Regimen
             
-            # Получаем все схемы для этого препарата
-            all_regimens = Regimen.objects.filter(
-                medication=trade_name.medication,
-                dosing_instructions__isnull=False
-            ).distinct()
+            # Получаем все подходящие схемы для пациента (без фильтрации по форме выпуска)
+            suitable_regimens = Regimen.objects.get_suitable_for_patient(
+                medication=trade_name.medication, 
+                patient=patient
+            ).prefetch_related('dosing_instructions', 'dosing_instructions__route')
             
-            # Фильтруем схемы по совместимости с формой
-            compatible_regimens = []
-            for regimen in all_regimens:
-                dosing_instruction = DosingInstruction.objects.filter(regimen=regimen).first()
-                if dosing_instruction:
-                    # Если поле route не заполнено, считаем схему совместимой со всеми формами
-                    if not dosing_instruction.route:
-                        compatible_regimens.append(regimen)
-                        continue
-                    
-                    # Если поле route заполнено, проверяем совместимость
-                    route = dosing_instruction.route.name.lower()
-                    release_form = trade_name.release_form.name.lower() if trade_name.release_form else ''
-                    
-                    # Проверяем совместимость формы и схемы
-                    is_compatible = False
-                    if 'суппозитории' in release_form and 'ректально' in route:
-                        is_compatible = True
-                    elif 'гель' in release_form and 'местно' in route:
-                        is_compatible = True
-                    elif 'мазь' in release_form and 'местно' in route:
-                        is_compatible = True
-                    elif 'таблетки' in release_form and 'перорально' in route:
-                        is_compatible = True
-                    elif 'инъекции' in release_form and ('внутримышечно' in route or 'внутривенно' in route):
-                        is_compatible = True
-                    else:
-                        # Если не можем определить совместимость, считаем совместимым
-                        is_compatible = True
-                    
-                    if is_compatible:
-                        compatible_regimens.append(regimen)
+            # Используем все подходящие схемы (не фильтруем по форме выпуска)
+            compatible_regimens = suitable_regimens
             
-            # Собираем информацию только о совместимых схемах
+            # Собираем информацию о схемах
             all_regimens_info = []
-            suitable_regimens = []
-            
             for regimen in compatible_regimens:
-                dosing_instruction = DosingInstruction.objects.filter(regimen=regimen).first()
+                dosing_instruction = regimen.dosing_instructions.first()
                 if dosing_instruction:
                     regimen_info = {
                         'id': regimen.id,
@@ -751,47 +609,12 @@ class TradeNameInfoView(View):
                         'route': map_route_to_form_value(dosing_instruction.route.name if dosing_instruction.route else 'oral'),
                         'duration': dosing_instruction.duration_description,
                         'instructions': regimen.notes or '',
-                        'is_suitable': False  # Будем определять пригодность ниже
+                        'is_suitable': True  # Все схемы уже отфильтрованы менеджером
                     }
                     all_regimens_info.append(regimen_info)
-                    
-                    # Проверяем пригодность для пациента
-                    if patient and patient.birth_date:
-                        age_days = (date.today() - patient.birth_date).days
-                        
-                        # Проверяем критерии населения для этой схемы
-                        population_criteria = PopulationCriteria.objects.filter(regimen=regimen)
-                        
-                        if not population_criteria.exists():
-                            # Если нет критериев, считаем подходящим
-                            suitable_regimens.append(regimen_info)
-                            regimen_info['is_suitable'] = True
-                            continue
-                        
-                        for criteria in population_criteria:
-                            # Проверяем возрастные критерии
-                            age_suitable = True
-                            if criteria.min_age_days and age_days < criteria.min_age_days:
-                                age_suitable = False
-                            if criteria.max_age_days and age_days > criteria.max_age_days:
-                                age_suitable = False
-                            
-                            # Проверяем весовые критерии (если есть)
-                            weight_suitable = True
-                            patient_weight = getattr(patient, 'weight', None)
-                            if patient_weight and criteria.min_weight_kg and patient_weight < criteria.min_weight_kg:
-                                weight_suitable = False
-                            if patient_weight and criteria.max_weight_kg and patient_weight > criteria.max_weight_kg:
-                                weight_suitable = False
-                            
-                            if age_suitable and weight_suitable:
-                                suitable_regimens.append(regimen_info)
-                                regimen_info['is_suitable'] = True
-                                break
-                    else:
-                        # Если нет информации о пациенте, считаем все подходящими
-                        suitable_regimens.append(regimen_info)
-                        regimen_info['is_suitable'] = True
+            
+            # Все схемы уже подходящие для пациента (отфильтрованы менеджером)
+            suitable_regimens = all_regimens_info
             
             # Добавляем все схемы в информацию о форме
             form_info['all_regimens'] = all_regimens_info
