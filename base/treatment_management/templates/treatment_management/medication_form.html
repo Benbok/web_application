@@ -386,6 +386,7 @@ function displayAvailableForms(forms, selectedFormId = null) {
 
 function displayRegimens(regimens, formId) {
     console.log(`📋 Отображаем ${regimens.length} схем применения для формы ${formId}`);
+    console.log('🔍 Данные схем:', regimens);
     
     const container = document.getElementById('regimens-container');
     const grid = document.getElementById('regimens-grid');
@@ -400,6 +401,9 @@ function displayRegimens(regimens, formId) {
     
     // Создаем карточки для каждой схемы
     regimens.forEach((regimen, index) => {
+        console.log(`📝 Обрабатываем схему ${index}:`, regimen);
+        console.log(`🎯 Route: ${regimen.route}, Route Name: ${regimen.route_name}`);
+        
         const regimenCard = document.createElement('div');
         regimenCard.className = 'col-md-6 mb-2';
         
@@ -411,13 +415,15 @@ function displayRegimens(regimens, formId) {
         regimenCard.innerHTML = `
             <div class="card ${cardClass} h-100 cursor-pointer" 
                  onclick="selectRegimen(${regimen.id}, '${regimen.name.replace(/'/g, "\\'").replace(/"/g, '\\"')}')"
+                 data-route-id="${regimen.route || ''}"
+                 data-route-name="${regimen.route_name || ''}"
                  style="cursor: pointer; transition: all 0.2s;">
                 <div class="card-body p-2">
                     <h6 class="card-title mb-1">${regimen.name}</h6>
                     <div class="small text-muted">
                         <div class="regimen-dosage"><strong>Дозировка:</strong> ${regimen.dosage || 'Не указана'}</div>
                         <div class="regimen-frequency"><strong>Частота:</strong> ${regimen.frequency || 'Не указана'}</div>
-                        <div class="regimen-route"><strong>Путь:</strong> ${regimen.route || 'Не указан'}</div>
+                        <div class="regimen-route"><strong>Путь:</strong> ${regimen.route_name || 'Не указан'}</div>
                         <div class="regimen-duration"><strong>Длительность:</strong> ${regimen.duration || 'Не указана'}</div>
                     </div>
                     ${regimen.notes ? `<div class="mt-2"><small class="text-info">${regimen.notes}</small></div>` : ''}
@@ -474,25 +480,29 @@ function selectRegimen(regimenId, regimenName) {
     // Обновляем UI выбранной схемы
     updateSelectedRegimenUI(regimenId);
     
-    // Находим выбранную схему в данных
+    // Получаем данные схемы из API вместо DOM
+    // Это более надежный способ, так как данные уже есть в памяти
     const regimensContainer = document.getElementById('regimens-container');
     if (regimensContainer && regimensContainer.style.display !== 'none') {
-        // Ищем схему в текущих данных
+        // Ищем схему в текущих данных по ID
         const regimenCards = document.querySelectorAll('#regimens-grid .card');
         let selectedRegimen = null;
         
+        // Получаем данные из onclick атрибута, который содержит regimenId
         regimenCards.forEach(card => {
             const onclickAttr = card.getAttribute('onclick');
             if (onclickAttr && onclickAttr.includes(`selectRegimen(${regimenId},`)) {
-                // Извлекаем данные схемы из карточки используя классы
+                // Получаем данные из data-атрибутов карточки
+                const routeId = card.getAttribute('data-route-id');
+                const routeName = card.getAttribute('data-route-name');
+                
+                // Извлекаем остальные данные схемы из карточки используя классы
                 const dosageElement = card.querySelector('.regimen-dosage');
                 const frequencyElement = card.querySelector('.regimen-frequency');
-                const routeElement = card.querySelector('.regimen-route');
                 const durationElement = card.querySelector('.regimen-duration');
                 
                 const dosageText = dosageElement ? dosageElement.textContent.replace('Дозировка:', '').trim() : '';
                 const frequencyText = frequencyElement ? frequencyElement.textContent.replace('Частота:', '').trim() : '';
-                const routeText = routeElement ? routeElement.textContent.replace('Путь:', '').trim() : '';
                 const durationText = durationElement ? durationElement.textContent.replace('Длительность:', '').trim() : '';
                 
                 selectedRegimen = {
@@ -500,7 +510,8 @@ function selectRegimen(regimenId, regimenName) {
                     name: regimenName,
                     dosage: dosageText,
                     frequency: frequencyText,
-                    route: routeText,
+                    route: routeId,  // ID для ForeignKey поля
+                    route_name: routeName,  // Название для отображения
                     duration: durationText
                 };
             }
@@ -651,7 +662,10 @@ function updateFormWithRegimenInfo(regimenInfo) {
     // Обновляем поля формы
     if (dosageField && regimenInfo.dosage) dosageField.value = regimenInfo.dosage;
     if (frequencyField && regimenInfo.frequency) frequencyField.value = regimenInfo.frequency;
-    if (routeField && regimenInfo.route) routeField.value = regimenInfo.route;
+    if (routeField && regimenInfo.route) {
+        console.log(`🎯 Устанавливаем route ID: ${regimenInfo.route} для поля формы`);
+        routeField.value = regimenInfo.route;
+    }
     if (durationField && regimenInfo.duration) durationField.value = regimenInfo.duration;
     
     // Добавляем информацию о выбранной схеме в поле инструкций
@@ -659,7 +673,7 @@ function updateFormWithRegimenInfo(regimenInfo) {
         let instructions = `Схема: ${regimenInfo.name}`;
         if (regimenInfo.dosage) instructions += ` | Дозировка: ${regimenInfo.dosage}`;
         if (regimenInfo.frequency) instructions += ` | Частота: ${regimenInfo.frequency}`;
-        if (regimenInfo.route) instructions += ` | Путь: ${regimenInfo.route}`;
+        if (regimenInfo.route_name) instructions += ` | Путь: ${regimenInfo.route_name}`;
         if (regimenInfo.duration) instructions += ` | Длительность: ${regimenInfo.duration}`;
         
         instructionsField.value = instructions;
@@ -692,7 +706,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Очищаем поля формы
         if (dosageField) dosageField.value = '';
         if (frequencyField) frequencyField.value = '';
-        if (routeField) routeField.value = 'oral';
+        if (routeField) routeField.value = '';  // Очищаем ForeignKey поле
         if (durationField) durationField.value = '';
         if (instructionsField) instructionsField.value = '';
         
@@ -762,7 +776,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Заполняем поля автоматически
                 if (dosageField && med.dosage) dosageField.value = med.dosage;
                 if (frequencyField && med.frequency) frequencyField.value = med.frequency;
-                if (routeField && med.route) routeField.value = med.route;
+                if (routeField && med.route) {
+                    console.log(`🎯 Устанавливаем route ID: ${med.route} для поля формы`);
+                    routeField.value = med.route;
+                } else {
+                    console.log('⚠️ Route не найден или пустой');
+                }
                 if (durationField && med.duration) durationField.value = med.duration;
                 if (instructionsField && med.instructions) instructionsField.value = med.instructions;
                 
@@ -784,6 +803,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                         if (med.medication_form) {
                             infoText = infoText == '' ? `Форма: ${med.medication_form}` : infoText + ` | Форма: ${med.medication_form}`;
+                        }
+                        if (med.route_name) {
+                            infoText = infoText == '' ? `Путь: ${med.route_name}` : infoText + ` | Путь: ${med.route_name}`;
                         }
                         
                         if (medicationInfoText) {

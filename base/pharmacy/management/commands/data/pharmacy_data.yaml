@@ -774,3 +774,221 @@ regimens:
       - name: "Пациенты пожилого возраста"
       - name: "Пациенты с нарушением функции почек"
       - name: "Пациенты с нарушением функции печени"
+
+---
+# --- Справочники ---
+medication_groups:
+  - name: "Сосудосуживающий препарат для местного применения в ЛОР-практике"
+    description: "Альфа-адреномиметик, вызывает сужение сосудов слизистой оболочки носа, уменьшая отек и облегчая носовое дыхание."
+
+release_forms:
+  - name: "Капли назальные"
+    description: "Жидкая лекарственная форма, предназначенная для закапывания в носовые ходы."
+  - name: "Спрей назальный"
+    description: "Лекарственная форма в виде раствора или суспензии, распыляемая в носовую полость."
+
+administration_methods:
+  - name: "Интраназально"
+    description: "Введение лекарственных средств в полость носа."
+
+# --- Основные сущности ---
+medications: # Справочник МНН
+  - name: "Оксиметазолин"
+    atc_code: "R01AA05"
+    medication_form: "drops"
+    is_active: true
+    external_info_url: "https://www.vidal.ru/drugs/oxymetazoline-4"
+
+trade_names: # Конкретные торговые продукты
+  - name: "Оксиметазолин 0.05%"
+    medication_name: "Оксиметазолин"
+    group_name: "Сосудосуживающий препарат для местного применения в ЛОР-практике"
+    release_form_name: "Капли назальные"
+    atc_code: "R01AA05"
+    external_info_url: "https://www.vidal.ru/drugs/oxymetazoline-4"
+  - name: "Оксиметазолин 0.025%"
+    medication_name: "Оксиметазолин"
+    group_name: "Сосудосуживающий препарат для местного применения в ЛОР-практике"
+    release_form_name: "Капли назальные"
+    atc_code: "R01AA05"
+    external_info_url: "https://www.vidal.ru/drugs/oxymetazoline-4"
+  - name: "Оксиметазолин 0.01%"
+    medication_name: "Оксиметазолин"
+    group_name: "Сосудосуживающий препарат для местного применения в ЛОР-практике"
+    release_form_name: "Капли назальные"
+    atc_code: "R01AA05"
+    external_info_url: "https://www.vidal.ru/drugs/oxymetazoline-4"
+
+# --- Схемы применения ---
+regimens:
+  - medication_name: "Оксиметазолин"
+    name: "Применение у взрослых и детей старше 6 лет (концентрация 0.05%)"
+    notes: "Не следует применять препарат более 5-7 дней без консультации с врачом. Частое или длительное использование может привести к медикаментозному риниту."
+    indications:
+      - "H68"   # Воспаление и закупорка слуховой трубы
+      - "J00"   # Острый назофарингит (насморк)
+      - "J01"   # Острый синусит
+      - "J10"   # Грипп, вызванный идентифицированным вирусом гриппа A
+      - "J11"   # Грипп, вирус не идентифицирован
+      - "J30.1" # Аллергический ринит, вызванный пыльцой растений
+      - "J30.3" # Другие аллергические риниты
+      - "J31.0" # Хронический ринит
+      - "J32"   # Хронический синусит
+      - "Z51.4" # Подготовительные процедуры
+    
+    population_criteria:
+      - name: "Взрослые и дети старше 6 лет"
+        min_age_years: 6
+        
+    dosing_instructions:
+      - dose_description: "1-2 капли или 1 впрыскивание (для спрея)"
+        frequency_description: "2-3 раза в сутки"
+        duration_description: "Не более 5-7 дней"
+        route: "Интраназально"
+
+  - medication_name: "Оксиметазолин"
+    name: "Применение у детей от 1 года до 6 лет (концентрация 0.025%)"
+    notes: "Не следует применять препарат более 5-7 дней без консультации с врачом."
+    indications: ["H68", "J00", "J01", "J30.1", "J30.3", "Z51.4"]
+    
+    population_criteria:
+      - name: "Дети от 1 года до 6 лет"
+        min_age_years: 1
+        max_age_years: 6
+
+    dosing_instructions:
+      - dose_description: "1-2 капли"
+        frequency_description: "2-3 раза в сутки"
+        duration_description: "Не более 5-7 дней"
+        route: "Интраназально"
+
+  - medication_name: "Оксиметазолин"
+    name: "Применение у детей до 1 года (концентрация 0.01%)"
+    notes: "Не следует применять препарат более 5-7 дней без консультации с врачом."
+    indications: ["H68", "J00", "Z51.4"]
+
+    population_criteria:
+      - name: "Дети от 5 недель до 1 года"
+        min_age_years: 0.1 # ~5 недель
+        max_age_years: 1
+      - name: "Дети до 4 недель"
+        max_age_years: 0.1 # ~до 5 недель
+
+    dosing_instructions:
+      - dose_description: "1-2 капли"
+        frequency_description: "2-3 раза в сутки"
+        duration_description: "Не более 5-7 дней"
+        route: "Интраназально"
+      - dose_description: "1 капля"
+        frequency_description: "2-3 раза в сутки"
+        duration_description: "Не более 5-7 дней"
+        route: "Интраназально"
+
+---
+# --- Справочники ---
+medication_groups:
+  - name: "Альфа-адреномиметик"
+    description: "Стимулирует альфа-адренорецепторы, что приводит к сужению сосудов."
+  - name: "Сосудосуживающий препарат для местного применения в ЛОР-практике"
+    description: "Деконгестант, уменьшает отек и гиперемию слизистой оболочки носа."
+  - name: "Мидриатик"
+    description: "Препарат, расширяющий зрачок."
+  - name: "Средство для лечения геморроя"
+    description: "Препарат для местного лечения геморроя и других заболеваний аноректальной области."
+
+release_forms:
+  - name: "Капли глазные"
+  - name: "Капли назальные"
+  - name: "Спрей назальный"
+  - name: "Раствор для инъекций"
+  - name: "Суппозитории ректальные"
+
+administration_methods:
+  - name: "Местно (в конъюнктивальный мешок)"
+  - name: "Интраназально"
+  - name: "Внутривенно"
+  - name: "Ректально"
+
+# --- Основные сущности ---
+medications: # Справочник МНН
+  - name: "Фенилэфрин"
+    atc_code: "C01CA06" # Основной код для системного применения
+    medication_form: "solution" # Наиболее общее
+    is_active: true
+    external_info_url: "https://www.vidal.ru/drugs/phenylephrine-7"
+
+trade_names: # Конкретные торговые продукты
+  - name: "Фенилэфрин (капли глазные)"
+    medication_name: "Фенилэфрин"
+    group_name: "Мидриатик"
+    release_form_name: "Капли глазные"
+    atc_code: "S01FB01"
+  - name: "Фенилэфрин (капли/спрей назальные)"
+    medication_name: "Фенилэфрин"
+    group_name: "Сосудосуживающий препарат для местного применения в ЛОР-практике"
+    release_form_name: "Капли назальные"
+    atc_code: "R01AA04"
+  - name: "Фенилэфрин (раствор для инъекций)"
+    medication_name: "Фенилэфрин"
+    group_name: "Альфа-адреномиметик"
+    release_form_name: "Раствор для инъекций"
+    atc_code: "C01CA06"
+  - name: "Фенилэфрин (суппозитории ректальные)"
+    medication_name: "Фенилэфрин"
+    group_name: "Средство для лечения геморроя"
+    release_form_name: "Суппозитории ректальные"
+    atc_code: "C05AX03" # В комбинациях
+
+# --- Схемы применения ---
+regimens:
+  - medication_name: "Фенилэфрин"
+    name: "Применение в офтальмологии (капли глазные)"
+    notes: "Применяется для расширения зрачка в диагностических целях или для лечения воспалительных заболеваний переднего отрезка глаза."
+    indications: ["H10", "H20.0", "H20.1", "H52.5", "Z01.0"]
+    population_criteria:
+      - name: "Взрослые и дети"
+    dosing_instructions:
+      - dose_description: "1 капля"
+        frequency_description: "однократно (для диагностики)"
+        duration_description: "По потребности"
+        route: "Местно (в конъюнктивальный мешок)"
+      - dose_description: "1 капля"
+        frequency_description: "2-3 раза в сутки (при увеитах)"
+        duration_description: "По назначению врача"
+        route: "Местно (в конъюнктивальный мешок)"
+
+  - medication_name: "Фенилэфрин"
+    name: "Интраназальное применение (капли, спрей)"
+    notes: "Применяется для облегчения носового дыхания при простудных, вирусных и аллергических заболеваниях."
+    indications: ["J00", "J30.1", "J30.3", "J31.0", "J32", "Z51.4", "J10", "J11"]
+    population_criteria:
+      - name: "Взрослые и дети старше 6 лет"
+    dosing_instructions:
+      - dose_description: "1-2 капли/впрыскивания в каждый носовой ход"
+        frequency_description: "каждые 4-6 часов"
+        duration_description: "Не более 3-5 дней"
+        route: "Интраназально"
+
+  - medication_name: "Фенилэфрин"
+    name: "Системное применение при гипотензии (инъекции)"
+    notes: "Применяется для повышения артериального давления при коллапсе и гипотензивных состояниях."
+    indications: ["I95", "R55"]
+    population_criteria:
+      - name: "Взрослые"
+    dosing_instructions:
+      - dose_description: "100-500 мкг"
+        frequency_description: "Повторять по мере необходимости"
+        duration_description: "Кратковременно, под контролем АД"
+        route: "Внутривенно (болюсно или инфузионно)"
+
+  - medication_name: "Фенилэфрин"
+    name: "Ректальное применение (суппозитории)"
+    notes: "Оказывает местное сосудосуживающее действие, уменьшая отек, зуд и кровоточивость при геморрое."
+    indications: ["K60", "K64", "L29.3"]
+    population_criteria:
+      - name: "Взрослые"
+    dosing_instructions:
+      - dose_description: "1 суппозиторий"
+        frequency_description: "1-2 раза в сутки"
+        duration_description: "По назначению врача"
+        route: "Ректально"

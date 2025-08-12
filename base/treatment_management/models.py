@@ -68,16 +68,6 @@ class TreatmentMedication(models.Model):
     """
     Лекарство в плане лечения
     """
-    ROUTE_CHOICES = [
-        ('oral', _('Перорально')),
-        ('intramuscular', _('Внутримышечно')),
-        ('intravenous', _('Внутривенно')),
-        ('subcutaneous', _('Подкожно')),
-        ('topical', _('Наружно')),
-        ('inhalation', _('Ингаляционно')),
-        ('rectal', _('Ректально')),
-        ('other', _('Другое')),
-    ]
     
     treatment_plan = models.ForeignKey(
         TreatmentPlan, 
@@ -104,11 +94,13 @@ class TreatmentMedication(models.Model):
     # Параметры назначения
     dosage = models.CharField(_("Дозировка"), max_length=100)
     frequency = models.CharField(_("Частота приема"), max_length=100)
-    route = models.CharField(
-        _("Способ введения"), 
-        max_length=20, 
-        choices=ROUTE_CHOICES, 
-        default='oral'
+    route = models.ForeignKey(
+        'pharmacy.AdministrationMethod',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("Способ введения"),
+        help_text=_("Выберите способ введения препарата")
     )
     duration = models.CharField(_("Длительность"), max_length=100, blank=True)
     instructions = models.TextField(_("Особые указания"), blank=True)
@@ -145,7 +137,9 @@ class TreatmentMedication(models.Model):
     
     def get_route_display_name(self):
         """Возвращает читаемое название способа введения"""
-        return dict(self.ROUTE_CHOICES).get(self.route, self.route)
+        if self.route:
+            return self.route.name
+        return _("Не указан")
     
     def get_external_info_url(self):
         """Возвращает ссылку на внешнюю информацию о препарате"""

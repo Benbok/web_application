@@ -310,3 +310,5 @@ class Command(BaseCommand):
         except Exception as e:
             # Оборачиваем в CommandError, чтобы Django красиво показал ошибку
             raise CommandError(f'❌ Произошла критическая ошибка при загрузке данных: {e}')
+
+# python manage.py load_med_data pharmacy/management/commands/data/pharmacy_data.yaml

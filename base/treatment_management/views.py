@@ -18,36 +18,32 @@ from .services import (
 )
 from patients.models import Patient
 
-# Общая функция для преобразования текстового способа введения в код для формы
+# Общая функция для преобразования текстового способа введения в ID AdministrationMethod
 def map_route_to_form_value(route_text):
     """
-    Преобразует текстовое описание способа введения в код для формы.
-    Теперь использует надежную логику вместо поиска подстрок.
+    Преобразует текстовое описание способа введения в ID AdministrationMethod.
+    Теперь возвращает ID для ForeignKey поля route.
     """
     if not route_text:
-        return 'oral'
+        return None
     
-    route_lower = route_text.lower()
-    
-    # Более надежная логика с использованием точных совпадений
-    route_mapping = {
-        'ректально': 'rectal',
-        'местно': 'topical',
-        'перорально': 'oral',
-        'внутрь': 'oral',
-        'внутримышечно': 'intramuscular',
-        'внутривенно': 'intravenous',
-        'подкожно': 'subcutaneous',
-        'ингаляционно': 'inhalation',
-    }
-    
-    # Ищем точное совпадение
-    for route_key, form_value in route_mapping.items():
-        if route_key in route_lower:
-            return form_value
-    
-    # Если не нашли точного совпадения, возвращаем 'other'
-    return 'other'
+    try:
+        from pharmacy.models import AdministrationMethod
+        # Ищем метод введения по точному названию
+        method = AdministrationMethod.objects.filter(name__iexact=route_text).first()
+        if method:
+            return method.id
+        else:
+            # Если не нашли точное совпадение, ищем по частичному совпадению
+            method = AdministrationMethod.objects.filter(name__icontains=route_text).first()
+            if method:
+                return method.id
+            else:
+                # Если ничего не нашли, возвращаем None
+                return None
+    except Exception as e:
+        print(f"Ошибка при поиске AdministrationMethod для '{route_text}': {e}")
+        return None
 
 
 class OwnerContextMixin:
@@ -405,7 +401,7 @@ class MedicationInfoView(View):
                 'medication_form': getattr(medication, 'medication_form', ''),
                 'dosage': '',
                 'frequency': '',
-                'route': 'oral',
+                'route': None,  # Теперь это будет ID AdministrationMethod
                 'duration': '',
                 'instructions': ''
             }
@@ -438,7 +434,8 @@ class MedicationInfoView(View):
                                 'notes': regimen.notes or '',
                                 'dosage': dosing_instruction.dose_description,
                                 'frequency': dosing_instruction.frequency_description,
-                                'route': map_route_to_form_value(dosing_instruction.route.name if dosing_instruction.route else 'oral'),
+                                'route': map_route_to_form_value(dosing_instruction.route.name if dosing_instruction.route else None),
+                                'route_name': dosing_instruction.route.name if dosing_instruction.route else 'Не указан',
                                 'duration': dosing_instruction.duration_description,
                                 'instructions': regimen.notes or ''
                             }
@@ -477,7 +474,8 @@ class MedicationInfoView(View):
                         medication_info.update({
                             'dosage': first_regimen['dosage'],
                             'frequency': first_regimen['frequency'],
-                            'route': first_regimen['route'],
+                            'route': first_regimen['route'],  # ID для ForeignKey поля
+                            'route_name': first_regimen['route_name'],  # Название для отображения
                             'duration': first_regimen['duration'],
                             'instructions': first_regimen['instructions']
                         })
@@ -503,7 +501,8 @@ class MedicationInfoView(View):
                     medication_info.update({
                         'dosage': dosing_instruction.dose_description,
                         'frequency': dosing_instruction.frequency_description,
-                        'route': map_route_to_form_value(dosing_instruction.route.name if dosing_instruction.route else 'oral'),
+                        'route': map_route_to_form_value(dosing_instruction.route.name if dosing_instruction.route else None),
+                        'route_name': dosing_instruction.route.name if dosing_instruction.route else 'Не указан',
                         'duration': dosing_instruction.duration_description,
                         'instructions': regimen.notes or ''
                     })
@@ -560,7 +559,7 @@ class TradeNameInfoView(View):
                 'atc_code': trade_name.atc_code,
                 'dosage': '',
                 'frequency': '',
-                'route': 'oral',
+                'route': None,  # Теперь это будет ID AdministrationMethod
                 'duration': '',
                 'instructions': ''
             }
@@ -588,7 +587,8 @@ class TradeNameInfoView(View):
                         'notes': regimen.notes or '',
                         'dosage': dosing_instruction.dose_description,
                         'frequency': dosing_instruction.frequency_description,
-                        'route': map_route_to_form_value(dosing_instruction.route.name if dosing_instruction.route else 'oral'),
+                        'route': map_route_to_form_value(dosing_instruction.route.name if dosing_instruction.route else None),
+                        'route_name': dosing_instruction.route.name if dosing_instruction.route else 'Не указан',
                         'duration': dosing_instruction.duration_description,
                         'instructions': regimen.notes or '',
                         'is_suitable': True  # Все схемы уже отфильтрованы менеджером
@@ -609,6 +609,7 @@ class TradeNameInfoView(View):
                     'dosage': first_suitable['dosage'],
                     'frequency': first_suitable['frequency'],
                     'route': first_suitable['route'],
+                    'route_name': first_suitable['route_name'],  # Добавляем название для отображения
                     'duration': first_suitable['duration'],
                     'instructions': first_suitable['instructions'],
                     'selected_regimen_id': first_suitable['id']
@@ -620,6 +621,7 @@ class TradeNameInfoView(View):
                     'dosage': first_available['dosage'],
                     'frequency': first_available['frequency'],
                     'route': first_available['route'],
+                    'route_name': first_available['route_name'],  # Добавляем название для отображения
                     'duration': first_available['duration'],
                     'instructions': first_available['instructions'],
                     'selected_regimen_id': first_available['id']
