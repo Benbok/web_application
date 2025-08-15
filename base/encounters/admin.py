@@ -5,7 +5,7 @@ from django.shortcuts import render, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 
-from .models import Encounter, TreatmentLabTest
+from .models import Encounter
 from .services.encounter_service import EncounterService
 from .forms import EncounterReopenForm, EncounterUndoForm
 
@@ -144,30 +144,5 @@ class EncounterAdmin(admin.ModelAdmin):
         return f"{status} {last_command['description']} {can_undo}"
     last_command_info.short_description = "Последняя команда"
     last_command_info.allow_tags = True
-
-
-@admin.register(TreatmentLabTest)
-class TreatmentLabTestAdmin(admin.ModelAdmin):
-    list_display = ('get_lab_test_name', 'treatment_plan', 'priority', 'is_active', 'created_at')
-    list_filter = ('priority', 'is_active', 'created_at')
-    search_fields = ('lab_test__name', 'custom_lab_test', 'treatment_plan__name')
-    readonly_fields = ('created_at', 'updated_at')
-    
-    fieldsets = (
-        ('Основная информация', {
-            'fields': ('treatment_plan', 'lab_test', 'custom_lab_test', 'priority')
-        }),
-        ('Дополнительно', {
-            'fields': ('instructions', 'is_active')
-        }),
-        ('Системная информация', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    
-    def get_lab_test_name(self, obj):
-        return obj.get_lab_test_name()
-    get_lab_test_name.short_description = 'Название исследования'
 
 

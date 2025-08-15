@@ -17,14 +17,6 @@ urlpatterns = [
     path('diagnoses/<int:pk>/edit/', views.EncounterDiagnosisAdvancedUpdateView.as_view(), name='encounter_diagnosis_update'),
     path('diagnoses/<int:pk>/delete/', views.EncounterDiagnosisAdvancedDeleteView.as_view(), name='encounter_diagnosis_delete'),
     
-    # Планы лечения
-    path('<int:encounter_pk>/treatment-plans/', views.TreatmentPlansView.as_view(), name='treatment_plans'),
-    
-    # Лабораторные назначения
-    path('plans/<int:plan_pk>/lab-tests/add/', views.TreatmentLabTestCreateView.as_view(), name='treatment_lab_test_create'),
-    path('lab-tests/<int:pk>/edit/', views.TreatmentLabTestUpdateView.as_view(), name='treatment_lab_test_update'),
-    path('lab-tests/<int:pk>/delete/', views.TreatmentLabTestDeleteView.as_view(), name='treatment_lab_test_delete'),
-    
     # Действия с обращениями
     path('<int:pk>/close/', views.EncounterCloseView.as_view(), name='encounter_close'),
     path('<int:pk>/reopen/', views.EncounterReopenView.as_view(), name='encounter_reopen'),

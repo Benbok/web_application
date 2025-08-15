@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
-from .models import Encounter, EncounterDiagnosis, TreatmentPlan, TreatmentMedication, TreatmentLabTest
+from .models import Encounter, EncounterDiagnosis
 from diagnosis.models import Diagnosis
 from diagnosis.widgets import DiagnosisSelect2Widget
 from pharmacy.widgets import MedicationSelect2Widget
@@ -116,95 +116,6 @@ class EncounterDiagnosisAdvancedForm(forms.ModelForm):
         
         if diagnosis and custom_diagnosis:
             raise ValidationError("Нельзя одновременно выбирать диагноз из справочника и вводить собственный")
-        
-        return cleaned_data
-
-class TreatmentPlanForm(forms.ModelForm):
-    """Форма для создания/редактирования плана лечения"""
-    
-    class Meta:
-        model = TreatmentPlan
-        fields = ['name', 'description']
-        widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-        }
-
-class TreatmentMedicationForm(forms.ModelForm):
-    """Форма для добавления лекарства в план лечения"""
-    
-    medication = forms.ModelChoiceField(
-        queryset=None,  # Будет установлен в __init__
-        required=False,
-        label="Препарат из справочника",
-        empty_label="Выберите препарат из справочника",
-        widget=MedicationSelect2Widget(attrs={'class': 'form-select', 'id': 'medication-select'})
-    )
-    
-    custom_medication = forms.CharField(
-        max_length=200,
-        required=False,
-        label="Собственный препарат",
-        widget=forms.TextInput(attrs={'class': 'form-control'}),
-        help_text="Введите название препарата в свободной форме"
-    )
-    
-    dosage = forms.CharField(
-        max_length=100,
-        label="Дозировка",
-        widget=forms.TextInput(attrs={'class': 'form-control'}),
-        help_text="Например: '500 мг', '1 таблетка'"
-    )
-    
-    frequency = forms.CharField(
-        max_length=100,
-        label="Частота приема",
-        widget=forms.TextInput(attrs={'class': 'form-control'}),
-        help_text="Например: '2 раза в день', 'каждые 8 часов'"
-    )
-    
-    route = forms.ChoiceField(
-        choices=TreatmentMedication.ROUTE_CHOICES,
-        label="Способ применения",
-        widget=forms.Select(attrs={'class': 'form-select'})
-    )
-    
-    duration = forms.CharField(
-        max_length=100,
-        required=False,
-        label="Длительность курса",
-        widget=forms.TextInput(attrs={'class': 'form-control'}),
-        help_text="Например: '7 дней', 'до улучшения'"
-    )
-    
-    instructions = forms.CharField(
-        max_length=500,
-        required=False,
-        label="Особые указания",
-        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-        help_text="Дополнительные инструкции по применению"
-    )
-    
-    class Meta:
-        model = TreatmentMedication
-        fields = ['medication', 'custom_medication', 'dosage', 'frequency', 'route', 'duration', 'instructions']
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Импортируем модель Medication здесь, чтобы избежать циклических импортов
-        from pharmacy.models import Medication
-        self.fields['medication'].queryset = Medication.objects.all()
-    
-    def clean(self):
-        cleaned_data = super().clean()
-        medication = cleaned_data.get('medication')
-        custom_medication = cleaned_data.get('custom_medication')
-        
-        if not medication and not custom_medication:
-            raise ValidationError("Необходимо выбрать препарат из справочника или ввести собственный препарат")
-        
-        if medication and custom_medication:
-            raise ValidationError("Нельзя одновременно выбирать препарат из справочника и вводить собственный")
         
         return cleaned_data
 
@@ -388,59 +299,5 @@ class EncounterUndoForm(forms.Form):
             raise forms.ValidationError("Не удалось отменить последнюю операцию.")
         
         return self.encounter
-
-
-class TreatmentLabTestForm(forms.ModelForm):
-    """Форма для добавления лабораторного исследования в план лечения"""
-    
-    class Meta:
-        model = TreatmentLabTest
-        fields = [
-            'lab_test', 'custom_lab_test', 'priority', 'instructions', 'is_active'
-        ]
-        widgets = {
-            'lab_test': forms.Select(attrs={
-                'class': 'form-select',
-                'data-placeholder': 'Выберите исследование из справочника'
-            }),
-            'custom_lab_test': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Или введите название исследования вручную'
-            }),
-            'priority': forms.Select(attrs={'class': 'form-select'}),
-            'instructions': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'Дополнительные инструкции по проведению исследования'
-            }),
-            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-        }
-        labels = {
-            'lab_test': 'Исследование из справочника',
-            'custom_lab_test': 'Собственное исследование',
-            'priority': 'Приоритет',
-            'instructions': 'Особые указания',
-            'is_active': 'Активно',
-        }
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Загружаем доступные лабораторные исследования
-        from lab_tests.models import LabTestDefinition
-        self.fields['lab_test'].queryset = LabTestDefinition.objects.all().order_by('name')
-        self.fields['lab_test'].empty_label = "Выберите исследование из справочника"
-    
-    def clean(self):
-        cleaned_data = super().clean()
-        lab_test = cleaned_data.get('lab_test')
-        custom_lab_test = cleaned_data.get('custom_lab_test')
-        
-        if not lab_test and not custom_lab_test:
-            raise ValidationError("Необходимо выбрать исследование из справочника или ввести собственное")
-        
-        if lab_test and custom_lab_test:
-            raise ValidationError("Нельзя одновременно выбирать исследование из справочника и вводить собственное")
-        
-        return cleaned_data
 
 
