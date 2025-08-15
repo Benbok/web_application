@@ -3,12 +3,12 @@
 {% block document_content %}
 <!-- Специфичное содержимое для истории болезни -->
 <div class="field-group">
-    <div class="field-label">Пациент:</div>
+    <div class="field-label">ФИО пациента:</div>
     <div class="field-value">
         {% if data.patient_name %}
             {{ data.patient_name }}
         {% else %}
-            Информация о пациенте не указана
+            Не указано
         {% endif %}
     </div>
 </div>
@@ -19,7 +19,62 @@
         {% if data.birth_date %}
             {{ data.birth_date }}
         {% else %}
-            Не указана
+            Не указано
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Жалобы при поступлении:</div>
+    <div class="field-value {% if data.admission_complaints and data.admission_complaints|length > 100 %}long-text{% endif %}">
+        {% if data.admission_complaints %}
+            {{ data.admission_complaints }}
+        {% else %}
+            Не указано
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Анамнез заболевания:</div>
+    <div class="field-value {% if data.medical_history and data.medical_history|length > 100 %}long-text{% endif %}">
+        {% if data.medical_history %}
+            {{ data.medical_history }}
+        {% else %}
+            Не указано
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Анамнез жизни:</div>
+    <div class="field-value {% if data.life_history and data.life_history|length > 100 %}long-text{% endif %}">
+        {% if data.life_history %}
+            {{ data.life_history }}
+        {% else %}
+            Не указано
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Объективный статус:</div>
+    <div class="field-value {% if data.objective_status and data.objective_status|length > 100 %}long-text{% endif %}">
+        {% if data.objective_status %}
+            {{ data.objective_status }}
+        {% else %}
+            Не указано
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Лабораторные исследования:</div>
+    <div class="field-value {% if data.lab_results and data.lab_results|length > 100 %}long-text{% endif %}">
+        {% if data.lab_results %}
+            {{ data.lab_results }}
+        {% else %}
+            Не указано
         {% endif %}
     </div>
 </div>
@@ -30,75 +85,42 @@
         {% if data.diagnosis %}
             {{ data.diagnosis }}
         {% else %}
-            Не указан
+            Не указано
         {% endif %}
     </div>
 </div>
 
 <div class="field-group">
-    <div class="field-label">Жалобы:</div>
-    <div class="field-value">
-        {% if data.complaints %}
-            {{ data.complaints }}
+    <div class="field-label">Лечение:</div>
+    <div class="field-value {% if data.treatment and data.treatment|length > 100 %}long-text{% endif %}">
+        {% if data.treatment %}
+            {{ data.treatment }}
         {% else %}
-            Не указаны
+            Не указано
         {% endif %}
     </div>
 </div>
 
 <div class="field-group">
-    <div class="field-label">Анамнез:</div>
-    <div class="field-value">
-        {% if data.anamnesis %}
-            {{ data.anamnesis }}
+    <div class="field-label">Рекомендации:</div>
+    <div class="field-value {% if data.recommendations and data.recommendations|length > 100 %}long-text{% endif %}">
+        {% if data.recommendations %}
+            {{ data.recommendations }}
         {% else %}
-            Не указан
-        {% endif %}
-    </div>
-</div>
-
-<div class="field-group">
-    <div class="field-label">Объективный статус:</div>
-    <div class="field-value">
-        {% if data.objective_status %}
-            {{ data.objective_status }}
-        {% else %}
-            Не указан
-        {% endif %}
-    </div>
-</div>
-
-<div class="field-group">
-    <div class="field-label">План обследования:</div>
-    <div class="field-value">
-        {% if data.examination_plan %}
-            {{ data.examination_plan }}
-        {% else %}
-            Не указан
-        {% endif %}
-    </div>
-</div>
-
-<div class="field-group">
-    <div class="field-label">План лечения:</div>
-    <div class="field-value">
-        {% if data.treatment_plan %}
-            {{ data.treatment_plan }}
-        {% else %}
-            Не указан
+            Не указано
         {% endif %}
     </div>
 </div>
 
 <!-- Дополнительные поля, если они есть -->
-        {% for field_name, field_value in data.items %}
-            {% if field_name not in 'patient_name,birth_date,diagnosis,complaints,anamnesis,objective_status,examination_plan,treatment_plan' and field_value %}
-                <div class="field-group">
-                    <div class="field-label">{{ field_name|title }}:</div>
-                    <div class="field-value">
-                        {{ field_value }}
-                    </div>
-                </div>
-            {% endif %}
-        {% endfor %}
+{% for field_name, field_value in data.items %}
+    {% if field_name not in 'patient_name,birth_date,admission_complaints,medical_history,life_history,objective_status,lab_results,diagnosis,treatment,recommendations' and field_value %}
+        <div class="field-group">
+            <div class="field-label">{{ field_name|title }}:</div>
+            <div class="field-value {% if field_value|length > 100 %}long-text{% endif %}">
+                {{ field_value }}
+            </div>
+        </div>
+    {% endif %}
+{% endfor %}
 {% endblock %} 

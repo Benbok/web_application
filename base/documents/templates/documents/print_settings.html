@@ -212,6 +212,19 @@
             </div>
         </div>
     </div>
+    
+    <!-- Кнопки управления -->
+    <div class="row mt-4">
+        <div class="col-12 text-center">
+            <a href="{% url 'documents:document_detail' document.id %}?next={{ next_url|urlencode }}" 
+               class="btn btn-outline-secondary btn-lg me-3">
+                <i class="fas fa-arrow-left me-2"></i>Назад к документу
+            </a>
+            <button type="submit" form="printSettingsForm" class="btn btn-primary btn-lg">
+                <i class="fas fa-download me-2"></i>Скачать PDF с настройками
+            </button>
+        </div>
+    </div>
 </div>
 
 <script>

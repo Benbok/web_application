@@ -82,6 +82,11 @@ class Patient(models.Model):
         if age is not None:
             return f"{self.full_name} ({age} лет)"
         return self.full_name
+    
+    def get_back_url(self):
+        """Возвращает URL для возврата к детальному просмотру пациента"""
+        from django.urls import reverse
+        return reverse('patients:patient_detail', kwargs={'pk': self.pk})
 
 
 # FHIR: contact (представитель пациента)

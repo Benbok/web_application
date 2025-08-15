@@ -61,6 +61,11 @@ class PatientDepartmentStatus(ArchivableModel, models.Model):
 
     def __str__(self):
         return f"{self.patient.full_name} - {self.department.name} ({self.get_status_display()})"
+    
+    def get_back_url(self):
+        """Возвращает URL для возврата к детальному просмотру пациента"""
+        from django.urls import reverse
+        return reverse('patients:patient_detail', kwargs={'pk': self.patient.pk})
 
     def accept_patient(self, user):
         """

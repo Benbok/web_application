@@ -3,23 +3,34 @@
 {% block document_content %}
 <!-- Специфичное содержимое для выписного эпикриза -->
 <div class="field-group">
-    <div class="field-label">Пациент:</div>
+    <div class="field-label">ФИО пациента:</div>
     <div class="field-value">
         {% if data.patient_name %}
             {{ data.patient_name }}
         {% else %}
-            Информация о пациенте не указана
+            Не указано
         {% endif %}
     </div>
 </div>
 
 <div class="field-group">
-    <div class="field-label">Дата рождения:</div>
+    <div class="field-label">Дата поступления:</div>
     <div class="field-value">
-        {% if data.birth_date %}
-            {{ data.birth_date }}
+        {% if data.admission_date %}
+            {{ data.admission_date }}
         {% else %}
-            Не указана
+            Не указано
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Дата выписки:</div>
+    <div class="field-value">
+        {% if data.discharge_date %}
+            {{ data.discharge_date }}
+        {% else %}
+            Не указано
         {% endif %}
     </div>
 </div>
@@ -30,27 +41,27 @@
         {% if data.admission_diagnosis %}
             {{ data.admission_diagnosis }}
         {% else %}
-            Не указан
+            Не указано
         {% endif %}
     </div>
 </div>
 
 <div class="field-group">
-    <div class="field-label">Диагноз при выписке:</div>
+    <div class="field-label">Клинический диагноз:</div>
     <div class="field-value">
-        {% if data.discharge_diagnosis %}
-            {{ data.discharge_diagnosis }}
+        {% if data.clinical_diagnosis %}
+            {{ data.clinical_diagnosis }}
         {% else %}
-            Не указан
+            Не указано
         {% endif %}
     </div>
 </div>
 
 <div class="field-group">
     <div class="field-label">Проведенное лечение:</div>
-    <div class="field-value">
-        {% if data.treatment %}
-            {{ data.treatment }}
+    <div class="field-value {% if data.treatment_performed and data.treatment_performed|length > 100 %}long-text{% endif %}">
+        {% if data.treatment_performed %}
+            {{ data.treatment_performed }}
         {% else %}
             Не указано
         {% endif %}
@@ -63,53 +74,53 @@
         {% if data.treatment_result %}
             {{ data.treatment_result }}
         {% else %}
-            Не указан
+            Не указано
         {% endif %}
     </div>
 </div>
 
 <div class="field-group">
-    <div class="field-label">Рекомендации:</div>
-    <div class="field-value">
-        {% if data.recommendations %}
-            {{ data.recommendations }}
+    <div class="field-label">Состояние при выписке:</div>
+    <div class="field-value {% if data.discharge_condition and data.discharge_condition|length > 100 %}long-text{% endif %}">
+        {% if data.discharge_condition %}
+            {{ data.discharge_condition }}
         {% else %}
-            Не указаны
+            Не указано
         {% endif %}
     </div>
 </div>
 
 <div class="field-group">
-    <div class="field-label">Дата поступления:</div>
-    <div class="field-value">
-        {% if data.admission_date %}
-            {{ data.admission_date }}
+    <div class="field-label">Рекомендации при выписке:</div>
+    <div class="field-value {% if data.discharge_recommendations and data.discharge_recommendations|length > 100 %}long-text{% endif %}">
+        {% if data.discharge_recommendations %}
+            {{ data.discharge_recommendations }}
         {% else %}
-            Не указана
+            Не указано
         {% endif %}
     </div>
 </div>
 
 <div class="field-group">
-    <div class="field-label">Дата выписки:</div>
-    <div class="field-value">
-        {% if data.discharge_date %}
-            {{ data.discharge_date }}
+    <div class="field-label">Дальнейшее наблюдение:</div>
+    <div class="field-value {% if data.follow_up and data.follow_up|length > 100 %}long-text{% endif %}">
+        {% if data.follow_up %}
+            {{ data.follow_up }}
         {% else %}
-            {{ document.datetime_document|date:"d.m.Y" }}
+            Не указано
         {% endif %}
     </div>
 </div>
 
 <!-- Дополнительные поля, если они есть -->
-        {% for field_name, field_value in data.items %}
-            {% if field_name not in 'patient_name,birth_date,admission_diagnosis,discharge_diagnosis,treatment,treatment_result,recommendations,admission_date,discharge_date' and field_value %}
-                <div class="field-group">
-                    <div class="field-label">{{ field_name|title }}:</div>
-                    <div class="field-value">
-                        {{ field_value }}
-                    </div>
-                </div>
-            {% endif %}
-        {% endfor %}
+{% for field_name, field_value in data.items %}
+    {% if field_name not in 'patient_name,admission_date,discharge_date,admission_diagnosis,clinical_diagnosis,treatment_performed,treatment_result,discharge_condition,discharge_recommendations,follow_up' and field_value %}
+        <div class="field-group">
+            <div class="field-label">{{ field_name|title }}:</div>
+            <div class="field-value {% if field_value|length > 100 %}long-text{% endif %}">
+                {{ field_value }}
+            </div>
+        </div>
+    {% endif %}
+{% endfor %}
 {% endblock %} 

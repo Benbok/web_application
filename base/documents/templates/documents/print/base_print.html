@@ -98,67 +98,120 @@
         /* Общие стили */
         .document-header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 40px;
             border-bottom: 2px solid #333;
-            padding-bottom: 20px;
+            padding-bottom: 30px;
         }
         
         .document-title {
-            font-size: 18pt;
+            font-size: 24pt;
             font-weight: bold;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
             text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #2c3e50;
         }
         
-        .document-meta {
-            font-size: 12pt;
-            color: #666;
+        .document-date {
+            font-size: 14pt;
+            color: #555;
+            margin-bottom: 10px;
         }
         
         .document-body {
-            margin-bottom: 30px;
+            margin-bottom: 50px;
+            min-height: 300px;
         }
         
         .field-group {
-            margin-bottom: 20px;
+            margin-bottom: 25px;
+            page-break-inside: avoid;
         }
         
         .field-label {
             font-weight: bold;
-            margin-bottom: 5px;
-            color: #333;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            font-size: 13pt;
+            border-bottom: 1px solid #ecf0f1;
+            padding-bottom: 3px;
         }
         
         .field-value {
-            margin-left: 20px;
-            margin-bottom: 15px;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border-left: 3px solid #007bff;
+            margin-left: 25px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #3498db;
+            border-radius: 0 5px 5px 0;
+            font-size: 12pt;
+            line-height: 1.5;
         }
         
         .document-footer {
-            margin-top: 50px;
-            border-top: 1px solid #ccc;
-            padding-top: 20px;
+            margin-top: 60px;
+            border-top: 2px solid #bdc3c7;
+            padding-top: 30px;
         }
         
-        .signature-line {
-            margin-top: 30px;
+        .doctor-info {
+            margin-bottom: 30px;
             text-align: right;
         }
         
+        .doctor-name {
+            font-weight: bold;
+            font-size: 13pt;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .doctor-position {
+            font-size: 11pt;
+            color: #7f8c8d;
+            margin-bottom: 15px;
+        }
+        
+        .signature-section {
+            margin-top: 40px;
+            text-align: right;
+        }
+        
+        .signature-line {
+            border-bottom: 1px solid #000;
+            width: 200px;
+            height: 30px;
+            margin-left: auto;
+            margin-bottom: 10px;
+        }
+        
         .signature-info {
-            margin-top: 10px;
             font-size: 10pt;
-            color: #666;
+            color: #7f8c8d;
+            text-align: center;
+            margin-top: 5px;
         }
         
         .page-number {
             text-align: center;
-            margin-top: 20px;
+            margin-top: 30px;
             font-size: 10pt;
-            color: #999;
+            color: #95a5a6;
+            border-top: 1px solid #ecf0f1;
+            padding-top: 15px;
+        }
+        
+        /* Стили для пустых полей */
+        .field-value:empty::before {
+            content: "Не заполнено";
+            color: #bdc3c7;
+            font-style: italic;
+        }
+        
+        /* Стили для длинных текстов */
+        .field-value.long-text {
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
     </style>
 </head>
@@ -168,7 +221,7 @@
         <h3>Управление печатью</h3>
         <button class="print-button" onclick="window.print()">🖨️ Печать</button>
         <button class="print-button" onclick="closePreview()">❌ Закрыть</button>
-        <a href="{% url 'documents:document_print_settings' document.id %}" class="print-button" style="text-decoration: none; display: inline-block;">⚙️ Настройки печати</a>
+        <a href="{% url 'documents:document_print_settings' document.id %}?next={{ next_url|urlencode }}" class="print-button" style="text-decoration: none; display: inline-block;">⚙️ Настройки печати</a>
         <a href="{% url 'documents:document_print' document.id %}" class="print-button" style="text-decoration: none; display: inline-block;">📄 Скачать PDF</a>
     </div>
     
@@ -177,14 +230,8 @@
         <!-- Заголовок документа -->
         <div class="document-header">
             <div class="document-title">{{ document_type.name }}</div>
-            <div class="document-meta">
-                Дата: {{ document.datetime_document|date:"d.m.Y" }}
-                {% if author %}
-                    | Автор: {{ author.get_full_name|default:author.username }}
-                    {% if document.author_position %}
-                        , {{ document.author_position }}
-                    {% endif %}
-                {% endif %}
+            <div class="document-date">
+                Дата документа: {{ document.datetime_document|date:"d.m.Y" }}
             </div>
         </div>
         
@@ -195,20 +242,28 @@
             {% endblock %}
         </div>
         
-        <!-- Подпись документа -->
+        <!-- Информация о враче и подпись -->
         <div class="document-footer">
-            <div class="signature-line">
-                {% if document.is_signed %}
-                    <strong>Документ подписан</strong><br>
-                    <span class="signature-info">
-                        Дата подписания: {{ document.updated_at|date:"d.m.Y H:i" }}
-                    </span>
-                {% else %}
-                    <strong>Подпись: _________________</strong><br>
-                    <span class="signature-info">
-                        Дата: _______________
-                    </span>
+            <!-- Информация о враче -->
+            <div class="doctor-info">
+                <div class="doctor-name">
+                    {% if document.author.get_full_name %}
+                        {{ document.author.get_full_name }}
+                    {% else %}
+                        {{ document.author.username }}
+                    {% endif %}
+                </div>
+                {% if document.author_position %}
+                    <div class="doctor-position">{{ document.author_position }}</div>
                 {% endif %}
+            </div>
+            
+            <!-- Подпись -->
+            <div class="signature-section">
+                <div class="signature-line"></div>
+                <div class="signature-info">
+                    Подпись врача
+                </div>
             </div>
         </div>
         
@@ -217,11 +272,12 @@
             Страница 1
         </div>
         
-                 <!-- Дополнительные кнопки управления в конце документа -->
-         <div class="print-controls no-print" style="margin-top: 30px;">
-             <button class="print-button" onclick="window.print()">🖨️ Печать</button>
-             <button class="print-button" onclick="closePreview()">❌ Закрыть</button>
-         </div>
+        <!-- Дополнительные кнопки управления в конце документа -->
+        <div class="print-controls no-print" style="margin-top: 30px;">
+            <button class="print-button" onclick="window.print()">🖨️ Печать</button>
+            <button class="print-button" onclick="closePreview()">❌ Закрыть</button>
+            <a href="{% url 'documents:document_print_settings' document.id %}?next={{ next_url|urlencode }}" class="print-button" style="text-decoration: none; display: inline-block;">⚙️ Настройки печати</a>
+        </div>
     </div>
     
     <script>
@@ -232,12 +288,16 @@
                 window.close();
             } else {
                 // Если это обычная страница, возвращаемся назад
-                if (document.referrer) {
+                {% if next_url %}
+                    window.location.href = '{{ next_url }}';
+                {% elif document.content_object %}
+                    window.location.href = '{{ document.content_object.get_back_url }}';
+                {% elif document.referrer %}
                     window.location.href = document.referrer;
-                } else {
+                {% else %}
                     // Если нет referrer, возвращаемся к списку документов
                     window.location.href = '{% url "documents:document_print_list" %}';
-                }
+                {% endif %}
             }
             // Дополнительно можно попробовать закрыть вкладку
             try {

@@ -47,7 +47,7 @@
                 </a>
             </div>
             
-            <a href="{{ request.GET.next|default:'/' }}" class="btn btn-outline-secondary btn-lg">
+            <a href="{{ request.GET.next|default:document.content_object.get_back_url|default:'/' }}" class="btn btn-outline-secondary btn-lg">
                 <i class="bi bi-arrow-left me-2"></i>Назад
             </a>
             {% if request.user == document.author or request.user.is_superuser %}

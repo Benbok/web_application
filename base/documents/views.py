@@ -282,6 +282,7 @@ class DocumentPrintPreviewView(View):
                 'datetime_document': clinical_document.datetime_document,
                 'is_signed': clinical_document.is_signed,
                 'signature_date': clinical_document.updated_at if clinical_document.is_signed else None,
+                'next_url': request.GET.get('next', request.META.get('HTTP_REFERER', '/'))
             }
             
             return render(request, template_name, context)
@@ -363,7 +364,8 @@ class DocumentPrintSettingsView(View):
                 'document': clinical_document,
                 'document_type': clinical_document.document_type,
                 'available_fonts': available_fonts,
-                'title': f'Настройки печати: {clinical_document.document_type.name}'
+                'title': f'Настройки печати: {clinical_document.document_type.name}',
+                'next_url': request.GET.get('next', request.META.get('HTTP_REFERER', '/'))
             }
             
             return render(request, 'documents/print_settings.html', context)

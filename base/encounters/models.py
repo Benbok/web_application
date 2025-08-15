@@ -283,6 +283,11 @@ class Encounter(ArchivableModel, models.Model):
         if self.outcome:
             return f"Случай от {self.date_start.strftime('%d.%m.%Y')} — {self.patient.full_name} ({self.get_outcome_display()})"
         return f"Случай от {self.date_start.strftime('%d.%m.%Y')} — {self.patient.full_name}"
+    
+    def get_back_url(self):
+        """Возвращает URL для возврата к детальному просмотру случая"""
+        from django.urls import reverse
+        return reverse('encounters:encounter_detail', kwargs={'pk': self.pk})
         
     def close_encounter(self, outcome, transfer_department=None):
         """

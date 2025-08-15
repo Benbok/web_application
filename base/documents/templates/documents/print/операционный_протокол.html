@@ -3,12 +3,12 @@
 {% block document_content %}
 <!-- Специфичное содержимое для операционного протокола -->
 <div class="field-group">
-    <div class="field-label">Пациент:</div>
+    <div class="field-label">ФИО пациента:</div>
     <div class="field-value">
         {% if data.patient_name %}
             {{ data.patient_name }}
         {% else %}
-            Информация о пациенте не указана
+            Не указано
         {% endif %}
     </div>
 </div>
@@ -19,7 +19,7 @@
         {% if data.birth_date %}
             {{ data.birth_date }}
         {% else %}
-            Не указана
+            Не указано
         {% endif %}
     </div>
 </div>
@@ -30,7 +30,18 @@
         {% if data.diagnosis %}
             {{ data.diagnosis }}
         {% else %}
-            Не указан
+            Не указано
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Показания к операции:</div>
+    <div class="field-value {% if data.operation_indications and data.operation_indications|length > 100 %}long-text{% endif %}">
+        {% if data.operation_indications %}
+            {{ data.operation_indications }}
+        {% else %}
+            Не указано
         {% endif %}
     </div>
 </div>
@@ -52,7 +63,7 @@
         {% if data.surgeon %}
             {{ data.surgeon }}
         {% else %}
-            Не указан
+            Не указано
         {% endif %}
     </div>
 </div>
@@ -63,27 +74,38 @@
         {% if data.anesthesiologist %}
             {{ data.anesthesiologist }}
         {% else %}
-            Не указан
+            Не указано
         {% endif %}
     </div>
 </div>
 
 <div class="field-group">
-    <div class="field-label">Тип анестезии:</div>
+    <div class="field-label">Время начала операции:</div>
     <div class="field-value">
-        {% if data.anesthesia_type %}
-            {{ data.anesthesia_type }}
+        {% if data.operation_start_time %}
+            {{ data.operation_start_time }}
         {% else %}
-            Не указан
+            Не указано
         {% endif %}
     </div>
 </div>
 
 <div class="field-group">
-    <div class="field-label">Описание операции:</div>
+    <div class="field-label">Время окончания операции:</div>
     <div class="field-value">
-        {% if data.operation_description %}
-            {{ data.operation_description }}
+        {% if data.operation_end_time %}
+            {{ data.operation_end_time }}
+        {% else %}
+            Не указано
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Техника операции:</div>
+    <div class="field-value {% if data.operation_technique and data.operation_technique|length > 100 %}long-text{% endif %}">
+        {% if data.operation_technique %}
+            {{ data.operation_technique }}
         {% else %}
             Не указано
         {% endif %}
@@ -92,32 +114,43 @@
 
 <div class="field-group">
     <div class="field-label">Осложнения:</div>
-    <div class="field-value">
+    <div class="field-value {% if data.complications and data.complications|length > 100 %}long-text{% endif %}">
         {% if data.complications %}
             {{ data.complications }}
         {% else %}
-            Не указаны
+            Не указано
         {% endif %}
     </div>
 </div>
 
 <div class="field-group">
-    <div class="field-label">Дата операции:</div>
+    <div class="field-label">Результат операции:</div>
     <div class="field-value">
-        {% if data.operation_date %}
-            {{ data.operation_date }}
+        {% if data.operation_result %}
+            {{ data.operation_result }}
         {% else %}
-            {{ document.datetime_document|date:"d.m.Y" }}
+            Не указано
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Послеоперационные назначения:</div>
+    <div class="field-value {% if data.postoperative_prescriptions and data.postoperative_prescriptions|length > 100 %}long-text{% endif %}">
+        {% if data.postoperative_prescriptions %}
+            {{ data.postoperative_prescriptions }}
+        {% else %}
+            Не указано
         {% endif %}
     </div>
 </div>
 
 <!-- Дополнительные поля, если они есть -->
 {% for field_name, field_value in data.items %}
-    {% if field_name not in 'patient_name,birth_date,diagnosis,operation_name,surgeon,anesthesiologist,anesthesia_type,operation_description,complications,operation_date' and field_value %}
+    {% if field_name not in 'patient_name,birth_date,diagnosis,operation_indications,operation_name,surgeon,anesthesiologist,operation_start_time,operation_end_time,operation_technique,complications,operation_result,postoperative_prescriptions' and field_value %}
         <div class="field-group">
             <div class="field-label">{{ field_name|title }}:</div>
-            <div class="field-value">
+            <div class="field-value {% if field_value|length > 100 %}long-text{% endif %}">
                 {{ field_value }}
             </div>
         </div>
