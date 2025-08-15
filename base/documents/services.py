@@ -232,6 +232,10 @@ class DocumentPrintService:
         Генерирует PDF с помощью FPDF2 с явным указанием шрифта для кириллицы.
         """
         try:
+            # Инициализируем PDF с настройками по умолчанию
+            pdf = FPDF(format='A4')
+            pdf.add_page()
+            
             # Применяем настройки печати, если они переданы
             if print_settings:
                 # Применяем размер страницы
@@ -241,9 +245,11 @@ class DocumentPrintService:
                 
                 # Применяем ориентацию страницы
                 if 'page_orientation' in print_settings and print_settings['page_orientation'] == 'landscape':
+                    # Создаем новый PDF с нужными параметрами
                     pdf = FPDF(orientation='L', format=page_size)
                     pdf.add_page()
                 else:
+                    # Создаем новый PDF с нужным размером
                     pdf = FPDF(format=page_size)
                     pdf.add_page()
                 

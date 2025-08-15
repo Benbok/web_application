@@ -2,7 +2,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.urls import reverse
 from django.contrib.contenttypes.models import ContentType
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.contrib import messages
 from .models import DocumentType, ClinicalDocument, DocumentTemplate
+from .mixins import TemplateApplicationMixin, DocumentPermissionMixin
 from decimal import Decimal
 
 from .forms import build_document_form
@@ -48,7 +51,7 @@ class DocumentTypeSelectionView(View):
             'search_query': search_query, # Передаем поисковый запрос в шаблон
         })
 
-class DocumentCreateView(View):
+class DocumentCreateView(TemplateApplicationMixin, View):
     def get(self, request, model_name, object_id, document_type_id):
         document_type = get_object_or_404(DocumentType, pk=document_type_id)
         content_type = get_object_or_404(ContentType, model=model_name)
@@ -58,11 +61,9 @@ class DocumentCreateView(View):
         DocumentForm = build_document_form(document_type.schema, document_type=document_type, user=request.user)
         form = DocumentForm()
 
-        return render(request, 'documents/form.html', {
-            'form': form,
-            'document_type': document_type,
-            'title': f'Создание: {document_type.name}',
-        })
+        context = self._get_form_context(document_type)
+        context['form'] = form
+        return render(request, 'documents/form.html', context)
 
     def post(self, request, model_name, object_id, document_type_id):
         document_type = get_object_or_404(DocumentType, pk=document_type_id)
@@ -72,20 +73,10 @@ class DocumentCreateView(View):
         DocumentForm = build_document_form(document_type.schema, document_type=document_type, user=request.user)
         form = DocumentForm(request.POST)
 
-        if 'apply_template' in request.POST: # Обработка кнопки "Применить шаблон"
-            template_id = request.POST.get('template_choice')
-            if template_id:
-                template_choice = get_object_or_404(DocumentTemplate, pk=template_id)
-                initial_data = template_choice.template_data.copy()
-                # Сохраняем текущее значение datetime_document, если оно было введено
-                if 'datetime_document' in request.POST and request.POST['datetime_document']:
-                    initial_data['datetime_document'] = request.POST['datetime_document']
-                form = DocumentForm(initial=initial_data) # Пересоздаем форму с данными шаблона
-            return render(request, 'documents/form.html', {
-                'form': form,
-                'document_type': document_type,
-                'title': f'Создание: {document_type.name}',
-            })
+        # Обработка применения шаблона через миксин
+        if 'apply_template' in request.POST:
+            form, context = self.handle_template_application(request, form, document_type)
+            return render(request, 'documents/form.html', context)
 
         if form.is_valid():
             cleaned_data = form.cleaned_data
@@ -102,7 +93,8 @@ class DocumentCreateView(View):
 
             ClinicalDocument.objects.create(
                 document_type=document_type,
-                content_object=parent_object,
+                content_type=content_type,
+                object_id=object_id,
                 author=request.user,
                 author_position=author_position, # Сохраняем должность автора
                 datetime_document=datetime_document,
@@ -110,11 +102,9 @@ class DocumentCreateView(View):
             )
             return redirect(request.GET.get('next', reverse('patients:patient_list')))
 
-        return render(request, 'documents/form.html', {
-            'form': form,
-            'document_type': document_type,
-            'title': f'Создание: {document_type.name}',
-        })
+        context = self._get_form_context(document_type)
+        context['form'] = form
+        return render(request, 'documents/form.html', context)
 
 class DocumentDetailView(View):
     """
@@ -135,26 +125,19 @@ class DocumentDetailView(View):
             'title': f'Детали: {document_type.name}',
         })
 
-from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-
 # ... (остальной код)
 
-class DocumentUpdateView(LoginRequiredMixin, PermissionRequiredMixin, View):
+class DocumentUpdateView(TemplateApplicationMixin, DocumentPermissionMixin, LoginRequiredMixin, PermissionRequiredMixin, View):
     """
     Представление для редактирования динамического документа.
     """
     permission_required = 'documents.change_clinicaldocument' # Требуемое разрешение
 
     def dispatch(self, request, *args, **kwargs):
-        self.document = get_object_or_404(ClinicalDocument, pk=kwargs['pk'])
+        self.document = self.get_document_or_404(kwargs['pk'])
         
-        # Суперпользователи могут редактировать любой документ
-        if request.user.is_superuser:
-            return super().dispatch(request, *args, **kwargs)
-
-        # Только автор может редактировать документ
-        if self.document.author != request.user:
-            messages.error(request, "У вас нет прав для редактирования этого документа.")
+        # Проверяем права через миксин
+        if not self.check_document_permissions(request, self.document, 'edit'):
             return redirect(reverse('documents:document_detail', kwargs={'pk': self.document.pk}))
 
         return super().dispatch(request, *args, **kwargs)
@@ -166,12 +149,9 @@ class DocumentUpdateView(LoginRequiredMixin, PermissionRequiredMixin, View):
         DocumentForm = build_document_form(document_type.schema, document_type=document_type, user=request.user)
         form = DocumentForm(initial={'datetime_document': document.datetime_document, **document.data})
 
-        return render(request, 'documents/form.html', {
-            'form': form,
-            'document': document,
-            'document_type': document_type,
-            'title': f'Редактирование: {document_type.name}',
-        })
+        context = self._get_form_context(document_type, document)
+        context['form'] = form
+        return render(request, 'documents/form.html', context)
 
     def post(self, request, pk):
         document = self.document
@@ -180,21 +160,10 @@ class DocumentUpdateView(LoginRequiredMixin, PermissionRequiredMixin, View):
         DocumentForm = build_document_form(document_type.schema, document_type=document_type, user=request.user)
         form = DocumentForm(request.POST)
 
-        if 'apply_template' in request.POST: # Обработка кнопки "Применить шаблон"
-            template_id = request.POST.get('template_choice')
-            if template_id:
-                template_choice = get_object_or_404(DocumentTemplate, pk=template_id)
-                initial_data = template_choice.template_data.copy()
-                # Сохраняем текущее значение datetime_document, если оно было введено
-                if 'datetime_document' in request.POST and request.POST['datetime_document']:
-                    initial_data['datetime_document'] = request.POST['datetime_document']
-                form = DocumentForm(initial=initial_data) # Пересоздаем форму с данными шаблона
-            return render(request, 'documents/form.html', {
-                'form': form,
-                'document': document,
-                'document_type': document_type,
-                'title': f'Редактирование: {document_type.name}',
-            })
+        # Обработка применения шаблона через миксин
+        if 'apply_template' in request.POST:
+            form, context = self.handle_template_application(request, form, document_type, document)
+            return render(request, 'documents/form.html', context)
 
         if form.is_valid():
             cleaned_data = form.cleaned_data
@@ -210,34 +179,23 @@ class DocumentUpdateView(LoginRequiredMixin, PermissionRequiredMixin, View):
             document.save()
             return redirect(request.GET.get('next', reverse('documents:document_detail', kwargs={'pk': document.pk})))
 
-        return render(request, 'documents/form.html', {
-            'form': form,
-            'document': document,
-            'document_type': document_type,
-            'title': f'Редактирование: {document_type.name}',
-        })
-
-from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-from django.contrib import messages
+        context = self._get_form_context(document_type, document)
+        context['form'] = form
+        return render(request, 'documents/form.html', context)
 
 # ... (остальной код)
 
-class DocumentDeleteView(LoginRequiredMixin, PermissionRequiredMixin, View):
+class DocumentDeleteView(DocumentPermissionMixin, LoginRequiredMixin, PermissionRequiredMixin, View):
     """
     Представление для удаления динамического документа.
     """
     permission_required = 'documents.delete_clinicaldocument' # Требуемое разрешение
 
     def dispatch(self, request, *args, **kwargs):
-        self.document = get_object_or_404(ClinicalDocument, pk=kwargs['pk'])
+        self.document = self.get_document_or_404(kwargs['pk'])
         
-        # Суперпользователи могут удалять любой документ
-        if request.user.is_superuser:
-            return super().dispatch(request, *args, **kwargs)
-
-        # Только автор может удалять документ
-        if self.document.author != request.user:
-            messages.error(request, "У вас нет прав для удаления этого документа.")
+        # Проверяем права через миксин
+        if not self.check_document_permissions(request, self.document, 'delete'):
             return redirect(reverse('documents:document_detail', kwargs={'pk': self.document.pk}))
 
         return super().dispatch(request, *args, **kwargs)
