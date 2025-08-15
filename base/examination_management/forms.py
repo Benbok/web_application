@@ -41,16 +41,11 @@ class ExaminationLabTestForm(forms.ModelForm):
     """
     Форма для добавления/редактирования лабораторного исследования в плане
     """
-    lab_test = forms.ModelChoiceField(
-        queryset=LabTestDefinition.objects.all(),
-        label=_('Лабораторное исследование'),
-        widget=forms.Select(attrs={'class': 'form-select'})
-    )
-    
     class Meta:
         model = ExaminationLabTest
-        fields = ['is_active', 'instructions']
+        fields = ['lab_test', 'is_active', 'instructions']
         widgets = {
+            'lab_test': forms.Select(attrs={'class': 'form-select'}),
             'is_active': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
             }),
@@ -61,25 +56,25 @@ class ExaminationLabTestForm(forms.ModelForm):
             })
         }
         labels = {
+            'lab_test': _('Лабораторное исследование'),
             'is_active': _('Активно'),
             'instructions': _('Особые указания')
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['lab_test'].queryset = LabTestDefinition.objects.all()
 
 
 class ExaminationInstrumentalForm(forms.ModelForm):
     """
     Форма для добавления/редактирования инструментального исследования в плане
     """
-    instrumental_procedure = forms.ModelChoiceField(
-        queryset=InstrumentalProcedureDefinition.objects.all(),
-        label=_('Инструментальное исследование'),
-        widget=forms.Select(attrs={'class': 'form-select'})
-    )
-    
     class Meta:
         model = ExaminationInstrumental
-        fields = ['is_active', 'instructions']
+        fields = ['instrumental_procedure', 'is_active', 'instructions']
         widgets = {
+            'instrumental_procedure': forms.Select(attrs={'class': 'form-select'}),
             'is_active': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
             }),
@@ -90,6 +85,11 @@ class ExaminationInstrumentalForm(forms.ModelForm):
             })
         }
         labels = {
+            'instrumental_procedure': _('Инструментальное исследование'),
             'is_active': _('Активно'),
             'instructions': _('Особые указания')
-        } 
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['instrumental_procedure'].queryset = InstrumentalProcedureDefinition.objects.all() 
