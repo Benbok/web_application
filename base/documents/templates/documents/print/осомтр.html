@@ -1,0 +1,60 @@
+{% extends 'documents/print/base_print.html' %}
+
+{% block document_content %}
+<!-- Специфичное содержимое для осмотра -->
+<div class="field-group">
+    <div class="field-label">Название продукта:</div>
+    <div class="field-value">
+        {% if data.product_name %}
+            {{ data.product_name }}
+        {% else %}
+            Не указано
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Описание:</div>
+    <div class="field-value">
+        {% if data.description %}
+            {{ data.description }}
+        {% else %}
+            Не указано
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Цена:</div>
+    <div class="field-value">
+        {% if data.price %}
+            {{ data.price }}
+        {% else %}
+            Не указана
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Категория:</div>
+    <div class="field-value">
+        {% if data.category %}
+            {{ data.category }}
+        {% else %}
+            Не указана
+        {% endif %}
+    </div>
+</div>
+
+<!-- Дополнительные поля, если они есть -->
+        {% for field_name, field_value in data.items %}
+            {% if field_name not in 'product_name,description,price,category' and field_value %}
+                <div class="field-group">
+                    <div class="field-label">{{ field_name|title }}:</div>
+                    <div class="field-value">
+                        {{ field_value }}
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+{% endblock %} 

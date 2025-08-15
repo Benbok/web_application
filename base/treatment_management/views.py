@@ -380,8 +380,6 @@ class MedicationInfoView(View):
             from datetime import date
             medication = Medication.objects.get(pk=medication_id)
             
-            # Используем общую функцию map_route_to_form_value
-            
             # Получаем информацию о пациенте из параметров запроса
             patient_id = request.GET.get('patient_id')
             patient = None
@@ -391,7 +389,7 @@ class MedicationInfoView(View):
                     patient = Patient.objects.get(pk=patient_id)
                 except Patient.DoesNotExist:
                     pass
-    
+            
             # Получаем информацию о препарате
             medication_info = {
                 'id': medication.id,
@@ -412,7 +410,7 @@ class MedicationInfoView(View):
                 # Собираем информацию о всех доступных формах с их схемами
                 available_forms = []
                 for tn in trade_names:
-                            # Получаем все подходящие схемы для пациента (без фильтрации по форме выпуска)
+                    # Получаем все подходящие схемы для пациента (без фильтрации по форме выпуска)
                     suitable_regimens = Regimen.objects.get_suitable_for_patient(
                         medication=medication, 
                         patient=patient
@@ -640,8 +638,8 @@ class TradeNameInfoView(View):
         except Exception as e:
             return JsonResponse({
                 'success': False,
-                'error': str(e)
-            }, status=500)
+                    'error': str(e)
+                }, status=500)
 
 
 class TreatmentRecommendationCreateView(LoginRequiredMixin, CreateView):

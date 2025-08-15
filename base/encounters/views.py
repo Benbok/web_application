@@ -144,18 +144,18 @@ class EncounterCreateView(CreateView):
     model = Encounter
     form_class = EncounterForm
     template_name = 'encounters/form.html'
-    
+
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
         self.patient = get_object_or_404(Patient, pk=self.kwargs['patient_pk'])
-    
+
     def form_valid(self, form):
         form.instance.patient = self.patient
         form.instance.doctor = self.request.user
         response = super().form_valid(form)
         messages.success(self.request, 'Обращение успешно создано')
         return response
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['patient'] = self.patient
@@ -170,7 +170,7 @@ class EncounterUpdateView(UpdateView):
     model = Encounter
     form_class = EncounterUpdateForm
     template_name = 'encounters/form.html'
-    
+
     def get_queryset(self):
         return Encounter.objects.select_related('patient', 'doctor')
     
@@ -179,12 +179,12 @@ class EncounterUpdateView(UpdateView):
         context['patient'] = self.object.patient
         context['title'] = 'Редактировать обращение'
         return context
-    
+
     def form_valid(self, form):
         response = super().form_valid(form)
         messages.success(self.request, 'Обращение успешно обновлено')
         return response
-    
+
     def get_success_url(self):
         return reverse('encounters:encounter_detail', kwargs={'pk': self.object.pk})
 
@@ -194,17 +194,17 @@ class EncounterDiagnosisView(UpdateView):
     model = Encounter
     form_class = EncounterDiagnosisForm
     template_name = 'encounters/diagnosis_form.html'
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = 'Установить диагноз'
         return context
-    
+
     def form_valid(self, form):
         response = super().form_valid(form)
         messages.success(self.request, 'Диагноз успешно установлен')
         return response
-    
+
     def get_success_url(self):
         return reverse('encounters:encounter_detail', kwargs={'pk': self.object.pk})
 

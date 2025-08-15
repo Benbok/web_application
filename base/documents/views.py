@@ -253,3 +253,214 @@ class DocumentDeleteView(LoginRequiredMixin, PermissionRequiredMixin, View):
         document.delete()
         messages.success(request, "Документ успешно удален.")
         return redirect(request.GET.get('next', reverse('patients:patient_list')))
+
+# ============================================================================
+# ПРЕДСТАВЛЕНИЯ ДЛЯ ПЕЧАТИ ДОКУМЕНТОВ
+# ============================================================================
+
+from django.http import HttpResponse
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
+from .services import DocumentPrintService, DocumentTemplateService
+
+@method_decorator(login_required, name='dispatch')
+class DocumentPrintView(View):
+    """
+    Представление для печати документа в PDF формате
+    """
+    
+    def get(self, request, document_id):
+        try:
+            # Получаем документ
+            clinical_document = get_object_or_404(ClinicalDocument, pk=document_id)
+            
+            # Проверяем права доступа (можно добавить дополнительную логику)
+            if not request.user.is_staff and clinical_document.author != request.user:
+                return HttpResponse("Доступ запрещен", status=403)
+            
+            # Генерируем PDF
+            print_service = DocumentPrintService()
+            pdf_bytes = print_service.generate_pdf(clinical_document)
+            
+            # Формируем имя файла
+            filename = f"{clinical_document.document_type.name}_{clinical_document.datetime_document.strftime('%Y%m%d')}.pdf"
+            filename = filename.replace(' ', '_').replace('/', '_')
+            
+            # Возвращаем PDF как ответ
+            response = HttpResponse(pdf_bytes.getvalue(), content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+            
+        except Exception as e:
+            print(f"Ошибка при печати документа: {e}")
+            return HttpResponse(f"Ошибка при генерации PDF: {str(e)}", status=500)
+
+
+@method_decorator(login_required, name='dispatch')
+class DocumentPrintPreviewView(View):
+    """
+    Представление для предварительного просмотра документа перед печатью
+    """
+    
+    def get(self, request, document_id):
+        try:
+            # Получаем документ
+            clinical_document = get_object_or_404(ClinicalDocument, pk=document_id)
+            
+            # Проверяем права доступа
+            if not request.user.is_staff and clinical_document.author != request.user:
+                return HttpResponse("Доступ запрещен", status=403)
+            
+            # Получаем шаблон для печати
+            template_service = DocumentTemplateService()
+            template_name = template_service.get_print_template(clinical_document.document_type)
+            
+            # Формируем контекст
+            context = {
+                'document': clinical_document,
+                'document_type': clinical_document.document_type,
+                'data': clinical_document.data,
+                'author': clinical_document.author,
+                'datetime_document': clinical_document.datetime_document,
+                'is_signed': clinical_document.is_signed,
+                'signature_date': clinical_document.updated_at if clinical_document.is_signed else None,
+            }
+            
+            return render(request, template_name, context)
+            
+        except Exception as e:
+            print(f"Ошибка при предварительном просмотре: {e}")
+            return HttpResponse(f"Ошибка при загрузке документа: {str(e)}", status=500)
+
+
+@method_decorator(login_required, name='dispatch')
+class DocumentPrintListView(View):
+    """
+    Представление для списка документов с возможностью печати
+    """
+    
+    def get(self, request):
+        try:
+            # Получаем документы пользователя (или все, если staff)
+            if request.user.is_staff:
+                documents = ClinicalDocument.objects.all().select_related(
+                    'document_type', 'author', 'content_type'
+                ).order_by('-datetime_document')
+            else:
+                documents = ClinicalDocument.objects.filter(
+                    author=request.user
+                ).select_related(
+                    'document_type', 'author', 'content_type'
+                ).order_by('-datetime_document')
+            
+            # Фильтрация по типу документа
+            document_type_filter = request.GET.get('document_type')
+            if document_type_filter:
+                documents = documents.filter(document_type_id=document_type_filter)
+            
+            # Поиск по названию
+            search_query = request.GET.get('q')
+            if search_query:
+                documents = documents.filter(
+                    document_type__name__icontains=search_query
+                )
+            
+            # Получаем доступные типы документов для фильтра
+            document_types = DocumentType.objects.all().order_by('name')
+            
+            context = {
+                'documents': documents,
+                'document_types': document_types,
+                'search_query': search_query,
+                'selected_document_type': document_type_filter,
+                'title': 'Документы для печати'
+            }
+            
+            return render(request, 'documents/print_list.html', context)
+            
+        except Exception as e:
+            print(f"Ошибка при загрузке списка документов: {e}")
+            return HttpResponse(f"Ошибка при загрузке списка: {str(e)}", status=500)
+
+
+@method_decorator(login_required, name='dispatch')
+class DocumentPrintSettingsView(View):
+    """
+    Представление для настройки параметров печати
+    """
+    
+    def get(self, request, document_id):
+        try:
+            clinical_document = get_object_or_404(ClinicalDocument, pk=document_id)
+            
+            # Проверяем права доступа
+            if not request.user.is_staff and clinical_document.author != request.user:
+                return HttpResponse("Доступ запрещен", status=403)
+            
+            # Получаем доступные шрифты
+            from .services import DocumentPrintService
+            available_fonts = DocumentPrintService.get_available_fonts()
+            
+            context = {
+                'document': clinical_document,
+                'document_type': clinical_document.document_type,
+                'available_fonts': available_fonts,
+                'title': f'Настройки печати: {clinical_document.document_type.name}'
+            }
+            
+            return render(request, 'documents/print_settings.html', context)
+            
+        except Exception as e:
+            print(f"Ошибка при загрузке настроек печати: {e}")
+            return HttpResponse(f"Ошибка при загрузке настроек: {str(e)}", status=500)
+    
+    def post(self, request, document_id):
+        try:
+            clinical_document = get_object_or_404(ClinicalDocument, pk=document_id)
+            
+            # Проверяем права доступа
+            if not request.user.is_staff and clinical_document.author != request.user:
+                return HttpResponse("Доступ запрещен", status=403)
+            
+            # Получаем параметры печати
+            print_settings = {
+                'font_size': int(request.POST.get('font_size', 12)),
+                'font_name': request.POST.get('font_name', 'helv'),
+                'include_header': request.POST.get('include_header') == 'on',
+                'include_footer': request.POST.get('include_footer') == 'on',
+                'page_orientation': request.POST.get('page_orientation', 'portrait'),
+                'margins': request.POST.get('margins', 'normal')
+            }
+            
+            # Генерируем PDF с настройками
+            print_service = DocumentPrintService()
+            
+            # Применяем настройки
+            if print_settings['font_size'] != 12:
+                print_service.font_size = print_settings['font_size']
+                print_service.line_height = print_settings['font_size'] + 4
+            
+            # Применяем выбранный шрифт
+            if print_settings['font_name'] != 'helv':
+                print_service.set_font(print_settings['font_name'])
+            
+            if print_settings['margins'] == 'wide':
+                print_service.margin = 30
+            elif print_settings['margins'] == 'narrow':
+                print_service.margin = 70
+            
+            # Генерируем PDF
+            pdf_bytes = print_service.generate_pdf(clinical_document)
+            
+            # Формируем имя файла
+            filename = f"{clinical_document.document_type.name}_{clinical_document.datetime_document.strftime('%Y%m%d')}_custom.pdf"
+            filename = filename.replace(' ', '_').replace('/', '_')
+            
+            # Возвращаем PDF как ответ
+            response = HttpResponse(pdf_bytes.getvalue(), content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+            
+        except Exception as e:
+            print(f"Ошибка при печати с настройками: {e}")
+            return HttpResponse(f"Ошибка при генерации PDF: {str(e)}", status=500)

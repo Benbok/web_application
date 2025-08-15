@@ -1,0 +1,126 @@
+{% extends 'documents/print/base_print.html' %}
+
+{% block document_content %}
+<!-- Специфичное содержимое для операционного протокола -->
+<div class="field-group">
+    <div class="field-label">Пациент:</div>
+    <div class="field-value">
+        {% if data.patient_name %}
+            {{ data.patient_name }}
+        {% else %}
+            Информация о пациенте не указана
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Дата рождения:</div>
+    <div class="field-value">
+        {% if data.birth_date %}
+            {{ data.birth_date }}
+        {% else %}
+            Не указана
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Диагноз:</div>
+    <div class="field-value">
+        {% if data.diagnosis %}
+            {{ data.diagnosis }}
+        {% else %}
+            Не указан
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Название операции:</div>
+    <div class="field-value">
+        {% if data.operation_name %}
+            {{ data.operation_name }}
+        {% else %}
+            Не указано
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Хирург:</div>
+    <div class="field-value">
+        {% if data.surgeon %}
+            {{ data.surgeon }}
+        {% else %}
+            Не указан
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Анестезиолог:</div>
+    <div class="field-value">
+        {% if data.anesthesiologist %}
+            {{ data.anesthesiologist }}
+        {% else %}
+            Не указан
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Тип анестезии:</div>
+    <div class="field-value">
+        {% if data.anesthesia_type %}
+            {{ data.anesthesia_type }}
+        {% else %}
+            Не указан
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Описание операции:</div>
+    <div class="field-value">
+        {% if data.operation_description %}
+            {{ data.operation_description }}
+        {% else %}
+            Не указано
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Осложнения:</div>
+    <div class="field-value">
+        {% if data.complications %}
+            {{ data.complications }}
+        {% else %}
+            Не указаны
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Дата операции:</div>
+    <div class="field-value">
+        {% if data.operation_date %}
+            {{ data.operation_date }}
+        {% else %}
+            {{ document.datetime_document|date:"d.m.Y" }}
+        {% endif %}
+    </div>
+</div>
+
+<!-- Дополнительные поля, если они есть -->
+{% for field_name, field_value in data.items %}
+    {% if field_name not in 'patient_name,birth_date,diagnosis,operation_name,surgeon,anesthesiologist,anesthesia_type,operation_description,complications,operation_date' and field_value %}
+        <div class="field-group">
+            <div class="field-label">{{ field_name|title }}:</div>
+            <div class="field-value">
+                {{ field_value }}
+            </div>
+        </div>
+    {% endif %}
+{% endfor %}
+{% endblock %} 

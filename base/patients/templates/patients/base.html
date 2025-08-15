@@ -129,6 +129,13 @@
             </li>
 
             <li class="nav-item">
+              <a class="nav-link {% block active_documents %}{% endblock %}" href="{% url 'documents:document_print_list' %}">
+                <i class="fas fa-print nav-icon"></i>
+                <span class="nav-text">Документы & Печать</span>
+              </a>
+            </li>
+
+            <li class="nav-item">
               <a href="#" class="nav-link">
                 <i class="fas fa-chart-line nav-icon"></i>
                 <span class="nav-text">Аналитика</span>

@@ -152,19 +152,19 @@ class Command(BaseCommand):
             
             # === 1. ЗАГРУЗКА СПРАВОЧНИКОВ ===
             self.stdout.write("📋 Загружаю справочники...")
-            for group_data in data.get('medication_groups', []):
+        for group_data in data.get('medication_groups', []):
                 MedicationGroup.objects.update_or_create(name=group_data['name'], defaults=group_data)
-            
-            for form_data in data.get('release_forms', []):
+        
+        for form_data in data.get('release_forms', []):
                 ReleaseForm.objects.update_or_create(name=form_data['name'], defaults=form_data)
             
-            for method_data in data.get('administration_methods', []):
+        for method_data in data.get('administration_methods', []):
                 AdministrationMethod.objects.update_or_create(name=method_data['name'], defaults=method_data)
             self.stdout.write("   ✅ Справочники загружены.")
 
                         # === 2. ЗАГРУЗКА МНН (Medications) ===
             self.stdout.write("📋 Загружаю МНН...")
-            for med_data in data.get('medications', []):
+        for med_data in data.get('medications', []):
                 # Проверяем, есть ли atc_code, иначе используем пустую строку
                 atc_code = med_data.get('atc_code')
                 if atc_code is None:
@@ -194,8 +194,8 @@ class Command(BaseCommand):
                         self.stdout.write(f"   ✅ Создана новая форма выпуска: {tn_data['release_form_name']}")
                     
                     tn_defaults = {
-                        'medication_group': group,
-                        'release_form': release_form,
+                    'medication_group': group,
+                    'release_form': release_form,
                         'atc_code': tn_data.get('atc_code'),
                         'external_info_url': tn_data.get('external_info_url')
                     }
@@ -255,8 +255,8 @@ class Command(BaseCommand):
                     
                     # Создаем или обновляем основную схему
                     regimen, created = Regimen.objects.update_or_create(
-                        medication=medication,
-                        name=regimen_data['name'],
+                medication=medication,
+                name=regimen_data['name'],
                         defaults={'notes': regimen_data.get('notes')}
                     )
                     

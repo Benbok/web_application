@@ -1,0 +1,104 @@
+{% extends 'documents/print/base_print.html' %}
+
+{% block document_content %}
+<!-- Специфичное содержимое для выписки -->
+<div class="field-group">
+    <div class="field-label">Пациент:</div>
+    <div class="field-value">
+        {% if data.patient_name %}
+            {{ data.patient_name }}
+        {% else %}
+            Информация о пациенте не указана
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Дата рождения:</div>
+    <div class="field-value">
+        {% if data.birth_date %}
+            {{ data.birth_date }}
+        {% else %}
+            Не указана
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Диагноз при поступлении:</div>
+    <div class="field-value">
+        {% if data.admission_diagnosis %}
+            {{ data.admission_diagnosis }}
+        {% else %}
+            Не указан
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Диагноз при выписке:</div>
+    <div class="field-value">
+        {% if data.discharge_diagnosis %}
+            {{ data.discharge_diagnosis }}
+        {% else %}
+            Не указан
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Проведенное лечение:</div>
+    <div class="field-value">
+        {% if data.treatment %}
+            {{ data.treatment }}
+        {% else %}
+            Не указано
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Рекомендации:</div>
+    <div class="field-value">
+        {% if data.recommendations %}
+            {{ data.recommendations }}
+        {% else %}
+            Не указаны
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Дата поступления:</div>
+    <div class="field-value">
+        {% if data.admission_date %}
+            {{ data.admission_date }}
+        {% else %}
+            Не указана
+        {% endif %}
+    </div>
+</div>
+
+<div class="field-group">
+    <div class="field-label">Дата выписки:</div>
+    <div class="field-value">
+        {% if data.discharge_date %}
+            {{ data.discharge_date }}
+        {% else %}
+            {{ document.datetime_document|date:"d.m.Y" }}
+        {% endif %}
+    </div>
+</div>
+
+<!-- Дополнительные поля, если они есть -->
+{% for field_name, field_value in data.items %}
+    {% if field_name not in 'patient_name,birth_date,admission_diagnosis,discharge_diagnosis,treatment,recommendations,admission_date,discharge_date' and field_value %}
+        <div class="field-group">
+            <div class="field-label">{{ field_name|title|replace:"_" " " }}:</div>
+            <div class="field-value">
+                {{ field_value }}
+            </div>
+        </div>
+    {% endif %}
+{% endfor %}
+{% endblock %} 
