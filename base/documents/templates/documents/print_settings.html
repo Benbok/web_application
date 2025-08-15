@@ -19,19 +19,26 @@
                                 {% csrf_token %}
                                 
                                 <div class="row">
-                                    <div class="col-md-4 mb-3">
+                                    <div class="col-md-3 mb-3">
                                         <label for="font_size" class="form-label">
                                             <i class="fas fa-font"></i> Размер шрифта
                                         </label>
                                         <select name="font_size" id="font_size" class="form-select">
-                                            <option value="10">10pt - Мелкий</option>
+                                            <option value="8">8pt - Очень мелкий</option>
+                                            <option value="9">9pt - Мелкий</option>
+                                            <option value="10">10pt - Компактный</option>
+                                            <option value="11">11pt - Малый</option>
                                             <option value="12" selected>12pt - Обычный</option>
+                                            <option value="13">13pt - Средний</option>
                                             <option value="14">14pt - Крупный</option>
-                                            <option value="16">16pt - Очень крупный</option>
+                                            <option value="16">16pt - Большой</option>
+                                            <option value="18">18pt - Очень большой</option>
+                                            <option value="20">20pt - Заголовочный</option>
+                                            <option value="24">24pt - Крупный заголовок</option>
                                         </select>
                                     </div>
                                     
-                                    <div class="col-md-4 mb-3">
+                                    <div class="col-md-3 mb-3">
                                         <label for="font_name" class="form-label">
                                             <i class="fas fa-font"></i> Шрифт
                                         </label>
@@ -45,13 +52,27 @@
                                         </select>
                                     </div>
                                     
-                                    <div class="col-md-4 mb-3">
+                                    <div class="col-md-3 mb-3">
                                         <label for="page_orientation" class="form-label">
-                                            <i class="fas fa-file-alt"></i> Ориентация страницы
+                                            <i class="fas fa-file-alt"></i> Ориентация
                                         </label>
                                         <select name="page_orientation" id="page_orientation" class="form-select">
-                                            <option value="portrait" selected>Книжная (вертикальная)</option>
-                                            <option value="landscape">Альбомная (горизонтальная)</option>
+                                            <option value="portrait" selected>Книжная</option>
+                                            <option value="landscape">Альбомная</option>
+                                            <option value="auto">Авто</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="col-md-3 mb-3">
+                                        <label for="page_size" class="form-label">
+                                            <i class="fas fa-ruler"></i> Размер
+                                        </label>
+                                        <select name="page_size" id="page_size" class="form-select">
+                                            <option value="A4" selected>A4</option>
+                                            <option value="A5">A5</option>
+                                            <option value="A3">A3</option>
+                                            <option value="Letter">Letter</option>
+                                            <option value="Legal">Legal</option>
                                         </select>
                                     </div>
                                 </div>
@@ -62,9 +83,15 @@
                                             <i class="fas fa-arrows-alt-h"></i> Поля страницы
                                         </label>
                                         <select name="margins" id="margins" class="form-select">
-                                            <option value="narrow">Узкие (70pt)</option>
+                                            <option value="minimal">Минимальные (10pt)</option>
+                                            <option value="very_narrow">Очень узкие (20pt)</option>
+                                            <option value="narrow">Узкие (30pt)</option>
+                                            <option value="compact">Компактные (40pt)</option>
                                             <option value="normal" selected>Обычные (50pt)</option>
-                                            <option value="wide">Широкие (30pt)</option>
+                                            <option value="comfortable">Комфортные (60pt)</option>
+                                            <option value="wide">Широкие (70pt)</option>
+                                            <option value="very_wide">Очень широкие (80pt)</option>
+                                            <option value="maximum">Максимальные (100pt)</option>
                                         </select>
                                     </div>
                                     
@@ -159,6 +186,24 @@
                                             </li>
                                         {% endfor %}
                                     </ul>
+                                    
+                                    <hr>
+                                    <h6>Размеры страниц:</h6>
+                                    <ul class="list-unstyled small">
+                                        <li><i class="fas fa-ruler"></i> A4 - Стандартный (210×297 мм)</li>
+                                        <li><i class="fas fa-ruler"></i> A5 - Компактный (148×210 мм)</li>
+                                        <li><i class="fas fa-ruler"></i> A3 - Большой (297×420 мм)</li>
+                                        <li><i class="fas fa-ruler"></i> Letter - Американский (216×279 мм)</li>
+                                        <li><i class="fas fa-ruler"></i> Legal - Юридический (216×356 мм)</li>
+                                    </ul>
+                                    
+                                    <hr>
+                                    <h6>Поля страницы:</h6>
+                                    <ul class="list-unstyled small">
+                                        <li><i class="fas fa-arrows-alt-h"></i> Минимальные (10pt) - Максимум текста</li>
+                                        <li><i class="fas fa-arrows-alt-h"></i> Обычные (50pt) - Стандартные</li>
+                                        <li><i class="fas fa-arrows-alt-h"></i> Максимальные (100pt) - Минимум текста</li>
+                                    </ul>
                                 </div>
                             </div>
                         </div>
@@ -174,6 +219,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const fontSizeSelect = document.getElementById('font_size');
     const fontNameSelect = document.getElementById('font_name');
     const marginsSelect = document.getElementById('margins');
+    const pageSizeSelect = document.getElementById('page_size');
     const textPreview = document.getElementById('textPreview');
     
     function updatePreview() {
@@ -189,33 +235,17 @@ document.addEventListener('DOMContentLoaded', function() {
         previewText.style.fontSize = fontSize + 'px';
         previewText.style.lineHeight = lineHeight + 'px';
         
-        // Применяем выбранный шрифт (если это системный шрифт)
-        const selectedOption = fontNameSelect.options[fontNameSelect.selectedIndex];
-        if (selectedOption.dataset.type === 'system') {
-            // Для системных шрифтов используем CSS
-            if (selectedFont === 'helv') {
-                previewText.style.fontFamily = 'Arial, Helvetica, sans-serif';
-            } else if (selectedFont === 'tibo') {
-                previewText.style.fontFamily = 'Times New Roman, serif';
-            } else if (selectedFont === 'tibo-i') {
-                previewText.style.fontFamily = 'Times New Roman, serif';
-                previewText.style.fontStyle = 'italic';
-            } else {
-                previewText.style.fontFamily = 'Arial, Helvetica, sans-serif';
-                previewText.style.fontWeight = 'bold';
-            }
-        } else {
-            // Для пользовательских шрифтов показываем информацию
-            previewText.style.fontFamily = 'Arial, Helvetica, sans-serif';
-            previewText.innerHTML = `Пример текста с шрифтом <strong>${selectedFont}</strong><br>
-                Размер: ${fontSize}px, поля: ${marginsSelect.value}<br>
-                <em>Пользовательский шрифт будет применен при генерации PDF</em>`;
-        }
+        // Все шрифты теперь пользовательские
+        previewText.style.fontFamily = 'Arial, Helvetica, sans-serif';
+        previewText.innerHTML = `Пример текста с шрифтом <strong>${selectedFont}</strong><br>
+            Размер: ${fontSize}px, поля: ${marginsSelect.value}, страница: ${pageSizeSelect.value}<br>
+            <em>Пользовательский шрифт будет применен при генерации PDF</em>`;
     }
     
     fontSizeSelect.addEventListener('change', updatePreview);
     fontNameSelect.addEventListener('change', updatePreview);
     marginsSelect.addEventListener('change', updatePreview);
+    pageSizeSelect.addEventListener('change', updatePreview);
     
     // Инициализация предварительного просмотра
     updatePreview();

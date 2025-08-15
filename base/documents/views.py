@@ -425,32 +425,28 @@ class DocumentPrintSettingsView(View):
             # Получаем параметры печати
             print_settings = {
                 'font_size': int(request.POST.get('font_size', 12)),
-                'font_name': request.POST.get('font_name', 'helv'),
+                'font_name': request.POST.get('font_name', 'DejaVuSans'),
                 'include_header': request.POST.get('include_header') == 'on',
                 'include_footer': request.POST.get('include_footer') == 'on',
                 'page_orientation': request.POST.get('page_orientation', 'portrait'),
+                'page_size': request.POST.get('page_size', 'A4'),
                 'margins': request.POST.get('margins', 'normal')
             }
             
             # Генерируем PDF с настройками
             print_service = DocumentPrintService()
             
-            # Применяем настройки
+            # Применяем настройки к сервису
             if print_settings['font_size'] != 12:
                 print_service.font_size = print_settings['font_size']
                 print_service.line_height = print_settings['font_size'] + 4
             
             # Применяем выбранный шрифт
-            if print_settings['font_name'] != 'helv':
+            if print_settings['font_name']:
                 print_service.set_font(print_settings['font_name'])
             
-            if print_settings['margins'] == 'wide':
-                print_service.margin = 30
-            elif print_settings['margins'] == 'narrow':
-                print_service.margin = 70
-            
-            # Генерируем PDF
-            pdf_bytes = print_service.generate_pdf(clinical_document)
+            # Генерируем PDF с настройками
+            pdf_bytes = print_service.generate_pdf(clinical_document, print_settings=print_settings)
             
             # Формируем имя файла
             filename = f"{clinical_document.document_type.name}_{clinical_document.datetime_document.strftime('%Y%m%d')}_custom.pdf"
