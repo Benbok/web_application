@@ -122,6 +122,11 @@
                                 <small class="text-muted">{{ lab_test.lab_test.description|truncatewords:15 }}</small>
                             </div>
                             {% endif %}
+                            <div class="mt-auto">
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar me-1"></i>{{ lab_test.created_at|date:"d.m.Y H:i" }}
+                                </small>
+                            </div>
                         </div>
                         <div class="card-footer bg-white p-2">
                             <div class="btn-group w-100" role="group">
