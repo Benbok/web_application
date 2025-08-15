@@ -5,7 +5,7 @@ from django.shortcuts import render, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 
-from .models import Encounter, TreatmentLabTest, ExaminationPlan, ExaminationLabTest, ExaminationInstrumental
+from .models import Encounter, TreatmentLabTest
 from .services.encounter_service import EncounterService
 from .forms import EncounterReopenForm, EncounterUndoForm
 
@@ -171,72 +171,3 @@ class TreatmentLabTestAdmin(admin.ModelAdmin):
     get_lab_test_name.short_description = 'Название исследования'
 
 
-@admin.register(ExaminationPlan)
-class ExaminationPlanAdmin(admin.ModelAdmin):
-    list_display = ('name', 'encounter', 'priority', 'is_active', 'created_at')
-    list_filter = ('priority', 'is_active', 'created_at')
-    search_fields = ('name', 'description', 'encounter__patient__first_name', 'encounter__patient__last_name')
-    readonly_fields = ('created_at', 'updated_at')
-    
-    fieldsets = (
-        ('Основная информация', {
-            'fields': ('encounter', 'name', 'description', 'priority')
-        }),
-        ('Статус', {
-            'fields': ('is_active',)
-        }),
-        ('Системная информация', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-
-
-@admin.register(ExaminationLabTest)
-class ExaminationLabTestAdmin(admin.ModelAdmin):
-    list_display = ('get_lab_test_name', 'examination_plan', 'is_active', 'created_at')
-    list_filter = ('is_active', 'created_at')
-    search_fields = ('lab_test_assignment__lab_test__name', 'examination_plan__name')
-    readonly_fields = ('created_at', 'updated_at')
-    
-    fieldsets = (
-        ('Основная информация', {
-            'fields': ('examination_plan', 'lab_test_assignment')
-        }),
-        ('Дополнительно', {
-            'fields': ('instructions', 'is_active')
-        }),
-        ('Системная информация', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    
-    def get_lab_test_name(self, obj):
-        return obj.get_lab_test_name()
-    get_lab_test_name.short_description = 'Название исследования'
-
-
-@admin.register(ExaminationInstrumental)
-class ExaminationInstrumentalAdmin(admin.ModelAdmin):
-    list_display = ('get_procedure_name', 'examination_plan', 'is_active', 'created_at')
-    list_filter = ('is_active', 'created_at')
-    search_fields = ('instrumental_procedure__name', 'custom_procedure', 'examination_plan__name')
-    readonly_fields = ('created_at', 'updated_at')
-    
-    fieldsets = (
-        ('Основная информация', {
-            'fields': ('examination_plan', 'instrumental_procedure', 'custom_procedure')
-        }),
-        ('Дополнительно', {
-            'fields': ('instructions', 'is_active')
-        }),
-        ('Системная информация', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    
-    def get_procedure_name(self, obj):
-        return obj.get_procedure_name()
-    get_procedure_name.short_description = 'Название исследования'

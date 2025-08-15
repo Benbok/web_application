@@ -1,0 +1,43 @@
+{% extends 'patients/base.html' %}
+{% load static %}
+
+{% block title %}Удалить план обследования{% endblock %}
+
+{% block page_title %}Удалить план обследования{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0 text-danger">
+                        <i class="fas fa-exclamation-triangle me-1"></i> Подтверждение удаления
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        Вы действительно хотите удалить план обследования <strong>"{{ object.name }}"</strong>?
+                    </p>
+                    <p class="card-text text-muted">
+                        Это действие нельзя отменить. Все связанные лабораторные и инструментальные исследования также будут удалены.
+                    </p>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'examination_management:examination_plan_detail' encounter_pk=object.encounter.pk pk=object.pk %}" 
+                               class="btn btn-secondary">
+                                <i class="fas fa-times me-1"></i> Отмена
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-1"></i> Удалить
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

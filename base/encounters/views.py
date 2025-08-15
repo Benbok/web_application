@@ -1,132 +1,82 @@
-from django.db import models
-from django.urls import reverse, reverse_lazy
-from django.views import View
-from django.views.generic import DetailView, CreateView, UpdateView, DeleteView, ListView
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 from django.contrib import messages
-from django.http import HttpResponseForbidden, JsonResponse
-from django.utils import timezone
-from django.views.decorators.http import require_http_methods
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
-import json
-
-
-def redirect_to_treatment_management(request, **kwargs):
-    """
-    Функция для перенаправления старых URLs лечения на новое приложение treatment_management
-    """
-    # Определяем тип запроса и соответствующий URL в treatment_management
-    path = request.path
-    
-    if 'treatment-plans' in path:
-        if '/add/' in path:
-            # Создание плана лечения
-            encounter_pk = kwargs.get('encounter_pk')
-            return redirect('treatment_management:plan_create', 
-                          owner_model='encounter', owner_id=encounter_pk)
-        elif '/delete/' in path:
-            # Удаление плана лечения
-            plan_pk = kwargs.get('pk')
-            return redirect('treatment_management:plan_delete', pk=plan_pk)
-        elif '/medications/add/' in path:
-            # Добавление лекарства
-            plan_pk = kwargs.get('treatment_plan_pk')
-            return redirect('treatment_management:medication_create', plan_pk=plan_pk)
-        else:
-            # Список или детали плана лечения
-            encounter_pk = kwargs.get('encounter_pk') or kwargs.get('pk')
-            if encounter_pk:
-                return redirect('treatment_management:plan_list', 
-                              owner_model='encounter', owner_id=encounter_pk)
-            else:
-                plan_pk = kwargs.get('pk')
-                return redirect('treatment_management:plan_detail', pk=plan_pk)
-    
-    elif 'medications' in path:
-        if '/edit/' in path:
-            # Редактирование лекарства
-            medication_pk = kwargs.get('pk')
-            return redirect('treatment_management:medication_update', pk=medication_pk)
-        elif '/delete/' in path:
-            # Удаление лекарства
-            medication_pk = kwargs.get('pk')
-            return redirect('treatment_management:medication_delete', pk=medication_pk)
-    
-    elif 'quick-add' in path:
-        # Быстрое добавление лекарства
-        plan_pk = kwargs.get('plan_pk')
-        medication_name = kwargs.get('medication_name')
-        if medication_name:
-            return redirect('treatment_management:quick_add_medication_by_name', 
-                          plan_pk=plan_pk, medication_name=medication_name)
-        else:
-            return redirect('treatment_management:quick_add_medication', plan_pk=plan_pk)
-    
-    elif 'api/medication-info' in path or 'api/trade-name-info' in path or 'api/treatment-regimens' in path or 'api/patient-recommendations' in path:
-        # AJAX endpoints для информации о лекарствах и схемах лечения
-        # Перенаправляем на соответствующие endpoints в treatment_management
-        if 'medication-info' in path:
-            medication_id = kwargs.get('medication_id')
-            return redirect('treatment_management:medication_info', medication_id=medication_id)
-        elif 'trade-name-info' in path:
-            trade_name_id = kwargs.get('trade_name_id')
-            return redirect('treatment_management:trade_name_info', trade_name_id=trade_name_id)
-        else:
-            # Для остальных AJAX endpoints просто перенаправляем на главную страницу
-            return redirect('patients:home')
-    
-    # Если не удалось определить URL, перенаправляем на главную страницу
-    return redirect('patients:home')
-
-from .models import Encounter, EncounterDiagnosis, TreatmentLabTest, ExaminationPlan, ExaminationLabTest, ExaminationInstrumental
-from .services.encounter_service import EncounterService
-from patients.models import Patient
-from .forms import (
-    EncounterForm, EncounterCloseForm, EncounterUpdateForm, EncounterReopenForm, 
-    EncounterUndoForm, EncounterDiagnosisForm, EncounterDiagnosisAdvancedForm,
-    TreatmentLabTestForm, ExaminationPlanForm, ExaminationLabTestForm, ExaminationInstrumentalForm
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic import (
+    ListView, DetailView, CreateView, UpdateView, DeleteView, View
 )
-from departments.models import Department, PatientDepartmentStatus
-from diagnosis.models import Diagnosis
+from django.contrib.contenttypes.models import ContentType
+from django.http import JsonResponse
+from django.db.models import Q
+from django.utils import timezone
+
+from .models import Encounter, EncounterDiagnosis, TreatmentLabTest
+from .forms import (
+    EncounterForm, EncounterUpdateForm, EncounterDiagnosisForm,
+    EncounterDiagnosisAdvancedForm, TreatmentLabTestForm
+)
+from patients.models import Patient
+from treatment_management.models import TreatmentPlan
 
 
-class EncounterDetailView(DetailView):
+class EncounterListView(LoginRequiredMixin, ListView):
+    """Представление для списка обращений"""
+    model = Encounter
+    template_name = 'encounters/list.html'
+    context_object_name = 'encounters'
+    paginate_by = 20
+
+    def get_queryset(self):
+        return Encounter.objects.select_related('patient', 'doctor').order_by('-date_start')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Обращения'
+        return context
+
+
+class EncounterDetailView(LoginRequiredMixin, DetailView):
+    """Представление для детального просмотра обращения"""
     model = Encounter
     template_name = 'encounters/detail.html'
     context_object_name = 'encounter'
 
     def get_queryset(self):
-        """Оптимизируем queryset для избежания N+1 запросов"""
         return Encounter.objects.select_related(
-            'patient',
-            'doctor',
-            'transfer_to_department'
+            'patient', 'doctor'
         ).prefetch_related(
-            'documents',
-            'diagnoses__diagnosis',
-            'treatment_plans__medications__medication',
-            'department_transfer_records'
+            'diagnoses__diagnosis'
         )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        encounter = self.get_object()
+        encounter = self.object
         
-        # Используем сервис для получения деталей
-        service = EncounterService(encounter)
-        details = service.get_encounter_details()
+        # Добавляем порядковый номер обращения для данного пациента
+        patient_encounters = Encounter.objects.filter(
+            patient=encounter.patient
+        ).order_by('date_start')
         
-        context['documents'] = details['documents']
-        context['encounter_number'] = details['encounter_number']
-        context['title'] = f'Обращение #{context["encounter_number"]}'
+        # Находим позицию текущего обращения в списке обращений пациента
+        encounter_position = 1
+        for i, patient_encounter in enumerate(patient_encounters):
+            if patient_encounter.pk == encounter.pk:
+                encounter_position = i + 1
+                break
+        
+        context['encounter_number'] = encounter_position
         
         # Добавляем информацию о диагнозах
-        all_diagnoses = encounter.diagnoses.all().select_related('diagnosis')
-        context['main_diagnosis'] = all_diagnoses.filter(diagnosis_type='main').first()
-        context['complications'] = all_diagnoses.filter(diagnosis_type='complication')
-        context['comorbidities'] = all_diagnoses.filter(diagnosis_type='comorbidity')
+        main_diagnosis = encounter.diagnoses.filter(diagnosis_type='main').first()
+        complications = encounter.diagnoses.filter(diagnosis_type='complication')
+        comorbidities = encounter.diagnoses.filter(diagnosis_type='comorbidity')
+        
+        context.update({
+            'main_diagnosis': main_diagnosis,
+            'complications': complications,
+            'comorbidities': comorbidities,
+            'patient': encounter.patient,
+        })
         
         # Добавляем информацию о планах лечения
         from treatment_management.models import TreatmentPlan
@@ -140,24 +90,27 @@ class EncounterDetailView(DetailView):
         context['treatment_plans'] = treatment_plans
         
         # Добавляем информацию о планах обследования
-        examination_plans = encounter.examination_plans.all()
-        
-        # Если нет планов обследования, автоматически создаем основной план
-        if not examination_plans.exists():
-            from django.utils import timezone
-            from .models import ExaminationPlan
+        try:
+            from examination_management.models import ExaminationPlan
+            examination_plans = ExaminationPlan.objects.filter(encounter=encounter)
             
-            # Создаем основной план обследования
-            main_plan = ExaminationPlan.objects.create(
-                encounter=encounter,
-                name='Основной',
-                description='Основной план обследования для данного случая',
-                priority='normal',
-                is_active=True
-            )
-            examination_plans = [main_plan]
+            # Если планов обследования нет, автоматически создаем "Основной" план
+            if not examination_plans.exists():
+                ExaminationPlan.objects.create(
+                    encounter=encounter,
+                    name='Основной',
+                    description='Автоматически созданный основной план обследования'
+                )
+                # Обновляем queryset после создания
+                examination_plans = ExaminationPlan.objects.filter(encounter=encounter)
+            
+            context['examination_plans'] = examination_plans
+        except ImportError:
+            # Если приложение examination_management не установлено
+            context['examination_plans'] = []
         
-        context['examination_plans'] = examination_plans
+        # Добавляем прикрепленные документы
+        context['documents'] = encounter.documents.all()
         
         return context
 
@@ -231,454 +184,105 @@ class EncounterDiagnosisView(UpdateView):
         return reverse('encounters:encounter_detail', kwargs={'pk': self.object.pk})
 
 
-class EncounterDiagnosisAdvancedView(DetailView):
-    """Представление для работы с расширенной структурой диагнозов"""
+class EncounterDiagnosisAdvancedView(UpdateView):
+    """Представление для расширенной установки диагнозов"""
     model = Encounter
-    template_name = 'encounters/diagnosis_advanced.html'
-    context_object_name = 'encounter'
-    
+    form_class = EncounterDiagnosisAdvancedForm
+    template_name = 'encounters/diagnosis_advanced_form.html'
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['title'] = 'Диагнозы'
+        context['title'] = 'Установить диагнозы'
         context['patient'] = self.object.patient
-        
-        # Получаем все диагнозы
-        all_diagnoses = self.object.diagnoses.all().select_related('diagnosis')
-        
-
-        
-        # Разделяем по типам
-        context['main_diagnosis'] = all_diagnoses.filter(diagnosis_type='main').first()
-        context['complications'] = all_diagnoses.filter(diagnosis_type='complication')
-        context['comorbidities'] = all_diagnoses.filter(diagnosis_type='comorbidity')
-        
         return context
 
-
-class EncounterDiagnosisCreateView(CreateView):
-    """Представление для создания нового диагноза"""
-    model = EncounterDiagnosis
-    form_class = EncounterDiagnosisAdvancedForm
-    template_name = 'encounters/diagnosis_create.html'
-    
-    def setup(self, request, *args, **kwargs):
-        super().setup(request, *args, **kwargs)
-        self.encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
-    
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['encounter'] = self.encounter
-        return kwargs
-    
     def form_valid(self, form):
         response = super().form_valid(form)
-        messages.success(self.request, 'Диагноз успешно добавлен')
+        messages.success(self.request, 'Диагнозы успешно установлены')
         return response
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['encounter'] = self.encounter
-        context['patient'] = self.encounter.patient
-        context['title'] = 'Добавить диагноз'
-        return context
-    
+
     def get_success_url(self):
-        return reverse('encounters:encounter_diagnosis_advanced', kwargs={'pk': self.encounter.pk})
+        return reverse('encounters:encounter_detail', kwargs={'pk': self.object.pk})
 
 
-class EncounterDiagnosisUpdateView(UpdateView):
-    """Представление для редактирования диагноза"""
+class EncounterDiagnosisAdvancedCreateView(LoginRequiredMixin, CreateView):
+    """Представление для создания расширенного диагноза"""
     model = EncounterDiagnosis
     form_class = EncounterDiagnosisAdvancedForm
-    template_name = 'encounters/diagnosis_edit.html'
-    
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['encounter'] = self.object.encounter
-        return kwargs
-    
+    template_name = 'encounters/diagnosis_advanced_form.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
+        context['encounter'] = encounter
+        context['patient'] = encounter.patient
+        context['title'] = 'Добавить диагноз'
+        return context
+
+    def form_valid(self, form):
+        encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
+        form.instance.encounter = encounter
+        messages.success(self.request, 'Диагноз успешно добавлен')
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse('encounters:encounter_detail', kwargs={'pk': self.kwargs['encounter_pk']})
+
+
+class EncounterDiagnosisAdvancedUpdateView(LoginRequiredMixin, UpdateView):
+    """Представление для редактирования расширенного диагноза"""
+    model = EncounterDiagnosis
+    form_class = EncounterDiagnosisAdvancedForm
+    template_name = 'encounters/diagnosis_advanced_form.html'
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['encounter'] = self.object.encounter
         context['patient'] = self.object.encounter.patient
         context['title'] = 'Редактировать диагноз'
         return context
-    
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        messages.success(self.request, 'Диагноз успешно обновлен')
-        return response
-    
+
     def get_success_url(self):
-        return reverse('encounters:encounter_diagnosis_advanced', kwargs={'pk': self.object.encounter.pk})
+        return reverse('encounters:encounter_detail', kwargs={'pk': self.object.encounter.pk})
 
 
-class EncounterDiagnosisDeleteView(DeleteView):
-    """Представление для удаления диагноза"""
+class EncounterDiagnosisAdvancedDeleteView(LoginRequiredMixin, DeleteView):
+    """Представление для удаления расширенного диагноза"""
     model = EncounterDiagnosis
-    template_name = 'encounters/diagnosis_confirm_delete.html'
-    
+    template_name = 'encounters/diagnosis_advanced_confirm_delete.html'
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['encounter'] = self.object.encounter
         context['patient'] = self.object.encounter.patient
         context['title'] = 'Удалить диагноз'
         return context
-    
-    def get_success_url(self):
-        return reverse('encounters:encounter_diagnosis_advanced', kwargs={'pk': self.object.encounter.pk})
-
-
-class EncounterDeleteView(DeleteView):
-    model = Encounter
-    template_name = 'encounters/confirm_delete.html'
-
-    def get_context_data(self, **kwargs):
-        """Добавляем номер обращения для страницы подтверждения."""
-        context = super().get_context_data(**kwargs)
-        encounter = self.get_object()
-        context['encounter_number'] = Encounter.objects.filter(
-            patient_id=encounter.patient_id,
-            date_start__lt=encounter.date_start
-        ).count() + 1
-        return context
-    
-    def get_success_url(self):
-        return reverse_lazy('patients:patient_detail', kwargs={'pk': self.object.patient.pk})
-    
-class EncounterCloseView(UpdateView):
-    model = Encounter
-    form_class = EncounterCloseForm
-    template_name = 'encounters/close_form.html'
-
-    def get_object(self, queryset=None):
-        obj = get_object_or_404(Encounter, pk=self.kwargs['pk'], is_active=True)
-        return obj
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['title'] = 'Завершить обращение'
-        context['encounter'] = self.get_object()
-        context['encounter_number'] = Encounter.objects.filter(
-            patient_id=self.get_object().patient_id,
-            date_start__lt=self.get_object().date_start
-        ).count() + 1
-        return context
-
-    def form_valid(self, form):
-        encounter = self.get_object()
-        
-        try:
-            # Используем новую форму с Command Pattern
-            form.save(user=self.request.user)
-            messages.success(self.request, "Случай обращения успешно закрыт.")
-            return redirect(self.get_success_url())
-        except Exception as e:
-            messages.error(self.request, f"Ошибка при закрытии: {e}")
-            return self.form_invalid(form)
 
     def get_success_url(self):
-        return reverse('encounters:encounter_detail', kwargs={'pk': self.object.pk})
-    
-class EncounterReopenView(View):
-    """
-    Представление для возврата случая обращения в активное состояние.
-    Обрабатывает POST-запрос для изменения состояния.
-    """
-    def post(self, request, pk, *args, **kwargs):
-        encounter = get_object_or_404(Encounter, pk=pk)
-
-        if encounter.is_active:
-            messages.warning(request, "Случай обращения уже активен.")
-            return redirect(reverse('encounters:encounter_detail', kwargs={'pk': pk}))
-
-        # Здесь также можно добавить проверку прав доступа
-        # if not request.user.has_perm('encounters.can_reopen_encounter'):
-        #     messages.error(request, "У вас нет прав для активации случая обращения.")
-        #     return HttpResponseForbidden()
-
-        # Используем сервис с Command Pattern
-        service = EncounterService(encounter)
-        if service.reopen_encounter(user=request.user):
-            messages.success(request, "Случай обращения успешно возвращен в активное состояние.")
-        else:
-            messages.error(request, "Не удалось вернуть случай обращения в активное состояние.")
-
-        return redirect(reverse('encounters:encounter_detail', kwargs={'pk': pk}))
+        return reverse('encounters:encounter_detail', kwargs={'pk': self.object.encounter.pk})
 
 
-class EncounterUndoView(View):
-    """
-    Представление для отмены последней операции.
-    Обрабатывает POST-запрос для отмены операции.
-    """
-    def post(self, request, pk, *args, **kwargs):
-        encounter = get_object_or_404(Encounter, pk=pk)
+class TreatmentPlansView(LoginRequiredMixin, ListView):
+    """Представление для списка планов лечения"""
+    model = TreatmentPlan
+    template_name = 'encounters/treatment_plans.html'
+    context_object_name = 'treatment_plans'
 
-        # Используем сервис для отмены операции
-        service = EncounterService(encounter)
-        if service.undo_last_operation():
-            messages.success(request, "Последняя операция успешно отменена.")
-        else:
-            messages.error(request, "Не удалось отменить последнюю операцию.")
-
-        return redirect(reverse('encounters:encounter_detail', kwargs={'pk': pk}))
-
-
-class TestJavaScriptView(View):
-    """Простое представление для тестирования JavaScript"""
-    
-    def get(self, request):
-        from django.template.loader import render_to_string
-        from django.http import HttpResponse
-        
-        html_content = render_to_string('encounters/test_js.html')
-        return HttpResponse(html_content)
-
-
-class ExaminationPlanCreateView(LoginRequiredMixin, CreateView):
-    """Представление для создания плана обследования"""
-    
-    model = ExaminationPlan
-    form_class = ExaminationPlanForm
-    template_name = 'encounters/examination_plan_form.html'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
-        context['encounter'] = encounter
-        context['patient'] = encounter.patient
-        context['title'] = 'Создать план обследования'
-        context['next_url'] = self.request.GET.get('next', reverse('encounters:encounter_detail', kwargs={'pk': encounter.pk}))
-        return context
-    
-    def form_valid(self, form):
-        encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
-        form.instance.encounter = encounter
-        messages.success(self.request, 'План обследования успешно создан.')
-        return super().form_valid(form)
-    
-    def get_success_url(self):
-        return self.request.GET.get('next', reverse('encounters:encounter_detail', kwargs={'pk': self.object.encounter.pk}))
-
-
-class ExaminationPlanUpdateView(LoginRequiredMixin, UpdateView):
-    """Представление для редактирования плана обследования"""
-    
-    model = ExaminationPlan
-    form_class = ExaminationPlanForm
-    template_name = 'encounters/examination_plan_form.html'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['encounter'] = self.object.encounter
-        context['patient'] = self.object.encounter.patient
-        context['title'] = 'Редактировать план обследования'
-        context['next_url'] = self.request.GET.get('next', reverse('encounters:encounter_detail', kwargs={'pk': self.object.encounter.pk}))
-        return context
-    
-    def get_success_url(self):
-        return self.request.GET.get('next', reverse('encounters:encounter_detail', kwargs={'pk': self.object.encounter.pk}))
-
-
-class ExaminationPlanDetailView(LoginRequiredMixin, DetailView):
-    """Представление для детального просмотра плана обследования"""
-    
-    model = ExaminationPlan
-    template_name = 'encounters/examination_plan_detail.html'
-    context_object_name = 'examination_plan'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['encounter'] = self.object.encounter
-        context['patient'] = self.object.encounter.patient
-        context['next_url'] = self.request.GET.get('next', reverse('encounters:encounter_detail', kwargs={'pk': self.object.encounter.pk}))
-        return context
-
-
-class ExaminationPlanListView(LoginRequiredMixin, ListView):
-    """Представление для списка планов обследования"""
-    
-    model = ExaminationPlan
-    template_name = 'encounters/examination_plan_list.html'
-    context_object_name = 'examination_plans'
-    
     def get_queryset(self):
         encounter_pk = self.kwargs.get('encounter_pk')
-        return ExaminationPlan.objects.filter(encounter_id=encounter_pk).order_by('-created_at')
-    
+        content_type = ContentType.objects.get_for_model(Encounter)
+        return TreatmentPlan.objects.filter(
+            content_type=content_type,
+            object_id=encounter_pk
+        ).prefetch_related('medications', 'lab_tests')
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         encounter_pk = self.kwargs.get('encounter_pk')
         context['encounter'] = get_object_or_404(Encounter, pk=encounter_pk)
         context['patient'] = context['encounter'].patient
+        context['title'] = 'Планы лечения'
         return context
-
-
-class ExaminationPlanDeleteView(LoginRequiredMixin, DeleteView):
-    """Представление для удаления плана обследования"""
-    
-    model = ExaminationPlan
-    template_name = 'encounters/examination_plan_confirm_delete.html'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['encounter'] = self.object.encounter
-        context['patient'] = self.object.encounter.patient
-        context['title'] = 'Удалить план обследования'
-        context['next_url'] = self.request.GET.get('next', reverse('encounters:encounter_detail', kwargs={'pk': self.object.encounter.pk}))
-        return context
-    
-    def get_success_url(self):
-        return self.request.GET.get('next', reverse('encounters:encounter_detail', kwargs={'pk': self.object.encounter.pk}))
-
-
-class ExaminationLabTestCreateView(LoginRequiredMixin, CreateView):
-    """Представление для создания лабораторного исследования в плане обследования"""
-    
-    model = ExaminationLabTest
-    form_class = ExaminationLabTestForm
-    template_name = 'encounters/examination_lab_test_form.html'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        examination_plan = get_object_or_404(ExaminationPlan, pk=self.kwargs['plan_pk'])
-        context['examination_plan'] = examination_plan
-        context['encounter'] = examination_plan.encounter
-        context['patient'] = examination_plan.encounter.patient
-        context['title'] = 'Добавить лабораторное исследование'
-        context['next_url'] = self.request.GET.get('next', reverse('encounters:examination_plan_detail', kwargs={'pk': examination_plan.pk}))
-        return context
-    
-    def form_valid(self, form):
-        examination_plan = get_object_or_404(ExaminationPlan, pk=self.kwargs['plan_pk'])
-        
-        # Создаем LabTestAssignment
-        from treatment_assignments.models import LabTestAssignment
-        from django.utils import timezone
-        
-        lab_test_assignment = LabTestAssignment.objects.create(
-            content_type=ContentType.objects.get_for_model(examination_plan.encounter),
-            object_id=examination_plan.encounter.id,
-            patient=examination_plan.encounter.patient,
-            assigning_doctor=self.request.user,
-            start_date=timezone.now(),
-            lab_test=form.cleaned_data['lab_test_definition']
-        )
-        
-        # Создаем ExaminationLabTest
-        form.instance.examination_plan = examination_plan
-        form.instance.lab_test_assignment = lab_test_assignment
-        
-        messages.success(self.request, 'Лабораторное исследование успешно добавлено в план обследования.')
-        return super().form_valid(form)
-    
-    def get_success_url(self):
-        return self.request.GET.get('next', reverse('encounters:examination_plan_detail', kwargs={'pk': self.object.examination_plan.pk}))
-
-
-class ExaminationLabTestUpdateView(LoginRequiredMixin, UpdateView):
-    """Представление для редактирования лабораторного исследования в плане обследования"""
-    
-    model = ExaminationLabTest
-    form_class = ExaminationLabTestForm
-    template_name = 'encounters/examination_lab_test_form.html'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['examination_plan'] = self.object.examination_plan
-        context['encounter'] = self.object.examination_plan.encounter
-        context['patient'] = self.object.examination_plan.encounter.patient
-        context['title'] = 'Редактировать лабораторное исследование'
-        context['next_url'] = self.request.GET.get('next', reverse('encounters:examination_plan_detail', kwargs={'pk': self.object.examination_plan.pk}))
-        return context
-    
-    def get_success_url(self):
-        return self.request.GET.get('next', reverse('encounters:examination_plan_detail', kwargs={'pk': self.object.examination_plan.pk}))
-
-
-class ExaminationLabTestDeleteView(LoginRequiredMixin, DeleteView):
-    """Представление для удаления лабораторного исследования в плане обследования"""
-    
-    model = ExaminationLabTest
-    form_class = ExaminationLabTestForm
-    template_name = 'encounters/examination_lab_test_confirm_delete.html'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['examination_plan'] = self.object.examination_plan
-        context['encounter'] = self.object.examination_plan.encounter
-        context['patient'] = self.object.examination_plan.encounter.patient
-        context['title'] = 'Удалить лабораторное исследование'
-        context['next_url'] = self.request.GET.get('next', reverse('encounters:examination_plan_detail', kwargs={'pk': self.object.examination_plan.pk}))
-        return context
-    
-    def get_success_url(self):
-        return self.request.GET.get('next', reverse('encounters:examination_plan_detail', kwargs={'pk': self.object.examination_plan.pk}))
-
-
-class ExaminationInstrumentalCreateView(LoginRequiredMixin, CreateView):
-    """Представление для создания инструментального исследования в плане обследования"""
-    
-    model = ExaminationInstrumental
-    form_class = ExaminationInstrumentalForm
-    template_name = 'encounters/examination_instrumental_form.html'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        examination_plan = get_object_or_404(ExaminationPlan, pk=self.kwargs['plan_pk'])
-        context['examination_plan'] = examination_plan
-        context['encounter'] = examination_plan.encounter
-        context['patient'] = examination_plan.encounter.patient
-        context['title'] = 'Добавить инструментальное исследование'
-        context['next_url'] = self.request.GET.get('next', reverse('encounters:examination_plan_detail', kwargs={'pk': examination_plan.pk}))
-        return context
-    
-    def form_valid(self, form):
-        examination_plan = get_object_or_404(ExaminationPlan, pk=self.kwargs['plan_pk'])
-        form.instance.examination_plan = examination_plan
-        messages.success(self.request, 'Инструментальное исследование успешно добавлено в план обследования.')
-        return super().form_valid(form)
-    
-    def get_success_url(self):
-        return self.request.GET.get('next', reverse('encounters:examination_plan_detail', kwargs={'pk': self.object.examination_plan.pk}))
-
-
-class ExaminationInstrumentalUpdateView(LoginRequiredMixin, UpdateView):
-    """Представление для редактирования инструментального исследования в плане обследования"""
-    
-    model = ExaminationInstrumental
-    form_class = ExaminationInstrumentalForm
-    template_name = 'encounters/examination_instrumental_form.html'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['examination_plan'] = self.object.examination_plan
-        context['next_url'] = self.request.GET.get('next', reverse('encounters:examination_plan_detail', kwargs={'pk': self.object.examination_plan.pk}))
-        return context
-    
-    def get_success_url(self):
-        return self.request.GET.get('next', reverse('encounters:examination_plan_detail', kwargs={'pk': self.object.examination_plan.pk}))
-
-
-class ExaminationInstrumentalDeleteView(LoginRequiredMixin, DeleteView):
-    """Представление для удаления инструментального исследования в плане обследования"""
-    
-    model = ExaminationInstrumental
-    form_class = ExaminationInstrumentalForm
-    template_name = 'encounters/examination_instrumental_confirm_delete.html'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['examination_plan'] = self.object.examination_plan
-        context['encounter'] = self.object.examination_plan.encounter
-        context['patient'] = self.object.examination_plan.encounter.patient
-        context['title'] = 'Удалить инструментальное исследование'
-        context['next_url'] = self.request.GET.get('next', reverse('encounters:examination_plan_detail', kwargs={'pk': self.object.examination_plan.pk}))
-        return context
-    
-    def get_success_url(self):
-        return self.request.GET.get('next', reverse('encounters:examination_plan_detail', kwargs={'pk': self.object.examination_plan.pk}))
 
 
 class TreatmentLabTestCreateView(LoginRequiredMixin, CreateView):
@@ -745,3 +349,39 @@ class TreatmentLabTestDeleteView(LoginRequiredMixin, DeleteView):
     
     def get_success_url(self):
         return self.request.GET.get('next', reverse('encounters:treatment_plans', kwargs={'encounter_pk': self.object.treatment_plan.encounter.pk}))
+
+
+class EncounterCloseView(LoginRequiredMixin, View):
+    """Представление для закрытия случая"""
+    
+    def post(self, request, pk):
+        encounter = get_object_or_404(Encounter, pk=pk)
+        if encounter.is_active:
+            encounter.is_active = False
+            encounter.date_end = timezone.now()
+            encounter.save()
+            messages.success(request, 'Случай успешно закрыт')
+        return redirect('encounters:encounter_detail', pk=pk)
+
+
+class EncounterReopenView(LoginRequiredMixin, View):
+    """Представление для возврата случая в активное состояние"""
+    
+    def post(self, request, pk):
+        encounter = get_object_or_404(Encounter, pk=pk)
+        if not encounter.is_active:
+            encounter.is_active = True
+            encounter.date_end = None
+            encounter.save()
+            messages.success(request, 'Случай возвращен в активное состояние')
+        return redirect('encounters:encounter_detail', pk=pk)
+
+
+class EncounterDeleteView(LoginRequiredMixin, DeleteView):
+    """Представление для удаления случая"""
+    
+    model = Encounter
+    template_name = 'encounters/encounter_confirm_delete.html'
+    
+    def get_success_url(self):
+        return reverse('patients:patient_detail', kwargs={'pk': self.object.patient.pk}) 

@@ -15,7 +15,7 @@
                     <small class="text-muted">
                         Пациент: {{ patient.full_name }} | 
                         Случай: {{ encounter.date_start|date:"d.m.Y H:i" }} | 
-                        План: {{ treatment_plan.name }}
+                        План: {{ examination_plan.name }}
                     </small>
                 </div>
                 <div class="card-body">
@@ -23,19 +23,16 @@
                         <h5 class="alert-heading">
                             <i class="fas fa-exclamation-triangle"></i> Внимание!
                         </h5>
-                        <p>Вы собираетесь удалить лабораторное исследование:</p>
+                        <p>Вы собираетесь удалить инструментальное исследование:</p>
                         <ul class="mb-0">
-                            <li><strong>Название:</strong> {{ object.get_lab_test_name }}</li>
-                            <li><strong>Приоритет:</strong> {{ object.get_priority_display }}</li>
-                            {% if object.instructions %}
-                                <li><strong>Инструкции:</strong> {{ object.instructions }}</li>
-                            {% endif %}
+                            <li><strong>Название:</strong> {{ object.get_procedure_name }}</li>
+                            {% if object.notes %}<li><strong>Примечания:</strong> {{ object.notes }}</li>{% endif %}
                         </ul>
                     </div>
                     
                     <p class="text-muted">
                         <i class="fas fa-info-circle"></i>
-                        Это действие нельзя отменить. Все данные о лабораторном исследовании будут безвозвратно удалены.
+                        Это действие нельзя отменить. Все данные об инструментальном исследовании будут безвозвратно удалены.
                     </p>
                     
                     <form method="post">
@@ -45,7 +42,7 @@
                                 <i class="fas fa-trash"></i> Удалить
                             </button>
                             
-                            <a href="{{ next_url }}" class="btn btn-secondary">
+                            <a href="{% url 'examination_management:examination_plan_detail' encounter_pk=encounter.pk pk=examination_plan.pk %}" class="btn btn-secondary">
                                 <i class="fas fa-arrow-left"></i> Отмена
                             </a>
                         </div>

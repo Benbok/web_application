@@ -1,0 +1,218 @@
+{% extends "patients/base.html" %}
+{% load static %}
+
+{% block title %}{{ examination_plan.name }}{% endblock %}
+
+{% block content %}
+{% comment %} Блок сообщений Django оставлен без изменений {% endcomment %}
+{% if messages %}
+<div class="messages mt-3">
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% comment %} 
+  Основная карточка плана обследования. 
+  Ключевое изменение: все действия теперь собраны в заголовке в одном месте.
+{% endcomment %}
+<div class="card mt-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            {% comment %} Левая часть: Название и базовая информация {% endcomment %}
+            <div>
+                <h4 class="card-title mb-0">
+                    <i class="fas fa-notes-medical"></i> {{ examination_plan.name }}
+                </h4>
+                <small class="text-muted">
+                    {% if encounter.patient %}
+                        Пациент: <a href="{% url 'patients:patient_detail' encounter.patient.pk %}">{{ encounter.patient.get_full_name_with_age }}</a> | 
+                        Случай: <a href="{% url 'encounters:encounter_detail' encounter.id %}">{{ encounter.date_start|date:"d.m.Y" }}</a>
+                    {% else %}
+                        {{ encounter }}
+                    {% endif %}
+                </small>
+            </div>
+            {% comment %} 
+              Правая часть: ЕДИНАЯ панель действий.
+              - Главные действия ("Добавить") - это яркие кнопки.
+              - Второстепенные и опасные действия убраны в выпадающее меню.
+            {% endcomment %}
+            <div class="btn-toolbar mt-2 mt-md-0" role="toolbar">
+                <div class="btn-group me-2" role="group">
+                    <a href="{% url 'examination_management:lab_test_create' plan_pk=examination_plan.pk %}" class="btn btn-success">
+                        <i class="fas fa-flask me-1"></i> Добавить лабораторное
+                    </a>
+                    <a href="{% url 'examination_management:instrumental_create' plan_pk=examination_plan.pk %}" class="btn btn-info">
+                        <i class="fas fa-stethoscope me-1"></i> Добавить инструментальное
+                    </a>
+                </div>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                        Действия
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="{% url 'examination_management:examination_plan_update' encounter_pk=encounter.pk pk=examination_plan.pk %}">
+                            <i class="fas fa-edit fa-fw me-2"></i>Редактировать план
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="{% url 'examination_management:examination_plan_delete' encounter_pk=encounter.pk pk=examination_plan.pk %}">
+                            <i class="fas fa-trash fa-fw me-2"></i>Удалить план
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        {% comment %} 
+          Информационный блок - ПЕРЕРАБОТАН в компактные бейджи
+        {% endcomment %}
+        <div class="mb-4">
+            {% if examination_plan.description %}
+                <div class="mb-3">
+                    <h6 class="card-subtitle mb-2 text-muted">Описание:</h6>
+                    <p class="mb-0">{{ examination_plan.description|linebreaks }}</p>
+                </div>
+            {% endif %}
+            <div class="d-flex flex-wrap gap-2">
+                <span class="badge bg-light text-dark">
+                    <i class="fas fa-clock me-1"></i>Создан: {{ examination_plan.created_at|date:"d.m.Y H:i" }}
+                </span>
+                <span class="badge bg-success text-white">
+                    <i class="fas fa-flask me-1"></i>Лабораторных: {{ examination_plan.lab_tests.count }}
+                </span>
+                <span class="badge bg-info text-white">
+                    <i class="fas fa-stethoscope me-1"></i>Инструментальных: {{ examination_plan.instrumental_procedures.count }}
+                </span>
+            </div>
+        </div>
+        
+        <hr>
+
+        {% comment %} Блок с лабораторными исследованиями - ПЕРЕРАБОТАН в компактные карточки {% endcomment %}
+        <h5 class="mb-3"><i class="fas fa-flask me-1"></i> Лабораторные исследования</h5>
+        {% if examination_plan.lab_tests.all %}
+            <div class="row">
+                {% for lab_test in examination_plan.lab_tests.all %}
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card h-100 border-success">
+                        <div class="card-header bg-success text-white py-2">
+                            <h6 class="mb-0 text-white">
+                                <i class="fas fa-flask me-1"></i> {{ lab_test.lab_test.name|truncatechars:30 }}
+                            </h6>
+                        </div>
+                        <div class="card-body d-flex flex-column">
+                            {% if lab_test.custom_lab_test %}
+                            <div class="mb-2">
+                                <strong>Кастомное название:</strong> {{ lab_test.custom_lab_test }}
+                            </div>
+                            {% endif %}
+                            {% if lab_test.notes %}
+                            <div class="mb-2">
+                                <strong>Примечания:</strong> {{ lab_test.notes }}
+                            </div>
+                            {% endif %}
+                            {% if lab_test.lab_test.description %}
+                            <div class="mb-2">
+                                <small class="text-muted">{{ lab_test.lab_test.description|truncatewords:15 }}</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer bg-white p-2">
+                            <div class="btn-group w-100" role="group">
+                                <a href="{% url 'examination_management:lab_test_update' pk=lab_test.pk %}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-edit me-1"></i> Редактировать
+                                </a>
+                                <a href="{% url 'examination_management:lab_test_delete' pk=lab_test.pk %}" 
+                                   class="btn btn-outline-danger btn-sm">
+                                    <i class="fas fa-trash me-1"></i> Удалить
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center p-4 border rounded bg-light">
+                <i class="fas fa-flask fa-2x text-muted mb-2"></i>
+                <h6 class="text-muted">Лабораторные исследования пока не добавлены</h6>
+                <p class="text-muted small">Начните, добавив первое лабораторное исследование в план обследования.</p>
+                <a href="{% url 'examination_management:lab_test_create' plan_pk=examination_plan.pk %}" class="btn btn-success btn-sm">
+                     <i class="fas fa-plus me-1"></i> Добавить лабораторное
+                 </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% comment %} Блок с инструментальными исследованиями. Логика не менялась, только стили "пустого состояния" {% endcomment %}
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-stethoscope me-1"></i> Инструментальные исследования</h5>
+        <a href="{% url 'examination_management:instrumental_create' plan_pk=examination_plan.pk %}" class="btn btn-info btn-sm">
+            <i class="fas fa-plus me-1"></i> Добавить инструментальное
+        </a>
+    </div>
+    <div class="card-body">
+        {% if examination_plan.instrumental_procedures.all %}
+            {% comment %} Компактный список инструментальных исследований вместо карточек {% endcomment %}
+            <ul class="list-group">
+                {% for instrumental in examination_plan.instrumental_procedures.all %}
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="me-3">
+                                <p class="mb-1">{{ instrumental.instrumental_procedure.name }}</p>
+                                {% if instrumental.notes %}
+                                <small class="text-muted">{{ instrumental.notes|linebreaks }}</small>
+                                {% endif %}
+                                <small class="text-muted d-block mt-1">
+                                    <i class="fas fa-calendar me-1"></i>{{ instrumental.created_at|date:"d.m.Y H:i" }}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <a href="{% url 'examination_management:instrumental_update' pk=instrumental.pk %}" 
+                           class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <a href="{% url 'examination_management:instrumental_delete' pk=instrumental.pk %}" 
+                           class="btn btn-outline-danger btn-sm">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <div class="text-center p-4 border rounded bg-light">
+                <i class="fas fa-stethoscope fa-2x text-muted mb-2"></i>
+                <h6 class="text-muted">Инструментальные исследования не добавлены</h6>
+                <p class="text-muted small">Добавьте первое инструментальное исследование в план обследования.</p>
+                <a href="{% url 'examination_management:instrumental_create' plan_pk=examination_plan.pk %}" class="btn btn-info btn-sm">
+                    <i class="fas fa-plus me-1"></i> Добавить инструментальное
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% comment %} Навигационные кнопки внизу страницы. Логично сгруппированы. {% endcomment %}
+<div class="d-flex gap-2 mt-4">
+    <a href="{% url 'examination_management:examination_plan_list' encounter_pk=encounter.pk %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Все планы обследования
+    </a>
+    <a href="{% url 'encounters:encounter_detail' pk=encounter.pk %}" class="btn btn-outline-secondary">
+        <i class="fas fa-user me-1"></i> Вернуться к случаю
+    </a>
+</div>
+
+{% endblock %} 

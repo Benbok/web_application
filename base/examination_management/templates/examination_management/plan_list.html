@@ -11,19 +11,22 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <div>
                         <h4 class="card-title mb-0">
-                            <i class="fas fa-stethoscope"></i> Планы обследования
+                            <i class="fas fa-notes-medical"></i> Планы обследования
                         </h4>
                         <small class="text-muted">
-                            Пациент: {{ patient.full_name }} | 
-                            Случай: {{ encounter.date_start|date:"d.m.Y H:i" }}
+                            {% if owner.patient %}
+                                Пациент: {{ owner.patient.get_full_name_with_age }}
+                            {% else %}
+                                {{ owner }}
+                            {% endif %}
                         </small>
                     </div>
                     <div class="btn-group" role="group">
-                        <a href="{% url 'encounters:encounter_detail' pk=encounter.id %}" 
+                        <a href="{% url 'encounters:encounter_detail' pk=owner.pk %}" 
                            class="btn btn-outline-primary">
                             <i class="fas fa-arrow-left"></i> К случаю
                         </a>
-                        <a href="{% url 'encounters:examination_plan_create' encounter.id %}" 
+                        <a href="{% url 'examination_management:examination_plan_create' encounter_pk=owner.pk %}" 
                            class="btn btn-primary">
                             <i class="fas fa-plus"></i> Создать план обследования
                         </a>
@@ -57,22 +60,14 @@
                                                 <i class="fas fa-stethoscope"></i> {{ plan.instrumental_procedures.count }} инструментальных
                                             </small>
                                         </p>
-                                        <p class="card-text">
-                                            <small class="text-muted">
-                                                <i class="fas fa-exclamation-triangle"></i> 
-                                                <span class="badge bg-{% if plan.priority == 'emergency' %}danger{% elif plan.priority == 'urgent' %}warning{% else %}info{% endif %}">
-                                                    {{ plan.get_priority_display }}
-                                                </span>
-                                            </small>
-                                        </p>
                                     </div>
                                     <div class="card-footer">
                                         <div class="btn-group w-100" role="group">
-                                            <a href="{% url 'encounters:examination_plan_detail' pk=plan.pk %}" 
+                                            <a href="{% url 'examination_management:examination_plan_detail' encounter_pk=owner.pk pk=plan.pk %}" 
                                                class="btn btn-outline-primary btn-sm">
                                                 <i class="fas fa-eye"></i> Просмотр
                                             </a>
-                                            <a href="{% url 'encounters:examination_plan_delete' pk=plan.pk %}" 
+                                            <a href="{% url 'examination_management:examination_plan_delete' encounter_pk=owner.pk pk=plan.pk %}" 
                                                class="btn btn-outline-danger btn-sm">
                                                 <i class="fas fa-trash"></i> Удалить
                                             </a>
@@ -84,10 +79,10 @@
                         </div>
                     {% else %}
                         <div class="text-center py-5">
-                            <i class="fas fa-stethoscope fa-3x text-muted mb-3"></i>
+                            <i class="fas fa-notes-medical fa-3x text-muted mb-3"></i>
                             <h5 class="text-muted">Планы обследования не найдены</h5>
                             <p class="text-muted">Создайте первый план обследования для начала работы</p>
-                            <a href="{% url 'encounters:examination_plan_create' encounter.id %}" 
+                            <a href="{% url 'examination_management:examination_plan_create' encounter_pk=owner.pk %}" 
                                class="btn btn-primary">
                                 <i class="fas fa-plus"></i> Создать план обследования
                             </a>

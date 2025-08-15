@@ -1,0 +1,74 @@
+from django.urls import path
+from . import views
+
+app_name = 'examination_management'
+
+urlpatterns = [
+    # Специальные URL для encounters (для обратной совместимости)
+    path('encounters/<int:encounter_pk>/plans/', 
+         views.ExaminationPlanListView.as_view(), 
+         name='examination_plan_list'),
+    
+    path('encounters/<int:encounter_pk>/plans/create/', 
+         views.ExaminationPlanCreateView.as_view(), 
+         name='examination_plan_create'),
+    
+    path('encounters/<int:encounter_pk>/plans/<int:pk>/', 
+         views.ExaminationPlanDetailView.as_view(), 
+         name='examination_plan_detail'),
+    
+    path('encounters/<int:encounter_pk>/plans/<int:pk>/edit/', 
+         views.ExaminationPlanUpdateView.as_view(), 
+         name='examination_plan_update'),
+    
+    path('encounters/<int:encounter_pk>/plans/<int:pk>/delete/', 
+         views.ExaminationPlanDeleteView.as_view(), 
+         name='examination_plan_delete'),
+    
+    # Общие URL-паттерны для других типов владельцев
+    path('<str:owner_model>/<int:owner_id>/plans/', 
+         views.ExaminationPlanListView.as_view(), 
+         name='plan_list'),
+    
+    path('<str:owner_model>/<int:owner_id>/plans/create/', 
+         views.ExaminationPlanCreateView.as_view(), 
+         name='plan_create'),
+    
+    path('<str:owner_model>/<int:owner_id>/plans/<int:pk>/', 
+         views.ExaminationPlanDetailView.as_view(), 
+         name='plan_detail'),
+    
+    path('<str:owner_model>/<int:owner_id>/plans/<int:pk>/edit/', 
+         views.ExaminationPlanUpdateView.as_view(), 
+         name='plan_update'),
+    
+    path('<str:owner_model>/<int:owner_id>/plans/<int:pk>/delete/', 
+         views.ExaminationPlanDeleteView.as_view(), 
+         name='plan_delete'),
+    
+    # Лабораторные исследования в планах обследования
+    path('plans/<int:plan_pk>/lab-tests/add/', 
+         views.ExaminationLabTestCreateView.as_view(), 
+         name='lab_test_create'),
+    
+    path('lab-tests/<int:pk>/edit/', 
+         views.ExaminationLabTestUpdateView.as_view(), 
+         name='lab_test_update'),
+    
+    path('lab-tests/<int:pk>/delete/', 
+         views.ExaminationLabTestDeleteView.as_view(), 
+         name='lab_test_delete'),
+    
+    # Инструментальные исследования в планах обследования
+    path('plans/<int:plan_pk>/instrumental/add/', 
+         views.ExaminationInstrumentalCreateView.as_view(), 
+         name='instrumental_create'),
+    
+    path('instrumental/<int:pk>/edit/', 
+         views.ExaminationInstrumentalUpdateView.as_view(), 
+         name='instrumental_update'),
+    
+    path('instrumental/<int:pk>/delete/', 
+         views.ExaminationInstrumentalDeleteView.as_view(), 
+         name='instrumental_delete'),
+] 
