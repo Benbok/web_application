@@ -10,7 +10,7 @@
             <div class="card">
                 <div class="card-header">
                     <h4 class="card-title mb-0">
-                        <i class="fas fa-plus"></i> {{ title }}
+                        <i class="fas fa-{% if form.instance.pk %}edit{% else %}plus{% endif %}"></i> {{ title }}
                     </h4>
                                          <small class="text-muted">
                          {% if owner.patient %}
@@ -56,7 +56,7 @@
                         
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> Создать план
+                                <i class="fas fa-save"></i> {% if form.instance.pk %}Сохранить изменения{% else %}Создать план{% endif %}
                             </button>
                             {% if owner_model == 'encounter' %}
                                 <a href="{% url 'encounters:encounter_detail' pk=owner.id %}" 

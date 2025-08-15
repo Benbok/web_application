@@ -32,6 +32,28 @@ urlpatterns = [
     path('plans/<int:plan_pk>/quick-add/<int:medication_id>/', views.redirect_to_treatment_management, name='quick_add_medication'),
     path('plans/<int:plan_pk>/quick-add-by-name/<str:medication_name>/', views.redirect_to_treatment_management, name='quick_add_medication_by_name'),
     
+    # Лабораторные назначения
+    path('plans/<int:plan_pk>/lab-tests/add/', views.TreatmentLabTestCreateView.as_view(), name='treatment_lab_test_create'),
+    path('lab-tests/<int:pk>/edit/', views.TreatmentLabTestUpdateView.as_view(), name='treatment_lab_test_update'),
+    path('lab-tests/<int:pk>/delete/', views.TreatmentLabTestDeleteView.as_view(), name='treatment_lab_test_delete'),
+    
+    # Планы обследования
+    path('<int:encounter_pk>/examination-plans/', views.ExaminationPlanListView.as_view(), name='examination_plan_list'),
+    path('<int:encounter_pk>/examination-plans/add/', views.ExaminationPlanCreateView.as_view(), name='examination_plan_create'),
+    path('examination-plans/<int:pk>/edit/', views.ExaminationPlanUpdateView.as_view(), name='examination_plan_update'),
+    path('examination-plans/<int:pk>/delete/', views.ExaminationPlanDeleteView.as_view(), name='examination_plan_delete'),
+    path('examination-plans/<int:pk>/', views.ExaminationPlanDetailView.as_view(), name='examination_plan_detail'),
+    
+    # Лабораторные исследования в плане обследования
+    path('examination-plans/<int:plan_pk>/lab-tests/add/', views.ExaminationLabTestCreateView.as_view(), name='examination_lab_test_create'),
+    path('examination-lab-tests/<int:pk>/edit/', views.ExaminationLabTestUpdateView.as_view(), name='examination_lab_test_update'),
+    path('examination-lab-tests/<int:pk>/delete/', views.ExaminationLabTestDeleteView.as_view(), name='examination_lab_test_delete'),
+    
+    # Инструментальные исследования в плане обследования
+    path('examination-plans/<int:plan_pk>/instrumental/add/', views.ExaminationInstrumentalCreateView.as_view(), name='examination_instrumental_create'),
+    path('examination-instrumental/<int:pk>/edit/', views.ExaminationInstrumentalUpdateView.as_view(), name='examination_instrumental_update'),
+    path('examination-instrumental/<int:pk>/delete/', views.ExaminationInstrumentalDeleteView.as_view(), name='examination_instrumental_delete'),
+    
     # AJAX endpoints удалены - теперь используется перенаправление на treatment_management
     
     # Тестирование

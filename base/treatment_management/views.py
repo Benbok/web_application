@@ -199,6 +199,34 @@ class TreatmentPlanDetailView(LoginRequiredMixin, OwnerContextMixin, DetailView)
         return context
 
 
+class TreatmentPlanUpdateView(LoginRequiredMixin, OwnerContextMixin, UpdateView):
+    """
+    Редактирование плана лечения
+    """
+    model = TreatmentPlan
+    form_class = TreatmentPlanForm
+    template_name = 'treatment_management/plan_form.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['owner'] = self.object.owner
+        context['owner_model'] = self.object.owner._meta.model_name
+        context['title'] = _('Редактировать план лечения')
+        
+        # Получаем пациента через миксин
+        context['patient'] = self.get_patient_from_owner(self.object.owner)
+        
+        return context
+    
+    def get_success_url(self):
+        return reverse('treatment_management:plan_detail',
+                      kwargs={
+                          'owner_model': self.object.owner._meta.model_name,
+                          'owner_id': self.object.owner.id,
+                          'pk': self.object.pk
+                      })
+
+
 class TreatmentPlanDeleteView(LoginRequiredMixin, OwnerContextMixin, DeleteView):
     """
     Удаление плана лечения

@@ -17,6 +17,10 @@ urlpatterns = [
          views.TreatmentPlanDetailView.as_view(), 
          name='plan_detail'),
     
+    path('<str:owner_model>/<int:owner_id>/plans/<int:pk>/edit/', 
+         views.TreatmentPlanUpdateView.as_view(), 
+         name='plan_update'),
+    
     path('<str:owner_model>/<int:owner_id>/plans/<int:pk>/delete/', 
          views.TreatmentPlanDeleteView.as_view(), 
          name='plan_delete'),

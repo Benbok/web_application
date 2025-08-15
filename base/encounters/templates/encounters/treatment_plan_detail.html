@@ -41,6 +41,7 @@
                     <ul class="list-unstyled">
                         <li><small class="text-muted"><i class="fas fa-clock"></i> Создан: {{ treatment_plan.created_at|date:"d.m.Y H:i" }}</small></li>
                         <li><small class="text-muted"><i class="fas fa-pills"></i> Лекарств: {{ medications.count }}</small></li>
+                        <li><small class="text-muted"><i class="fas fa-flask"></i> Лабораторных исследований: {{ treatment_plan.lab_tests.count }}</small></li>
                                                  <li><small class="text-muted">
                              <i class="fas fa-circle"></i> Создан: {{ treatment_plan.created_at|date:"d.m.Y H:i" }}
                          </small></li>
@@ -56,6 +57,9 @@
                         <div class="d-grid gap-2">
                                                          <a href="{% url 'encounters:treatment_medication_create' treatment_plan.pk %}" class="btn btn-success btn-sm">
                                  <i class="fas fa-plus"></i> Добавить лекарство
+                             </a>
+                             <a href="{% url 'encounters:treatment_lab_test_create' treatment_plan.pk %}" class="btn btn-info btn-sm">
+                                 <i class="fas fa-flask"></i> Добавить исследование
                              </a>
                             <a href="{% url 'encounters:treatment_plans' encounter.pk %}" class="btn btn-outline-secondary btn-sm">
                                 <i class="fas fa-arrow-left"></i> К списку планов
@@ -176,6 +180,74 @@
                                  <a href="{% url 'encounters:treatment_medication_create' treatment_plan.pk %}" class="btn btn-primary btn-sm">
                      <i class="fas fa-plus"></i> Добавить лекарство
                  </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-flask"></i> Лабораторные исследования в плане лечения</h5>
+        <a href="{% url 'encounters:treatment_lab_test_create' treatment_plan.pk %}" class="btn btn-info btn-sm">
+            <i class="fas fa-plus"></i> Добавить исследование
+        </a>
+    </div>
+    <div class="card-body">
+        {% if treatment_plan.lab_tests.exists %}
+            <div class="row">
+                {% for lab_test in treatment_plan.lab_tests.all %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-0">
+                                        {% if lab_test.lab_test %}
+                                            {{ lab_test.lab_test.name }}
+                                        {% else %}
+                                            {{ lab_test.custom_lab_test }}
+                                        {% endif %}
+                                    </h6>
+                                    <small class="text-muted">
+                                        <span class="badge bg-{% if lab_test.priority == 'emergency' %}danger{% elif lab_test.priority == 'urgent' %}warning{% else %}info{% endif %}">
+                                            {{ lab_test.get_priority_display }}
+                                        </span>
+                                    </small>
+                                </div>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'encounters:treatment_lab_test_update' lab_test.pk %}" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'encounters:treatment_lab_test_delete' lab_test.pk %}" class="btn btn-outline-danger btn-sm">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                {% if lab_test.instructions %}
+                                    <div class="mb-2">
+                                        <small class="text-muted">Особые указания:</small><br>
+                                        <small>{{ lab_test.instructions }}</small>
+                                    </div>
+                                {% endif %}
+                                <div class="mt-2">
+                                    <small class="text-muted">Статус:</small><br>
+                                    <span class="badge bg-{% if lab_test.is_active %}success{% else %}secondary{% endif %}">
+                                        {% if lab_test.is_active %}Активно{% else %}Неактивно{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-flask fa-2x text-muted mb-2"></i>
+                <h6 class="text-muted">Лабораторные исследования не добавлены</h6>
+                <p class="text-muted">Добавьте первое лабораторное исследование в план лечения</p>
+                <a href="{% url 'encounters:treatment_lab_test_create' treatment_plan.pk %}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-plus"></i> Добавить исследование
+                </a>
             </div>
         {% endif %}
     </div>

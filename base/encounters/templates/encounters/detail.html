@@ -89,59 +89,96 @@
         {% endif %}
       </li>
     </ul>
-    <div class="d-flex gap-2 mt-3">
-      <a
-        href="{% url 'encounters:encounter_diagnosis_advanced' encounter.pk %}"
-        class="btn btn-outline-info"
-      >
-        <i class="fas fa-stethoscope me-1"></i> 
-        {% if main_diagnosis or complications or comorbidities %}
-            Управление диагнозами
-        {% else %}
-            Добавить диагнозы
-        {% endif %}
-      </a>
-      <a
-        href="{% url 'encounters:encounter_update' encounter.pk %}"
-        class="btn btn-outline-primary"
-      >
-        <i class="fas fa-edit me-1"></i> Редактировать
-      </a>
-      <a
-        href="{% url 'treatment_management:plan_list' owner_model='encounter' owner_id=encounter.pk %}"
-        class="btn btn-outline-success"
-      >
-        <i class="fas fa-pills me-1"></i> 
-        {% if treatment_plans %}
-            Открыть планы лечения ({{ treatment_plans.count }})
-        {% else %}
-            Создать план лечения
-        {% endif %}
-      </a>
-      {% if perms.encounters.delete_encounter %}
-      <a
-        href="{% url 'encounters:encounter_delete' encounter.pk %}"
-        class="btn btn-outline-danger"
-      >
-        <i class="fas fa-trash-alt me-1"></i> Удалить
-      </a>
-      {% endif %}
-      {% if encounter.is_active %}
-      <a
-        href="{% url 'encounters:encounter_close' encounter.pk %}"
-        class="btn btn-outline-warning"
-      >
-        <i class="fas fa-lock me-1"></i> Закрыть случай
-      </a>
+    {% comment %} Начало обновленного блока кнопок {% endcomment %}
+    <div class="d-flex justify-content-between align-items-center mt-3">
       
-      {% endif %}
-      <a
-        href="{% url 'patients:patient_detail' encounter.patient.pk %}"
-        class="btn btn-outline-secondary ms-auto"
-      >
-        <i class="fas fa-arrow-left me-1"></i> К пациенту
-      </a>
+      {% comment %} Группа основных действий (слева) {% endcomment %}
+      <div class="btn-toolbar" role="toolbar" aria-label="Основные действия">
+        <div class="btn-group me-2" role="group">
+          <a
+            href="{% url 'encounters:encounter_diagnosis_advanced' encounter.pk %}"
+            class="btn btn-primary"
+          >
+            <i class="fas fa-stethoscope me-1"></i> 
+            {% if main_diagnosis or complications or comorbidities %}
+                Диагнозы
+            {% else %}
+                Добавить диагноз
+            {% endif %}
+          </a>
+        </div>
+        <div class="btn-group me-2" role="group">
+          <a
+            href="{% url 'treatment_management:plan_list' owner_model='encounter' owner_id=encounter.pk %}"
+            class="btn btn-outline-success"
+          >
+            <i class="fas fa-pills me-1"></i> 
+            {% if treatment_plans %}
+                Планы лечения ({{ treatment_plans.count }})
+            {% else %}
+                Создать план лечения
+            {% endif %}
+          </a>
+          {% if examination_plans %}
+            <a
+              href="{% url 'encounters:examination_plan_list' encounter.pk %}"
+              class="btn btn-outline-info"
+            >
+              <i class="fas fa-notes-medical me-1"></i> 
+              Планы обследования ({{ examination_plans.count }})
+            </a>
+          {% else %}
+            <a
+              href="{% url 'encounters:examination_plan_create' encounter.pk %}"
+              class="btn btn-outline-info"
+            >
+              <i class="fas fa-notes-medical me-1"></i> 
+              Создать план обследования
+            </a>
+          {% endif %}
+        </div>
+        
+        {% comment %} Выпадающее меню для второстепенных действий {% endcomment %}
+        <div class="btn-group" role="group">
+          <button id="btnGroupDrop1" type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-cogs me-1"></i> Действия
+          </button>
+          <ul class="dropdown-menu" aria-labelledby="btnGroupDrop1">
+            <li>
+              <a class="dropdown-item" href="{% url 'encounters:encounter_update' encounter.pk %}">
+                <i class="fas fa-edit me-2"></i>Редактировать
+              </a>
+            </li>
+            {% if encounter.is_active %}
+            <li>
+              <a class="dropdown-item" href="{% url 'encounters:encounter_close' encounter.pk %}">
+                <i class="fas fa-lock me-2"></i>Закрыть случай
+              </a>
+            </li>
+            {% endif %}
+            {% if perms.encounters.delete_encounter %}
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <a class="dropdown-item text-danger" href="{% url 'encounters:encounter_delete' encounter.pk %}">
+                <i class="fas fa-trash-alt me-2"></i>Удалить
+              </a>
+            </li>
+            {% endif %}
+          </ul>
+        </div>
+      </div>
+
+      {% comment %} Кнопка навигации (справа) {% endcomment %}
+      <div class="ms-auto">
+          <a
+            href="{% url 'patients:patient_detail' encounter.patient.pk %}"
+            class="btn btn-secondary"
+          >
+            <i class="fas fa-arrow-left me-1"></i> К пациенту
+          </a>
+      </div>
     </div>
+    {% comment %} Конец обновленного блока кнопок {% endcomment %}
   </div>
 </div>
 

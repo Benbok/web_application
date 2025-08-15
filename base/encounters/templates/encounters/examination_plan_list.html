@@ -1,0 +1,101 @@
+{% extends "patients/base.html" %}
+{% load static %}
+
+{% block title %}Планы обследования{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="card-title mb-0">
+                            <i class="fas fa-stethoscope"></i> Планы обследования
+                        </h4>
+                        <small class="text-muted">
+                            Пациент: {{ patient.full_name }} | 
+                            Случай: {{ encounter.date_start|date:"d.m.Y H:i" }}
+                        </small>
+                    </div>
+                    <div class="btn-group" role="group">
+                        <a href="{% url 'encounters:encounter_detail' pk=encounter.id %}" 
+                           class="btn btn-outline-primary">
+                            <i class="fas fa-arrow-left"></i> К случаю
+                        </a>
+                        <a href="{% url 'encounters:examination_plan_create' encounter.id %}" 
+                           class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Создать план обследования
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if examination_plans %}
+                        <div class="row">
+                            {% for plan in examination_plans %}
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-header">
+                                        <h6 class="card-title mb-0">{{ plan.name }}</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        {% if plan.description %}
+                                            <p class="card-text text-muted">{{ plan.description|truncatewords:20 }}</p>
+                                        {% endif %}
+                                        <p class="card-text">
+                                            <small class="text-muted">
+                                                <i class="fas fa-calendar"></i> {{ plan.created_at|date:"d.m.Y H:i" }}
+                                            </small>
+                                        </p>
+                                        <p class="card-text">
+                                            <small class="text-muted">
+                                                <i class="fas fa-flask"></i> {{ plan.lab_tests.count }} лабораторных
+                                            </small>
+                                        </p>
+                                        <p class="card-text">
+                                            <small class="text-muted">
+                                                <i class="fas fa-stethoscope"></i> {{ plan.instrumental_procedures.count }} инструментальных
+                                            </small>
+                                        </p>
+                                        <p class="card-text">
+                                            <small class="text-muted">
+                                                <i class="fas fa-exclamation-triangle"></i> 
+                                                <span class="badge bg-{% if plan.priority == 'emergency' %}danger{% elif plan.priority == 'urgent' %}warning{% else %}info{% endif %}">
+                                                    {{ plan.get_priority_display }}
+                                                </span>
+                                            </small>
+                                        </p>
+                                    </div>
+                                    <div class="card-footer">
+                                        <div class="btn-group w-100" role="group">
+                                            <a href="{% url 'encounters:examination_plan_detail' pk=plan.pk %}" 
+                                               class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-eye"></i> Просмотр
+                                            </a>
+                                            <a href="{% url 'encounters:examination_plan_delete' pk=plan.pk %}" 
+                                               class="btn btn-outline-danger btn-sm">
+                                                <i class="fas fa-trash"></i> Удалить
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-stethoscope fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">Планы обследования не найдены</h5>
+                            <p class="text-muted">Создайте первый план обследования для начала работы</p>
+                            <a href="{% url 'encounters:examination_plan_create' encounter.id %}" 
+                               class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Создать план обследования
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
