@@ -9,6 +9,7 @@ from pharmacy.models import Medication
  
 from lab_tests.models import LabTestDefinition
 from instrumental_procedures.models import InstrumentalProcedureDefinition
+from django.utils import timezone
 
 class BaseAssignment(models.Model):
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
@@ -21,18 +22,49 @@ class BaseAssignment(models.Model):
     end_date = models.DateTimeField("Дата и время завершения", null=True, blank=True)
     notes = models.TextField("Примечания", blank=True, null=True)
     cancellation_reason = models.TextField("Причина отмены", blank=True, null=True)
+    rejection_reason = models.TextField("Причина брака", blank=True, null=True)
 
     STATUS_CHOICES = [
         ('active', 'Активно'),
         ('completed', 'Завершено'),
         ('canceled', 'Отменено'),
         ('paused', 'Приостановлено'),
+        ('rejected', 'Забраковано'),
     ]
     status = models.CharField("Статус", max_length=10, choices=STATUS_CHOICES, default='active')
     completed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Завершено кем", related_name='+')
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
+
+    def reject(self, reason, rejected_by=None):
+        """
+        Переводит назначение в статус 'Забраковано'
+        """
+        self.status = 'rejected'
+        self.rejection_reason = reason
+        if rejected_by:
+            self.completed_by = rejected_by
+        self.end_date = timezone.now()
+        self.save()
+    
+    def can_be_rejected(self):
+        """
+        Проверяет, можно ли забраковать назначение
+        """
+        return self.status in ['active', 'completed']
+    
+    def can_be_deleted(self):
+        """
+        Проверяет, можно ли удалить назначение
+        """
+        return self.status in ['active', 'canceled', 'paused']
+    
+    def can_be_edited(self):
+        """
+        Проверяет, можно ли редактировать назначение
+        """
+        return self.status in ['active', 'completed', 'rejected']
 
     class Meta:
         abstract = True

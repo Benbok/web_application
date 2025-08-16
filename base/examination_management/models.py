@@ -132,3 +132,121 @@ class ExaminationInstrumental(models.Model):
     def get_procedure_name(self):
         """Получить название процедуры"""
         return self.instrumental_procedure.name
+
+# ============================================================================
+# СИГНАЛЫ ДЛЯ АВТОМАТИЧЕСКОГО УДАЛЕНИЯ НАЗНАЧЕНИЙ
+# ============================================================================
+
+@receiver(post_delete, sender=ExaminationLabTest)
+def delete_lab_test_assignment(sender, instance, **kwargs):
+    """
+    Автоматически удаляет связанное назначение лабораторного исследования
+    при удалении записи из плана обследования
+    """
+    try:
+        from treatment_assignments.models import LabTestAssignment
+        from django.contrib.contenttypes.models import ContentType
+        
+        print(f"Сигнал post_delete для ExaminationLabTest {instance.pk} - {instance.lab_test.name}")
+        
+        # Получаем ContentType для ExaminationLabTest
+        content_type = ContentType.objects.get_for_model(ExaminationLabTest)
+        print(f"ContentType для ExaminationLabTest: {content_type}")
+        
+        # Ищем и удаляем связанное назначение
+        assignment = LabTestAssignment.objects.filter(
+            content_type=content_type,
+            object_id=instance.pk
+        ).first()
+        
+        if assignment:
+            print(f"Найдено назначение {assignment.pk} для пациента {assignment.patient.full_name}")
+            assignment.delete()
+            print(f"✓ Автоматически удалено назначение лабораторного исследования {assignment.pk} для {instance.lab_test.name}")
+        else:
+            print(f"⚠ Связанное назначение для лабораторного исследования {instance.pk} не найдено")
+            
+    except Exception as e:
+        print(f"❌ Ошибка при автоматическом удалении назначения лабораторного исследования: {e}")
+
+
+@receiver(post_delete, sender=ExaminationInstrumental)
+def delete_instrumental_procedure_assignment(sender, instance, **kwargs):
+    """
+    Автоматически удаляет связанное назначение инструментального исследования
+    при удалении записи из плана обследования
+    """
+    try:
+        from treatment_assignments.models import InstrumentalProcedureAssignment
+        from django.contrib.contenttypes.models import ContentType
+        
+        print(f"Сигнал post_delete для ExaminationInstrumental {instance.pk} - {instance.instrumental_procedure.name}")
+        
+        # Получаем ContentType для ExaminationInstrumental
+        content_type = ContentType.objects.get_for_model(ExaminationInstrumental)
+        print(f"ContentType для ExaminationInstrumental: {content_type}")
+        
+        # Ищем и удаляем связанное назначение
+        assignment = InstrumentalProcedureAssignment.objects.filter(
+            content_type=content_type,
+            object_id=instance.pk
+        ).first()
+        
+        if assignment:
+            print(f"Найдено назначение {assignment.pk} для пациента {assignment.patient.full_name}")
+            assignment.delete()
+            print(f"✓ Автоматически удалено назначение инструментального исследования {assignment.pk} для {instance.instrumental_procedure.name}")
+        else:
+            print(f"⚠ Связанное назначение для инструментального исследования {instance.pk} не найдено")
+            
+    except Exception as e:
+        print(f"❌ Ошибка при автоматическом удалении назначения инструментального исследования: {e}")
+
+
+@receiver(post_delete, sender=ExaminationPlan)
+def delete_plan_assignments(sender, instance, **kwargs):
+    """
+    Автоматически удаляет все связанные назначения при удалении плана обследования
+    """
+    try:
+        from treatment_assignments.models import LabTestAssignment, InstrumentalProcedureAssignment
+        from django.contrib.contenttypes.models import ContentType
+        
+        print(f"Сигнал post_delete для ExaminationPlan {instance.pk} - {instance.name}")
+        
+        # Получаем ContentType для ExaminationLabTest и ExaminationInstrumental
+        lab_test_content_type = ContentType.objects.get_for_model(ExaminationLabTest)
+        instrumental_content_type = ContentType.objects.get_for_model(ExaminationInstrumental)
+        
+        print(f"ContentType для ExaminationLabTest: {lab_test_content_type}")
+        print(f"ContentType для ExaminationInstrumental: {instrumental_content_type}")
+        
+        # Удаляем все назначения лабораторных исследований из этого плана
+        lab_assignments = LabTestAssignment.objects.filter(
+            content_type=lab_test_content_type,
+            object_id__in=instance.lab_tests.values_list('pk', flat=True)
+        )
+        lab_count = lab_assignments.count()
+        if lab_count > 0:
+            print(f"Найдено {lab_count} назначений лабораторных исследований для удаления")
+            lab_assignments.delete()
+            print(f"✓ Удалено {lab_count} назначений лабораторных исследований")
+        
+        # Удаляем все назначения инструментальных исследований из этого плана
+        instrumental_assignments = InstrumentalProcedureAssignment.objects.filter(
+            content_type=instrumental_content_type,
+            object_id__in=instance.instrumental_procedures.values_list('pk', flat=True)
+        )
+        instrumental_count = instrumental_assignments.count()
+        if instrumental_count > 0:
+            print(f"Найдено {instrumental_count} назначений инструментальных исследований для удаления")
+            instrumental_assignments.delete()
+            print(f"✓ Удалено {instrumental_count} назначений инструментальных исследований")
+        
+        if lab_count > 0 or instrumental_count > 0:
+            print(f"✓ Автоматически удалено {lab_count} лабораторных и {instrumental_count} инструментальных назначений при удалении плана {instance.pk}")
+        else:
+            print(f"ℹ Нет назначений для удаления при удалении плана {instance.pk}")
+            
+    except Exception as e:
+        print(f"❌ Ошибка при автоматическом удалении назначений плана: {e}")

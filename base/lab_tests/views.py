@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.views.generic import ListView, DetailView, View, UpdateView, DeleteView
+from django.views.generic import ListView, DetailView, View, UpdateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.http import JsonResponse
@@ -19,12 +19,18 @@ class LabTestAssignmentListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         queryset = super().get_queryset()
         query = self.request.GET.get('q')
+        status = self.request.GET.get('status')
+        
         if query:
             queryset = queryset.filter(
                 Q(patient__first_name__icontains=query) |
                 Q(patient__last_name__icontains=query) |
                 Q(lab_test__name__icontains=query)
             )
+        
+        if status:
+            queryset = queryset.filter(status=status)
+        
         return queryset
 
 class LabTestResultCreateView(LoginRequiredMixin, View):
@@ -110,28 +116,46 @@ class LabTestResultUpdateView(LoginRequiredMixin, View):
             'result': result
         })
 
-class LabTestResultDeleteView(LoginRequiredMixin, DeleteView):
-    model = LabTestResult
-    template_name = 'lab_tests/result_confirm_delete.html'
-    context_object_name = 'result'
-    success_url = reverse_lazy('lab_tests:assignment_list')
-
-    def delete(self, request, *args, **kwargs):
-        # Получаем объект перед удалением
-        self.object = self.get_object()
+class LabTestAssignmentRejectView(LoginRequiredMixin, View):
+    """
+    Представление для браковки лабораторного исследования
+    """
+    template_name = 'lab_tests/assignment_reject.html'
+    
+    def get(self, request, pk):
+        assignment = get_object_or_404(LabTestAssignment, pk=pk)
         
-        # Сбрасываем статус назначения на активный
-        assignment = self.object.lab_test_assignment
-        assignment.status = 'active'
-        assignment.end_date = None
-        assignment.completed_by = None
-        assignment.save()
+        # Проверяем, можно ли забраковать назначение
+        if not assignment.can_be_rejected():
+            messages.error(request, 'Это назначение нельзя забраковать.')
+            return redirect('lab_tests:assignment_list')
         
-        messages.success(request, 'Результат исследования удален. Назначение снова активно для заполнения.')
+        return render(request, self.template_name, {
+            'assignment': assignment,
+            'title': 'Забраковать лабораторное исследование'
+        })
+    
+    def post(self, request, pk):
+        assignment = get_object_or_404(LabTestAssignment, pk=pk)
+        rejection_reason = request.POST.get('rejection_reason', '').strip()
         
-        return super().delete(request, *args, **kwargs)
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        # Дополнительная фильтрация, если нужно
-        return queryset
+        if not rejection_reason:
+            messages.error(request, 'Необходимо указать причину брака.')
+            return render(request, self.template_name, {
+                'assignment': assignment,
+                'title': 'Забраковать лабораторное исследование'
+            })
+        
+        # Проверяем, можно ли забраковать назначение
+        if not assignment.can_be_rejected():
+            messages.error(request, 'Это назначение нельзя забраковать.')
+            return redirect('lab_tests:assignment_list')
+        
+        try:
+            # Бракуем назначение
+            assignment.reject(rejection_reason, request.user)
+            messages.success(request, 'Лабораторное исследование успешно забраковано.')
+        except Exception as e:
+            messages.error(request, f'Ошибка при браковке: {str(e)}')
+        
+        return redirect('lab_tests:assignment_list')

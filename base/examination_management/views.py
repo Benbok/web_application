@@ -313,9 +313,8 @@ class ExaminationLabTestDeleteView(LoginRequiredMixin, DeleteView):
                                       'pk': self.object.examination_plan.pk
                                   })
                 else:
-                    # Если результатов нет, удаляем назначение
-                    assignment.delete()
-                    messages.success(request, _('Назначение лабораторного исследования успешно удалено'))
+                    # Если результатов нет, назначение будет удалено автоматически через сигнал
+                    messages.success(request, _('Лабораторное исследование и связанное назначение будут удалены'))
             else:
                 messages.info(request, _('Связанное назначение не найдено'))
                 
@@ -451,9 +450,8 @@ class ExaminationInstrumentalDeleteView(LoginRequiredMixin, DeleteView):
                                       'pk': self.object.examination_plan.pk
                                   })
                 else:
-                    # Если результатов нет, удаляем назначение
-                    assignment.delete()
-                    messages.success(request, _('Назначение инструментального исследования успешно удалено'))
+                    # Если результатов нет, назначение будет удалено автоматически через сигнал
+                    messages.success(request, _('Инструментальное исследование и связанное назначение будут удалены'))
             else:
                 messages.info(request, _('Связанное назначение не найдено'))
                 

@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title">
+                        <i class="bi bi-x-circle text-danger me-2"></i>{{ title }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning" role="alert">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Внимание!</strong> Вы собираетесь забраковать инструментальное исследование.
+                        Это действие нельзя отменить.
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>Информация о назначении:</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Пациент:</strong></td>
+                                    <td>{{ assignment.patient.full_name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Исследование:</strong></td>
+                                    <td>{{ assignment.instrumental_procedure.name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Дата назначения:</strong></td>
+                                    <td>{{ assignment.start_date|date:"d.m.Y H:i" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Статус:</strong></td>
+                                    <td>
+                                        <span class="badge bg-{% if assignment.status == 'active' %}primary{% elif assignment.status == 'completed' %}success{% else %}secondary{% endif %}">
+                                            {{ assignment.get_status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% if assignment.notes %}
+                                <tr>
+                                    <td><strong>Примечания:</strong></td>
+                                    <td>{{ assignment.notes }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="form-group">
+                            <label for="rejection_reason" class="form-label">
+                                <strong>Причина брака <span class="text-danger">*</span></strong>
+                            </label>
+                            <textarea 
+                                class="form-control" 
+                                id="rejection_reason" 
+                                name="rejection_reason" 
+                                rows="4" 
+                                required
+                                placeholder="Укажите причину брака исследования..."
+                            ></textarea>
+                            <div class="form-text">
+                                Обязательно укажите детальную причину брака для дальнейшего анализа.
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-x-circle me-2"></i>Забраковать исследование
+                            </button>
+                            <a href="{% url 'instrumental_procedures:assignment_list' %}" class="btn btn-secondary ms-2">
+                                <i class="bi bi-arrow-left me-2"></i>Отмена
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
