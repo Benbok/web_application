@@ -4,6 +4,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.http import JsonResponse
 from django.db.models import Q
+from django.contrib import messages
 
 from treatment_assignments.models import LabTestAssignment
 from .models import LabTestResult
@@ -114,6 +115,21 @@ class LabTestResultDeleteView(LoginRequiredMixin, DeleteView):
     template_name = 'lab_tests/result_confirm_delete.html'
     context_object_name = 'result'
     success_url = reverse_lazy('lab_tests:assignment_list')
+
+    def delete(self, request, *args, **kwargs):
+        # Получаем объект перед удалением
+        self.object = self.get_object()
+        
+        # Сбрасываем статус назначения на активный
+        assignment = self.object.lab_test_assignment
+        assignment.status = 'active'
+        assignment.end_date = None
+        assignment.completed_by = None
+        assignment.save()
+        
+        messages.success(request, 'Результат исследования удален. Назначение снова активно для заполнения.')
+        
+        return super().delete(request, *args, **kwargs)
 
     def get_queryset(self):
         queryset = super().get_queryset()

@@ -7,6 +7,7 @@ from django.views.generic import (
 from django.urls import reverse, reverse_lazy
 from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
 
 from .models import ExaminationPlan, ExaminationLabTest, ExaminationInstrumental
 from .forms import ExaminationPlanForm, ExaminationLabTestForm, ExaminationInstrumentalForm
@@ -16,6 +17,9 @@ try:
     from encounters.models import Encounter
 except ImportError:
     Encounter = None
+
+# Импортируем модели назначений для автоматического создания
+from treatment_assignments.models import LabTestAssignment, InstrumentalProcedureAssignment
 
 
 class OwnerContextMixin:
@@ -216,7 +220,22 @@ class ExaminationLabTestCreateView(LoginRequiredMixin, CreateView):
         # Сохраняем значение lab_test из формы
         form.instance.lab_test = form.cleaned_data['lab_test']
         response = super().form_valid(form)
-        messages.success(self.request, _('Лабораторное исследование успешно добавлено в план'))
+        
+        # Автоматически создаем назначение для врача-лаборанта
+        try:
+            LabTestAssignment.objects.create(
+                content_type=ContentType.objects.get_for_model(form.instance),
+                object_id=form.instance.pk,
+                patient=self.examination_plan.encounter.patient,
+                assigning_doctor=self.request.user,
+                start_date=timezone.now(),
+                lab_test=form.instance.lab_test,
+                notes=form.instance.instructions
+            )
+            messages.success(self.request, _('Лабораторное исследование успешно добавлено в план и назначено для выполнения'))
+        except Exception as e:
+            messages.warning(self.request, _('Исследование добавлено в план, но назначение не создано: {}').format(str(e)))
+        
         return response
     
     def get_context_data(self, **kwargs):
@@ -268,6 +287,43 @@ class ExaminationLabTestDeleteView(LoginRequiredMixin, DeleteView):
     model = ExaminationLabTest
     template_name = 'examination_management/lab_test_confirm_delete.html'
     
+    def delete(self, request, *args, **kwargs):
+        # Получаем объект перед удалением
+        self.object = self.get_object()
+        
+        # Проверяем, есть ли уже результаты у назначения
+        try:
+            content_type = ContentType.objects.get_for_model(self.object)
+            assignment = LabTestAssignment.objects.filter(
+                content_type=content_type,
+                object_id=self.object.pk
+            ).first()
+            
+            if assignment:
+                # Проверяем, есть ли результаты
+                from lab_tests.models import LabTestResult
+                has_results = LabTestResult.objects.filter(lab_test_assignment=assignment).exists()
+                
+                if has_results:
+                    messages.error(request, _('Нельзя удалить исследование, у которого уже есть результаты. Сначала очистите результаты в разделе лабораторных исследований.'))
+                    return redirect('examination_management:plan_detail',
+                                  kwargs={
+                                      'owner_model': 'encounter',
+                                      'owner_id': self.object.examination_plan.encounter.id,
+                                      'pk': self.object.examination_plan.pk
+                                  })
+                else:
+                    # Если результатов нет, удаляем назначение
+                    assignment.delete()
+                    messages.success(request, _('Назначение лабораторного исследования успешно удалено'))
+            else:
+                messages.info(request, _('Связанное назначение не найдено'))
+                
+        except Exception as e:
+            messages.warning(request, _('Ошибка при проверке назначения: {}').format(str(e)))
+        
+        return super().delete(request, *args, **kwargs)
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['examination_plan'] = self.object.examination_plan
@@ -302,7 +358,22 @@ class ExaminationInstrumentalCreateView(LoginRequiredMixin, CreateView):
         # Сохраняем значение instrumental_procedure из формы
         form.instance.instrumental_procedure = form.cleaned_data['instrumental_procedure']
         response = super().form_valid(form)
-        messages.success(self.request, _('Инструментальное исследование успешно добавлено в план'))
+        
+        # Автоматически создаем назначение для врача-лаборанта
+        try:
+            InstrumentalProcedureAssignment.objects.create(
+                content_type=ContentType.objects.get_for_model(form.instance),
+                object_id=form.instance.pk,
+                patient=self.examination_plan.encounter.patient,
+                assigning_doctor=self.request.user,
+                start_date=timezone.now(),
+                instrumental_procedure=form.instance.instrumental_procedure,
+                notes=form.instance.instructions
+            )
+            messages.success(self.request, _('Инструментальное исследование успешно добавлено в план и назначено для выполнения'))
+        except Exception as e:
+            messages.warning(self.request, _('Исследование добавлено в план, но назначение не создано: {}').format(str(e)))
+        
         return response
     
     def get_context_data(self, **kwargs):
@@ -353,6 +424,43 @@ class ExaminationInstrumentalDeleteView(LoginRequiredMixin, DeleteView):
     """
     model = ExaminationInstrumental
     template_name = 'examination_management/instrumental_confirm_delete.html'
+    
+    def delete(self, request, *args, **kwargs):
+        # Получаем объект перед удалением
+        self.object = self.get_object()
+        
+        # Проверяем, есть ли уже результаты у назначения
+        try:
+            content_type = ContentType.objects.get_for_model(self.object)
+            assignment = InstrumentalProcedureAssignment.objects.filter(
+                content_type=content_type,
+                object_id=self.object.pk
+            ).first()
+            
+            if assignment:
+                # Проверяем, есть ли результаты
+                from instrumental_procedures.models import InstrumentalProcedureResult
+                has_results = InstrumentalProcedureResult.objects.filter(instrumental_procedure_assignment=assignment).exists()
+                
+                if has_results:
+                    messages.error(request, _('Нельзя удалить исследование, у которого уже есть результаты. Сначала очистите результаты в разделе инструментальных исследований.'))
+                    return redirect('examination_management:plan_detail',
+                                  kwargs={
+                                      'owner_model': 'encounter',
+                                      'owner_id': self.object.examination_plan.encounter.id,
+                                      'pk': self.object.examination_plan.pk
+                                  })
+                else:
+                    # Если результатов нет, удаляем назначение
+                    assignment.delete()
+                    messages.success(request, _('Назначение инструментального исследования успешно удалено'))
+            else:
+                messages.info(request, _('Связанное назначение не найдено'))
+                
+        except Exception as e:
+            messages.warning(request, _('Ошибка при проверке назначения: {}').format(str(e)))
+        
+        return super().delete(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

@@ -1,5 +1,9 @@
 from django.db import models
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import gettext_lazy as _
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 from django.urls import reverse
 from encounters.models import Encounter
 from lab_tests.models import LabTestDefinition
