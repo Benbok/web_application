@@ -33,18 +33,48 @@
                     </div>
                 </div>
                 <div class="card-body">
-                    {% if examination_plans %}
+                    {% if plans_with_progress %}
                         <div class="row">
-                            {% for plan in examination_plans %}
+                            {% for item in plans_with_progress %}
+                            {% with plan=item.plan progress=item.progress %}
                             <div class="col-md-6 col-lg-4 mb-3">
-                                <div class="card h-100">
+                                <div class="card h-100 {% if progress.status == 'completed' %}border-success{% elif progress.status == 'rejected' %}border-danger{% elif progress.status == 'in_progress' %}border-warning{% else %}border-secondary{% endif %}">
                                     <div class="card-header">
-                                        <h6 class="card-title mb-0">{{ plan.name }}</h6>
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <h6 class="card-title mb-0">{{ plan.name }}</h6>
+                                            {% if progress.total > 0 %}
+                                                <span class="badge {% if progress.status == 'completed' %}bg-success{% elif progress.status == 'rejected' %}bg-danger{% elif progress.status == 'in_progress' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                                    {{ progress.status|title }}
+                                                </span>
+                                            {% endif %}
+                                        </div>
                                     </div>
                                     <div class="card-body">
                                         {% if plan.description %}
                                             <p class="card-text text-muted">{{ plan.description|truncatewords:20 }}</p>
                                         {% endif %}
+                                        
+                                        {% comment %} Блок прогресса {% endcomment %}
+                                        {% if progress.total > 0 %}
+                                        <div class="mb-3">
+                                            <div class="progress mb-2" style="height: 20px;">
+                                                <div class="progress-bar bg-success" role="progressbar" 
+                                                     style="width: {{ progress.percentage }}%" 
+                                                     aria-valuenow="{{ progress.percentage }}" 
+                                                     aria-valuemin="0" 
+                                                     aria-valuemax="100">
+                                                    {{ progress.percentage }}%
+                                                </div>
+                                            </div>
+                                            <div class="d-flex justify-content-between small text-muted">
+                                                <span>Выполнено: {{ progress.completed }}/{{ progress.total }}</span>
+                                                {% if progress.rejected > 0 %}
+                                                    <span class="text-danger">Забраковано: {{ progress.rejected }}</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        
                                         <p class="card-text">
                                             <small class="text-muted">
                                                 <i class="fas fa-calendar"></i> {{ plan.created_at|date:"d.m.Y H:i" }}
@@ -52,12 +82,12 @@
                                         </p>
                                         <p class="card-text">
                                             <small class="text-muted">
-                                                <i class="fas fa-flask"></i> {{ plan.lab_tests.count }} лабораторных
+                                                <i class="fas fa-flask"></i> {{ plan.lab_tests.all.count }} лабораторных
                                             </small>
                                         </p>
                                         <p class="card-text">
                                             <small class="text-muted">
-                                                <i class="fas fa-stethoscope"></i> {{ plan.instrumental_procedures.count }} инструментальных
+                                                <i class="fas fa-stethoscope"></i> {{ plan.instrumental_procedures.all.count }} инструментальных
                                             </small>
                                         </p>
                                     </div>
@@ -75,6 +105,7 @@
                                     </div>
                                 </div>
                             </div>
+                            {% endwith %}
                             {% endfor %}
                         </div>
                     {% else %}

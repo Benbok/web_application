@@ -79,15 +79,74 @@
                     <p class="mb-0">{{ examination_plan.description|linebreaks }}</p>
                 </div>
             {% endif %}
+            
+            {% comment %} Блок прогресса выполнения плана {% endcomment %}
+            {% if progress.total > 0 %}
+            <div class="mb-3">
+                <h6 class="card-subtitle mb-2 text-muted">Прогресс выполнения:</h6>
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="progress mb-2" style="height: 25px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {{ progress.percentage }}%" 
+                                 aria-valuenow="{{ progress.percentage }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                {{ progress.percentage }}%
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex flex-column">
+                            <small class="text-success">
+                                <i class="fas fa-check-circle me-1"></i>Выполнено: {{ progress.completed }}/{{ progress.total }}
+                            </small>
+                            {% if progress.rejected > 0 %}
+                            <small class="text-danger">
+                                <i class="fas fa-times-circle me-1"></i>Забраковано: {{ progress.rejected }}
+                            </small>
+                            {% endif %}
+                            {% if progress.active > 0 %}
+                            <small class="text-primary">
+                                <i class="fas fa-clock me-1"></i>В работе: {{ progress.active }}
+                            </small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                {% comment %} Общий статус плана {% endcomment %}
+                <div class="mt-2">
+                    {% if progress.status == 'completed' %}
+                        <span class="badge bg-success fs-6">
+                            <i class="fas fa-check-circle me-1"></i>План полностью выполнен
+                        </span>
+                    {% elif progress.status == 'rejected' %}
+                        <span class="badge bg-danger fs-6">
+                            <i class="fas fa-times-circle me-1"></i>Все исследования забракованы
+                        </span>
+                    {% elif progress.status == 'in_progress' %}
+                        <span class="badge bg-warning fs-6">
+                            <i class="fas fa-clock me-1"></i>План в процессе выполнения
+                        </span>
+                    {% else %}
+                        <span class="badge bg-secondary fs-6">
+                            <i class="fas fa-hourglass-start me-1"></i>План ожидает выполнения
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            
             <div class="d-flex flex-wrap gap-2">
                 <span class="badge bg-light text-dark">
                     <i class="fas fa-clock me-1"></i>Создан: {{ examination_plan.created_at|date:"d.m.Y H:i" }}
                 </span>
                 <span class="badge bg-success text-white">
-                    <i class="fas fa-flask me-1"></i>Лабораторных: {{ examination_plan.lab_tests.count }}
+                    <i class="fas fa-flask me-1"></i>Лабораторных: {{ examination_plan.lab_tests.all.count }}
                 </span>
                 <span class="badge bg-info text-white">
-                    <i class="fas fa-stethoscope me-1"></i>Инструментальных: {{ examination_plan.instrumental_procedures.count }}
+                    <i class="fas fa-stethoscope me-1"></i>Инструментальных: {{ examination_plan.instrumental_procedures.all.count }}
                 </span>
             </div>
         </div>
@@ -96,25 +155,34 @@
 
         {% comment %} Блок с лабораторными исследованиями - ПЕРЕРАБОТАН в компактные карточки {% endcomment %}
         <h5 class="mb-3"><i class="fas fa-flask me-1"></i> Лабораторные исследования</h5>
-        {% if examination_plan.lab_tests.all %}
+        {% if lab_tests_with_status %}
             <div class="row">
-                {% for lab_test in examination_plan.lab_tests.all %}
+                {% for item in lab_tests_with_status %}
+                {% with lab_test=item.examination_lab_test status_info=item.status_info %}
                 <div class="col-md-6 col-lg-4 mb-3">
-                    <div class="card h-100 border-success">
-                        <div class="card-header bg-success text-white py-2">
-                            <h6 class="mb-0 text-white">
-                                <i class="fas fa-flask me-1"></i> {{ lab_test.lab_test.name|truncatechars:30 }}
-                            </h6>
+                    <div class="card h-100 {% if status_info.status == 'completed' %}border-success{% elif status_info.status == 'rejected' %}border-danger{% elif status_info.status == 'active' %}border-primary{% else %}border-secondary{% endif %}">
+                        <div class="card-header bg-white p-3">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">
+                                        {% if status_info.status != 'active' %}
+                                            <i class="fas fa-lock text-muted me-2" title="Исследование заблокировано для редактирования"></i>
+                                        {% endif %}
+                                        {{ lab_test.lab_test.name }}
+                                    </h6>
+                                    {% if lab_test.instructions %}
+                                        <small class="text-muted">{{ lab_test.instructions|linebreaks }}</small>
+                                    {% endif %}
+                                </div>
+                                <span class="badge {% if status_info.status == 'completed' %}bg-success{% elif status_info.status == 'rejected' %}bg-danger{% elif status_info.status == 'active' %}bg-primary{% else %}bg-secondary{% endif %} ms-2">
+                                    {{ status_info.status_display }}
+                                </span>
+                            </div>
                         </div>
                         <div class="card-body d-flex flex-column">
-                            {% if lab_test.custom_lab_test %}
+                            {% if lab_test.instructions %}
                             <div class="mb-2">
-                                <strong>Кастомное название:</strong> {{ lab_test.custom_lab_test }}
-                            </div>
-                            {% endif %}
-                            {% if lab_test.notes %}
-                            <div class="mb-2">
-                                <strong>Примечания:</strong> {{ lab_test.notes }}
+                                <strong>Инструкции:</strong> {{ lab_test.instructions }}
                             </div>
                             {% endif %}
                             {% if lab_test.lab_test.description %}
@@ -122,26 +190,97 @@
                                 <small class="text-muted">{{ lab_test.lab_test.description|truncatewords:15 }}</small>
                             </div>
                             {% endif %}
+                            
+                            {% comment %} Информация о статусе {% endcomment %}
+                            <div class="mt-2">
+                                {% if status_info.status == 'completed' %}
+                                    <div class="alert alert-success py-2 mb-2">
+                                        <small>
+                                            <i class="fas fa-check-circle me-1"></i>
+                                            <strong>Выполнено:</strong> {{ status_info.end_date|date:"d.m.Y H:i" }}
+                                            {% if status_info.completed_by %}
+                                                <br>Выполнил: {{ status_info.completed_by.doctor_profile.full_name|default:status_info.completed_by.get_full_name|default:status_info.completed_by.username }}
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                    {% if not status_info.has_results %}
+                                        <div class="alert alert-warning py-1 px-2 mb-2" style="font-size: 0.8rem;">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            <strong>Внимание:</strong> Исследование завершено без результатов. Редактирование недоступно.
+                                        </div>
+                                    {% endif %}
+                                {% elif status_info.status == 'rejected' %}
+                                    <div class="alert alert-danger py-2 mb-2">
+                                        <small>
+                                            <i class="fas fa-times-circle me-1"></i>
+                                            <strong>Забраковано:</strong> {{ status_info.end_date|date:"d.m.Y H:i" }}
+                                            {% if status_info.completed_by %}
+                                                <br>Забраковал: {{ status_info.completed_by.doctor_profile.full_name|default:status_info.completed_by.get_full_name|default:status_info.completed_by.username }}
+                                            {% endif %}
+                                            {% if status_info.rejection_reason %}
+                                                <br><strong>Причина:</strong> {{ status_info.rejection_reason|truncatechars:50 }}
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                    {% if not status_info.has_results %}
+                                        <div class="alert alert-warning py-1 px-2 mb-2" style="font-size: 0.8rem;">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            <strong>Внимание:</strong> Исследование забраковано без результатов. Редактирование недоступно.
+                                        </div>
+                                    {% endif %}
+                                {% elif status_info.status == 'active' %}
+                                    <div class="alert alert-primary py-2 mb-2">
+                                        <small>
+                                            <i class="fas fa-clock me-1"></i>
+                                            <strong>Ожидает выполнения</strong>
+                                        </small>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
                             <div class="mt-auto">
                                 <small class="text-muted">
-                                    <i class="fas fa-calendar me-1"></i>{{ lab_test.created_at|date:"d.m.Y H:i" }}
+                                    <i class="fas fa-calendar me-1"></i>Добавлено: {{ lab_test.created_at|date:"d.m.Y H:i" }}
                                 </small>
                             </div>
                         </div>
                         <div class="card-footer bg-white p-2">
                             <div class="btn-group w-100" role="group">
-                                <a href="{% url 'examination_management:lab_test_update' pk=lab_test.pk %}" 
-                                   class="btn btn-outline-primary btn-sm">
-                                    <i class="fas fa-edit me-1"></i> Редактировать
-                                </a>
-                                <a href="{% url 'examination_management:lab_test_delete' pk=lab_test.pk %}" 
-                                   class="btn btn-outline-danger btn-sm">
-                                    <i class="fas fa-trash me-1"></i> Удалить
-                                </a>
+                                {% if status_info.status == 'active' %}
+                                    <a href="{% url 'examination_management:lab_test_update' pk=lab_test.pk %}" 
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-edit me-1"></i> Редактировать
+                                    </a>
+                                    <a href="{% url 'examination_management:lab_test_delete' pk=lab_test.pk %}" 
+                                       class="btn btn-outline-danger btn-sm">
+                                        <i class="fas fa-trash me-1"></i> Удалить
+                                    </a>
+                                {% elif status_info.has_results %}
+                                    <a href="{% url 'treatment_assignments:assignment_detail' assignment_type='lab' pk=status_info.assignment_id %}?next={{ request.get_full_path|urlencode }}" 
+                                       class="btn btn-outline-info btn-sm">
+                                        <i class="fas fa-eye me-1"></i> Просмотреть результат
+                                    </a>
+                                {% elif status_info.status == 'completed' %}
+                                    <span class="btn btn-outline-secondary btn-sm disabled" 
+                                          title="Исследование завершено без результатов. Редактирование недоступно.">
+                                        <i class="fas fa-lock me-1"></i> Завершено
+                                    </span>
+                                {% elif status_info.status == 'rejected' %}
+                                    <span class="btn btn-outline-secondary btn-sm disabled" 
+                                          title="Исследование забраковано. Редактирование недоступно.">
+                                        <i class="fas fa-lock me-1"></i> Забраковано
+                                    </span>
+                                {% else %}
+                                    <span class="btn btn-outline-secondary btn-sm disabled" 
+                                          title="Исследование заблокировано для редактирования.">
+                                        <i class="fas fa-lock me-1"></i> Заблокировано
+                                    </span>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
                 </div>
+                {% endwith %}
                 {% endfor %}
             </div>
         {% else %}
@@ -166,35 +305,111 @@
         </a>
     </div>
     <div class="card-body">
-        {% if examination_plan.instrumental_procedures.all %}
-            {% comment %} Компактный список инструментальных исследований вместо карточек {% endcomment %}
+        {% if instrumental_procedures_with_status %}
+            {% comment %} Компактный список инструментальных исследований с отображением статусов {% endcomment %}
             <ul class="list-group">
-                {% for instrumental in examination_plan.instrumental_procedures.all %}
+                {% for item in instrumental_procedures_with_status %}
+                {% with instrumental=item.examination_instrumental status_info=item.status_info %}
                 <li class="list-group-item d-flex justify-content-between align-items-start">
                     <div class="flex-grow-1">
                         <div class="d-flex justify-content-between align-items-start">
                             <div class="me-3">
-                                <p class="mb-1">{{ instrumental.instrumental_procedure.name }}</p>
-                                {% if instrumental.notes %}
-                                <small class="text-muted">{{ instrumental.notes|linebreaks }}</small>
+                                <div class="d-flex align-items-center mb-1">
+                                    <p class="mb-0 me-2">
+                                        {% if status_info.status != 'active' %}
+                                            <i class="fas fa-lock text-muted me-1" title="Исследование заблокировано для редактирования"></i>
+                                        {% endif %}
+                                        {{ instrumental.instrumental_procedure.name }}
+                                    </p>
+                                    <span class="badge {% if status_info.status == 'completed' %}bg-success{% elif status_info.status == 'rejected' %}bg-danger{% elif status_info.status == 'active' %}bg-primary{% else %}bg-secondary{% endif %}">
+                                        {{ status_info.status_display }}
+                                    </span>
+                                </div>
+                                
+                                {% if instrumental.instructions %}
+                                <small class="text-muted">{{ instrumental.instructions|linebreaks }}</small>
                                 {% endif %}
+                                
+                                {% comment %} Информация о статусе {% endcomment %}
+                                {% if status_info.status == 'completed' %}
+                                    <div class="alert alert-success py-1 px-2 mt-1 mb-1" style="font-size: 0.8rem;">
+                                        <i class="fas fa-check-circle me-1"></i>
+                                        <strong>Выполнено:</strong> {{ status_info.end_date|date:"d.m.Y H:i" }}
+                                        {% if status_info.completed_by %}
+                                            | Выполнил: {{ status_info.completed_by.doctor_profile.full_name|default:status_info.completed_by.get_full_name|default:status_info.completed_by.username }}
+                                        {% endif %}
+                                    </div>
+                                    {% if not status_info.has_results %}
+                                        <div class="alert alert-warning py-1 px-2 mt-1 mb-1" style="font-size: 0.8rem;">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            <strong>Внимание:</strong> Исследование завершено без результатов. Редактирование недоступно.
+                                        </div>
+                                    {% endif %}
+                                {% elif status_info.status == 'rejected' %}
+                                    <div class="alert alert-danger py-1 px-2 mt-1 mb-1" style="font-size: 0.8rem;">
+                                        <i class="fas fa-times-circle me-1"></i>
+                                        <strong>Забраковано:</strong> {{ status_info.end_date|date:"d.m.Y H:i" }}
+                                        {% if status_info.completed_by %}
+                                            | Забраковал: {{ status_info.completed_by.doctor_profile.full_name|default:status_info.completed_by.get_full_name|default:status_info.completed_by.username }}
+                                        {% endif %}
+                                        {% if status_info.rejection_reason %}
+                                            | <strong>Причина:</strong> {{ status_info.rejection_reason|truncatechars:50 }}
+                                        {% endif %}
+                                    </div>
+                                    {% if not status_info.has_results %}
+                                        <div class="alert alert-warning py-1 px-2 mt-1 mb-1" style="font-size: 0.8rem;">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            <strong>Внимание:</strong> Исследование забраковано без результатов. Редактирование недоступно.
+                                        </div>
+                                    {% endif %}
+                                {% elif status_info.status == 'active' %}
+                                    <div class="alert alert-primary py-1 px-2 mt-1 mb-1" style="font-size: 0.8rem;">
+                                        <i class="fas fa-clock me-1"></i>
+                                        <strong>Ожидает выполнения</strong>
+                                    </div>
+                                {% endif %}
+                                
                                 <small class="text-muted d-block mt-1">
-                                    <i class="fas fa-calendar me-1"></i>{{ instrumental.created_at|date:"d.m.Y H:i" }}
+                                    <i class="fas fa-calendar me-1"></i>Добавлено: {{ instrumental.created_at|date:"d.m.Y H:i" }}
                                 </small>
                             </div>
                         </div>
                     </div>
                     <div class="btn-group btn-group-sm" role="group">
-                        <a href="{% url 'examination_management:instrumental_update' pk=instrumental.pk %}" 
-                           class="btn btn-outline-primary btn-sm">
-                            <i class="fas fa-edit"></i>
-                        </a>
-                        <a href="{% url 'examination_management:instrumental_delete' pk=instrumental.pk %}" 
-                           class="btn btn-outline-danger btn-sm">
-                            <i class="fas fa-trash"></i>
-                        </a>
+                        {% if status_info.status == 'active' %}
+                            <a href="{% url 'examination_management:instrumental_update' pk=instrumental.pk %}" 
+                               class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{% url 'examination_management:instrumental_delete' pk=instrumental.pk %}" 
+                               class="btn btn-outline-danger btn-sm">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        {% elif status_info.has_results %}
+                            <a href="{% url 'treatment_assignments:assignment_detail' assignment_type='instrumental' pk=status_info.assignment_id %}?next={{ request.get_full_path|urlencode }}" 
+                               class="btn btn-outline-info btn-sm"
+                               title="Просмотреть результат исследования">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        {% elif status_info.status == 'completed' %}
+                            <span class="btn btn-outline-secondary btn-sm disabled"
+                                  title="Исследование завершено без результатов. Редактирование недоступно.">
+                                <i class="fas fa-lock"></i>
+                            </span>
+                        {% elif status_info.status == 'rejected' %}
+                            <span class="btn btn-outline-secondary btn-sm disabled"
+                                  title="Исследование забраковано. Редактирование недоступно.">
+                                <i class="fas fa-lock"></i>
+                            </span>
+                        {% else %}
+                            <span class="btn btn-outline-secondary btn-sm disabled"
+                                  title="Исследование заблокировано для редактирования.">
+                                <i class="fas fa-lock"></i>
+                            </span>
+                        {% endif %}
                     </div>
                 </li>
+                {% endwith %}
                 {% endfor %}
             </ul>
         {% else %}

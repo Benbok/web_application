@@ -58,6 +58,148 @@ class ExaminationPlan(models.Model):
     def instrumental_procedures(self):
         """Получить все инструментальные исследования в плане"""
         return self.examinationinstrumental_set.all()
+    
+    def get_lab_test_status(self, examination_lab_test):
+        """
+        Получить статус лабораторного исследования из связанного назначения
+        """
+        try:
+            from treatment_assignments.models import LabTestAssignment
+            from django.contrib.contenttypes.models import ContentType
+            
+            content_type = ContentType.objects.get_for_model(ExaminationLabTest)
+            assignment = LabTestAssignment.objects.filter(
+                content_type=content_type,
+                object_id=examination_lab_test.pk
+            ).first()
+            
+            if assignment:
+                # Проверяем наличие результатов
+                has_results = assignment.results.exists()
+                
+                return {
+                    'status': assignment.status,
+                    'status_display': assignment.get_status_display(),
+                    'completed_by': assignment.completed_by,
+                    'end_date': assignment.end_date,
+                    'rejection_reason': assignment.rejection_reason,
+                    'assignment_id': assignment.pk,
+                    'has_results': has_results
+                }
+        except Exception as e:
+            print(f"Ошибка при получении статуса лабораторного исследования: {e}")
+        
+        return {
+            'status': 'unknown',
+            'status_display': 'Неизвестно',
+            'completed_by': None,
+            'end_date': None,
+            'rejection_reason': None,
+            'assignment_id': None,
+            'has_results': False
+        }
+    
+    def get_instrumental_procedure_status(self, examination_instrumental):
+        """
+        Получить статус инструментального исследования из связанного назначения
+        """
+        try:
+            from treatment_assignments.models import InstrumentalProcedureAssignment
+            from django.contrib.contenttypes.models import ContentType
+            
+            content_type = ContentType.objects.get_for_model(ExaminationInstrumental)
+            assignment = InstrumentalProcedureAssignment.objects.filter(
+                content_type=content_type,
+                object_id=examination_instrumental.pk
+            ).first()
+            
+            if assignment:
+                # Проверяем наличие результатов
+                has_results = assignment.results.exists()
+                
+                return {
+                    'status': assignment.status,
+                    'status_display': assignment.get_status_display(),
+                    'completed_by': assignment.completed_by,
+                    'end_date': assignment.end_date,
+                    'rejection_reason': assignment.rejection_reason,
+                    'assignment_id': assignment.pk,
+                    'has_results': has_results
+                }
+        except Exception as e:
+            print(f"Ошибка при получении статуса инструментального исследования: {e}")
+        
+        return {
+            'status': 'unknown',
+            'status_display': 'Неизвестно',
+            'completed_by': None,
+            'end_date': None,
+            'rejection_reason': None,
+            'assignment_id': None,
+            'has_results': False
+        }
+    
+    def get_overall_progress(self):
+        """
+        Получить общий прогресс выполнения плана обследования
+        """
+        total_items = 0
+        completed_items = 0
+        rejected_items = 0
+        active_items = 0
+        
+        # Подсчитываем лабораторные исследования
+        for lab_test in self.lab_tests.all():
+            total_items += 1
+            status_info = self.get_lab_test_status(lab_test)
+            if status_info['status'] == 'completed':
+                completed_items += 1
+            elif status_info['status'] == 'rejected':
+                rejected_items += 1
+            elif status_info['status'] == 'active':
+                active_items += 1
+        
+        # Подсчитываем инструментальные исследования
+        for instrumental in self.instrumental_procedures.all():
+            total_items += 1
+            status_info = self.get_instrumental_procedure_status(instrumental)
+            if status_info['status'] == 'completed':
+                completed_items += 1
+            elif status_info['status'] == 'rejected':
+                rejected_items += 1
+            elif status_info['status'] == 'active':
+                active_items += 1
+        
+        if total_items == 0:
+            return {
+                'total': 0,
+                'completed': 0,
+                'rejected': 0,
+                'active': 0,
+                'percentage': 0,
+                'status': 'empty'
+            }
+        
+        percentage = (completed_items / total_items) * 100
+        
+        # Определяем общий статус плана
+        if completed_items == total_items:
+            status = 'completed'
+        elif rejected_items == total_items:
+            status = 'rejected'
+        elif completed_items > 0 or rejected_items > 0:
+            status = 'in_progress'
+        else:
+            status = 'pending'
+        
+        return {
+            'total': total_items,
+            'completed': completed_items,
+            'rejected': rejected_items,
+            'active': active_items,
+            'percentage': round(percentage, 1),
+            'status': status
+        }
 
 
 class ExaminationLabTest(models.Model):

@@ -84,6 +84,17 @@ class ExaminationPlanListView(LoginRequiredMixin, OwnerContextMixin, ListView):
             context['owner'] = self.get_owner()
             context['owner_model'] = self.kwargs.get('owner_model')
             context['patient'] = self.get_patient_from_owner(context['owner'])
+        
+        # Добавляем информацию о прогрессе для каждого плана
+        plans_with_progress = []
+        for plan in context['examination_plans']:
+            progress = plan.get_overall_progress()
+            plans_with_progress.append({
+                'plan': plan,
+                'progress': progress
+            })
+        context['plans_with_progress'] = plans_with_progress
+        
         context['title'] = _('Планы обследования')
         return context
 
@@ -177,6 +188,30 @@ class ExaminationPlanDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['encounter'] = self.object.encounter
         context['patient'] = self.object.encounter.patient
+        
+        # Получаем информацию о прогрессе плана
+        progress_info = self.object.get_overall_progress()
+        context['progress'] = progress_info
+        
+        # Получаем статусы для каждого исследования
+        lab_tests_with_status = []
+        for lab_test in self.object.lab_tests.all():
+            status_info = self.object.get_lab_test_status(lab_test)
+            lab_tests_with_status.append({
+                'examination_lab_test': lab_test,
+                'status_info': status_info
+            })
+        context['lab_tests_with_status'] = lab_tests_with_status
+        
+        instrumental_procedures_with_status = []
+        for instrumental in self.object.instrumental_procedures.all():
+            status_info = self.object.get_instrumental_procedure_status(instrumental)
+            instrumental_procedures_with_status.append({
+                'examination_instrumental': instrumental,
+                'status_info': status_info
+            })
+        context['instrumental_procedures_with_status'] = instrumental_procedures_with_status
+        
         return context
 
 

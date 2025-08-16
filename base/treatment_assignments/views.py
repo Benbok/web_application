@@ -205,7 +205,23 @@ class TreatmentAssignmentDetailView(BaseAssignmentActionView, DetailView):
         context = super().get_context_data(**kwargs)
         context['assignment_type'] = self.kwargs.get('assignment_type')
         context['title'] = f"Детали назначения №{self.object.pk}"
-        context['next_url'] = self.request.GET.get('next', get_treatment_assignment_back_url(self.object))
+        
+        # Приоритет: 1) GET параметр next, 2) HTTP_REFERER, 3) fallback URL
+        next_url = self.request.GET.get('next')
+        if not next_url:
+            # Пытаемся получить URL из HTTP_REFERER
+            referer = self.request.META.get('HTTP_REFERER')
+            if referer:
+                # Проверяем, что referer не ведет на внешний сайт
+                from django.conf import settings
+                if referer.startswith(settings.SITE_URL) if hasattr(settings, 'SITE_URL') else True:
+                    next_url = referer
+        
+        # Если все еще нет next_url, используем fallback
+        if not next_url:
+            next_url = get_treatment_assignment_back_url(self.object)
+        
+        context['next_url'] = next_url
         return context
 
 
@@ -229,13 +245,42 @@ class TreatmentAssignmentUpdateView(BaseAssignmentActionView, UpdateView):
         context = super().get_context_data(**kwargs)
         context['assignment_type'] = self.kwargs.get('assignment_type')
         context['title'] = 'Редактировать назначение'
-        context['next_url'] = self.request.GET.get('next', get_treatment_assignment_back_url(self.object))
+        
+        # Приоритет: 1) GET параметр next, 2) HTTP_REFERER, 3) fallback URL
+        next_url = self.request.GET.get('next')
+        if not next_url:
+            # Пытаемся получить URL из HTTP_REFERER
+            referer = self.request.META.get('HTTP_REFERER')
+            if referer:
+                # Проверяем, что referer не ведет на внешний сайт
+                from django.conf import settings
+                if referer.startswith(settings.SITE_URL) if hasattr(settings, 'SITE_URL') else True:
+                    next_url = referer
+        
+        # Если все еще нет next_url, используем fallback
+        if not next_url:
+            next_url = get_treatment_assignment_back_url(self.object)
+        
+        context['next_url'] = next_url
         return context
 
     def get_success_url(self):
-        # Сначала пытаемся взять URL для возврата из GET-параметра 'next'
-        # Если его нет, то, как и раньше, переходим на страницу деталей
-        return self.request.GET.get('next', self.object.get_absolute_url())
+        # Приоритет: 1) GET параметр next, 2) HTTP_REFERER, 3) детали назначения
+        next_url = self.request.GET.get('next')
+        if not next_url:
+            # Пытаемся получить URL из HTTP_REFERER
+            referer = self.request.META.get('HTTP_REFERER')
+            if referer:
+                # Проверяем, что referer не ведет на внешний сайт
+                from django.conf import settings
+                if referer.startswith(settings.SITE_URL) if hasattr(settings, 'SITE_URL') else True:
+                    next_url = referer
+        
+        # Если все еще нет next_url, переходим к деталям назначения
+        if not next_url:
+            next_url = self.object.get_absolute_url()
+        
+        return next_url
 
 
 class TreatmentAssignmentDeleteView(BaseAssignmentActionView, DeleteView):
@@ -243,7 +288,22 @@ class TreatmentAssignmentDeleteView(BaseAssignmentActionView, DeleteView):
     context_object_name = 'assignment'
 
     def get_success_url(self):
-        return self.request.GET.get('next', get_treatment_assignment_back_url(self.object))
+        # Приоритет: 1) GET параметр next, 2) HTTP_REFERER, 3) fallback URL
+        next_url = self.request.GET.get('next')
+        if not next_url:
+            # Пытаемся получить URL из HTTP_REFERER
+            referer = self.request.META.get('HTTP_REFERER')
+            if referer:
+                # Проверяем, что referer не ведет на внешний сайт
+                from django.conf import settings
+                if referer.startswith(settings.SITE_URL) if hasattr(settings, 'SITE_URL') else True:
+                    next_url = referer
+        
+        # Если все еще нет next_url, используем fallback
+        if not next_url:
+            next_url = get_treatment_assignment_back_url(self.object)
+        
+        return next_url
 
 
 # (DailyTreatmentPlanView и ListView остаются без изменений)
