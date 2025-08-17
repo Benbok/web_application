@@ -46,6 +46,8 @@ THIRD_PARTY_APPS = [
     'recurrence',
     'rest_framework',
     'django_extensions',
+    'crispy_forms',
+    'crispy_bootstrap5',
 ]
 
 LOCAL_APPS = [
@@ -181,3 +183,6 @@ SELECT2_CSS = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.
 # Настройки для django-select2
 SELECT2_CACHE_BACKEND = "default"
 SELECT2_CACHE_PREFIX = "select2"
+
+# Crispy Forms
+CRISPY_TEMPLATE_PACK = 'bootstrap5'

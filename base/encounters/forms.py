@@ -10,6 +10,8 @@ from pharmacy.widgets import MedicationSelect2Widget
 from departments.models import Department
 from encounters.services.encounter_service import EncounterService
 from encounters.strategies.outcome_strategies import OutcomeStrategyFactory
+from crispy_forms.helper import FormHelper
+from crispy_forms.layout import Layout, Field
 
 
 User = get_user_model()
@@ -191,6 +193,15 @@ class EncounterCloseForm(forms.ModelForm):
         self.fields['transfer_to_department'].widget.attrs.update({
             'class': 'form-select'
         })
+        
+        # Настройки для crispy forms
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.layout = Layout(
+            Field('outcome', css_class='form-select'),
+            Field('date_end', css_class='form-control'),
+            Field('transfer_to_department', css_class='form-select', style='display: none;'),
+        )
 
     def clean(self):
         cleaned_data = super().clean()
@@ -216,7 +227,21 @@ class EncounterCloseForm(forms.ModelForm):
             service = EncounterService(encounter)
             outcome = self.cleaned_data.get('outcome')
             transfer_department = self.cleaned_data.get('transfer_to_department')
-            date_end = self.cleaned_data.get('date_end')
+            date_end_str = self.cleaned_data.get('date_end')
+            
+            # Преобразуем строку даты в datetime объект
+            date_end = None
+            if date_end_str:
+                try:
+                    from datetime import datetime
+                    date_end = datetime.strptime(date_end_str, '%d.%m.%Y %H:%M')
+                    # Приводим к timezone-aware datetime
+                    from django.utils import timezone
+                    date_end = timezone.make_aware(date_end)
+                except ValueError:
+                    # Если не удалось распарсить, используем текущее время
+                    from django.utils import timezone
+                    date_end = timezone.now()
             
             # Используем сервис для закрытия через команды
             success = service.close_encounter(
