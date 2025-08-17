@@ -12,7 +12,8 @@ from instrumental_procedures.models import InstrumentalProcedureDefinition
 
 class ExaminationPlan(models.Model):
     """
-    План обследования пациента
+    Универсальный план обследования, который может быть привязан к любому объекту
+    (encounter, department_stay, etc.)
     """
     PRIORITY_CHOICES = [
         ('normal', _('Обычный')),
@@ -22,12 +23,22 @@ class ExaminationPlan(models.Model):
     
     name = models.CharField(_('Название плана'), max_length=255)
     description = models.TextField(_('Описание'), blank=True)
+    
+    # GenericForeignKey для связи с любым объектом (как в treatment_management)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
+    object_id = models.PositiveIntegerField(null=True, blank=True)
+    owner = GenericForeignKey('content_type', 'object_id')
+    
+    # Оставляем encounter для обратной совместимости
     encounter = models.ForeignKey(
         Encounter, 
         on_delete=models.CASCADE, 
+        null=True, 
+        blank=True,
         verbose_name=_('Случай обращения'),
         related_name='examination_plans'
     )
+    
     priority = models.CharField(
         _('Приоритет'), 
         max_length=20, 
@@ -44,10 +55,51 @@ class ExaminationPlan(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"{self.name} - {self.encounter.patient.full_name}"
+        if self.owner:
+            return f"{self.name} ({self.owner})"
+        elif self.encounter:
+            return f"{self.name} - {self.encounter.patient.full_name}"
+        return self.name
     
     def get_absolute_url(self):
         return reverse('examination_management:plan_detail', kwargs={'pk': self.pk})
+    
+    def get_owner_display(self):
+        """Возвращает читаемое представление владельца"""
+        if self.owner:
+            if hasattr(self.owner, 'get_display_name'):
+                return self.owner.get_display_name()
+            return str(self.owner)
+        elif self.encounter:
+            return f"Случай: {self.encounter.patient.full_name}"
+        return "Неизвестно"
+    
+    def get_owner_model_name(self):
+        """Возвращает имя модели владельца для использования в шаблонах"""
+        if self.owner:
+            return self.owner._meta.model_name
+        elif self.encounter:
+            return 'encounter'
+        return 'unknown'
+    
+    @classmethod
+    def get_or_create_main_plan(cls, owner):
+        """
+        Получает или создает основной план обследования для указанного владельца
+        """
+        content_type = ContentType.objects.get_for_model(owner)
+        
+        # Пытаемся найти существующий основной план
+        main_plan, created = cls.objects.get_or_create(
+            content_type=content_type,
+            object_id=owner.id,
+            name="Основной план обследования",
+            defaults={
+                'description': 'Основной план обследования'
+            }
+        )
+        
+        return main_plan, created
     
     @property
     def lab_tests(self):
@@ -200,6 +252,19 @@ class ExaminationPlan(models.Model):
             'percentage': round(percentage, 1),
             'status': status
         }
+    
+    def get_patient(self):
+        """
+        Получает пациента из владельца плана
+        """
+        if self.owner:
+            if hasattr(self.owner, 'patient'):
+                return self.owner.patient
+            elif hasattr(self.owner, 'get_patient'):
+                return self.owner.get_patient()
+        elif self.encounter:
+            return self.encounter.patient
+        return None
 
 
 class ExaminationLabTest(models.Model):

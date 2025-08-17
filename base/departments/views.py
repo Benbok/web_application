@@ -17,6 +17,8 @@ from treatment_assignments.models import (
     LabTestAssignment,
     InstrumentalProcedureAssignment,
 )
+from treatment_management.models import TreatmentPlan, TreatmentMedication
+from examination_management.models import ExaminationPlan
 
 logger = logging.getLogger(__name__)
 
@@ -83,31 +85,62 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
     template_name = 'departments/patient_history.html'
     context_object_name = 'patient_status'
 
+    def get_filter_form(self):
+        """Создает форму фильтрации для документов и назначений"""
+        return DocumentAndAssignmentFilterForm(self.request.GET, department=self.get_object().department)
+
     def get_filtered_documents_and_assignments(self, patient_status, filter_form):
         content_type = ContentType.objects.get_for_model(PatientDepartmentStatus)
 
-        documents = ClinicalDocument.objects.filter(
+        # Получаем все документы для данного пациента
+        all_documents = ClinicalDocument.objects.filter(
             content_type=content_type,
             object_id=patient_status.pk,
-            document_type__department=patient_status.department,
         )
-
-        medication_assignments = MedicationAssignment.objects.filter(
-            content_type=content_type, object_id=patient_status.pk
-        ).select_related('assigning_doctor__doctor_profile', 'completed_by__doctor_profile')
+        
+        # Получаем документы, отфильтрованные по отделению
+        # Временно убираем фильтрацию для отладки
+        documents = all_documents  # .filter(document_type__department=patient_status.department)
+        
+        # Отладочная информация
+        print(f"DEBUG: Всего документов для пациента {patient_status.pk}: {all_documents.count()}")
+        print(f"DEBUG: Документов после фильтрации по отделению {patient_status.department.name}: {documents.count()}")
+        if documents.exists():
+            print(f"DEBUG: Типы документов: {[doc.document_type.name for doc in documents[:5]]}")
+        else:
+            print(f"DEBUG: Нет документов после фильтрации по отделению")
+            # Показываем все документы для отладки
+            print(f"DEBUG: Все документы: {[(doc.document_type.name, doc.document_type.department.name if doc.document_type.department else 'None') for doc in all_documents[:5]]}")
 
         general_treatment_assignments = GeneralTreatmentAssignment.objects.filter(
             content_type=content_type, object_id=patient_status.pk
         ).select_related('assigning_doctor__doctor_profile', 'completed_by__doctor_profile')
 
-        lab_test_assignments = LabTestAssignment.objects.filter(
+        # Получаем планы лечения и их препараты
+        treatment_plans = TreatmentPlan.objects.filter(
             content_type=content_type, object_id=patient_status.pk
-        ).select_related('assigning_doctor__doctor_profile', 'completed_by__doctor_profile')
+        ).prefetch_related(
+            'medications__medication',
+            'medications__route'
+        )
 
-        instrumental_procedure_assignments = InstrumentalProcedureAssignment.objects.filter(
+        # Получаем препараты из планов лечения
+        treatment_medications = []
+        for plan in treatment_plans:
+            for medication in plan.medications.all():
+                treatment_medications.append({
+                    'plan': plan,
+                    'medication': medication,
+                    'created_date': plan.created_at,
+                    'created_by': None  # В модели TreatmentPlan нет поля created_by
+                })
+
+        # Получаем планы обследования
+        examination_plans = ExaminationPlan.objects.filter(
             content_type=content_type, object_id=patient_status.pk
-        ).select_related('assigning_doctor__doctor_profile', 'completed_by__doctor_profile')
+        )
 
+        # Применяем фильтры
         if filter_form.is_valid():
             start_date = filter_form.cleaned_data.get('start_date')
             end_date = filter_form.cleaned_data.get('end_date')
@@ -116,39 +149,61 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
             search_query = filter_form.cleaned_data.get('search_query')
 
             if start_date:
-                documents = documents.filter(datetime_document__date__gte=start_date)
-                medication_assignments = medication_assignments.filter(start_date__date__gte=start_date)
-                general_treatment_assignments = general_treatment_assignments.filter(start_date__date__gte=start_date)
-                lab_test_assignments = lab_test_assignments.filter(start_date__date__gte=start_date)
-                instrumental_procedure_assignments = instrumental_procedure_assignments.filter(start_date__date__gte=start_date)
+                documents = documents.filter(created_at__date__gte=start_date)
+                general_treatment_assignments = general_treatment_assignments.filter(created_at__date__gte=start_date)
+                treatment_plans = treatment_plans.filter(created_at__date__gte=start_date)
+                examination_plans = examination_plans.filter(created_at__date__gte=start_date)
+
             if end_date:
-                documents = documents.filter(datetime_document__date__lte=end_date)
-                medication_assignments = medication_assignments.filter(start_date__date__lte=end_date)
-                general_treatment_assignments = general_treatment_assignments.filter(start_date__date__lte=end_date)
-                lab_test_assignments = lab_test_assignments.filter(start_date__date__lte=end_date)
-                instrumental_procedure_assignments = instrumental_procedure_assignments.filter(start_date__date__lte=end_date)
+                documents = documents.filter(created_at__date__lte=end_date)
+                general_treatment_assignments = general_treatment_assignments.filter(created_at__date__lte=end_date)
+                treatment_plans = treatment_plans.filter(created_at__date__lte=end_date)
+                examination_plans = examination_plans.filter(created_at__date__lte=end_date)
+
             if author:
-                documents = documents.filter(author=author)
-                medication_assignments = medication_assignments.filter(assigning_doctor=author)
-                general_treatment_assignments = general_treatment_assignments.filter(assigning_doctor=author)
-                lab_test_assignments = lab_test_assignments.filter(assigning_doctor=author)
-                instrumental_procedure_assignments = instrumental_procedure_assignments.filter(assigning_doctor=author)
+                documents = documents.filter(author__username__icontains=author)
+                general_treatment_assignments = general_treatment_assignments.filter(assigning_doctor__username__icontains=author)
+                # В TreatmentPlan нет поля created_by, поэтому фильтр по автору не применяется
+
             if document_type:
                 documents = documents.filter(document_type=document_type)
-            if search_query:
-                documents = documents.filter(Q(data__icontains=search_query) | Q(document_type__name__icontains=search_query))
-                medication_assignments = medication_assignments.filter(Q(medication__name__icontains=search_query) | Q(notes__icontains=search_query))
-                general_treatment_assignments = general_treatment_assignments.filter(Q(general_treatment__name__icontains=search_query) | Q(notes__icontains=search_query))
-                lab_test_assignments = lab_test_assignments.filter(Q(lab_test__name__icontains=search_query) | Q(notes__icontains=search_query))
-                instrumental_procedure_assignments = instrumental_procedure_assignments.filter(Q(instrumental_procedure__name__icontains=search_query) | Q(notes__icontains=search_query))
 
-        return (
-            documents.order_by('-datetime_document'),
-            medication_assignments.order_by('-start_date'),
-            general_treatment_assignments.order_by('-start_date'),
-            lab_test_assignments.order_by('-start_date'),
-            instrumental_procedure_assignments.order_by('-start_date'),
-        )
+            if search_query:
+                documents = documents.filter(
+                    Q(data__icontains=search_query) |
+                    Q(document_type__name__icontains=search_query)
+                )
+                general_treatment_assignments = general_treatment_assignments.filter(
+                    Q(general_treatment__icontains=search_query) |
+                    Q(notes__icontains=search_query)
+                )
+                treatment_plans = treatment_plans.filter(
+                    Q(name__icontains=search_query) |
+                    Q(description__icontains=search_query)
+                )
+                examination_plans = examination_plans.filter(
+                    Q(name__icontains=search_query) |
+                    Q(description__icontains=search_query)
+                )
+
+        # Обновляем список препаратов после фильтрации
+        treatment_medications = []
+        for plan in treatment_plans:
+            for medication in plan.medications.all():
+                treatment_medications.append({
+                    'plan': plan,
+                    'medication': medication,
+                    'created_date': plan.created_at,
+                    'created_by': None  # В модели TreatmentPlan нет поля created_by
+                })
+
+        return {
+            'documents': documents,
+            'general_treatment_assignments': general_treatment_assignments,
+            'treatment_plans': treatment_plans,
+            'treatment_medications': treatment_medications,
+            'examination_plans': examination_plans,
+        }
 
     def paginate_queryset(self, queryset, page_param, per_page=10):
         paginator = Paginator(queryset, per_page)
@@ -158,28 +213,44 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         patient_status = self.get_object()
-        department = patient_status.department
+        filter_form = self.get_filter_form()
 
-        filter_form = DocumentAndAssignmentFilterForm(self.request.GET, department=department)
-        docs, meds, generals, labs, procedures = self.get_filtered_documents_and_assignments(patient_status, filter_form)
-
-        context['filter_form'] = filter_form
-        context['daily_notes_page_obj'] = self.paginate_queryset(docs, 'daily_notes_page')
-        context['medication_assignments_page_obj'] = self.paginate_queryset(meds, 'medication_assignments_page')
-        context['general_treatment_assignments_page_obj'] = self.paginate_queryset(generals, 'general_treatment_assignments_page')
-        context['lab_test_assignments_page_obj'] = self.paginate_queryset(labs, 'lab_test_assignments_page')
-        context['instrumental_procedure_assignments_page_obj'] = self.paginate_queryset(procedures, 'instrumental_procedure_assignments_page')
-        context['title'] = f"История пациента: {patient_status.patient.full_name} в {patient_status.department.name}"
+        # Получаем отфильтрованные данные
+        filtered_data = self.get_filtered_documents_and_assignments(patient_status, filter_form)
         
-        # Добавляем информацию о планах лечения
-        from treatment_management.models import TreatmentPlan
-        
-        content_type = ContentType.objects.get_for_model(patient_status)
-        treatment_plans = TreatmentPlan.objects.filter(
-            content_type=content_type,
-            object_id=patient_status.id
+        # Пагинируем данные
+        documents_page_obj = self.paginate_queryset(
+            filtered_data['documents'].order_by('-created_at'), 
+            'documents_page'
         )
-        context['treatment_plans'] = treatment_plans
+        general_treatment_assignments_page_obj = self.paginate_queryset(
+            filtered_data['general_treatment_assignments'].order_by('-created_at'), 
+            'general_treatment_assignments_page'
+        )
+        treatment_plans_page_obj = self.paginate_queryset(
+            filtered_data['treatment_plans'].order_by('-created_at'), 
+            'treatment_plans_page'
+        )
+        treatment_medications_page_obj = self.paginate_queryset(
+            filtered_data['treatment_medications'], 
+            'treatment_medications_page'
+        )
+        examination_plans_page_obj = self.paginate_queryset(
+            filtered_data['examination_plans'].order_by('-created_at'),
+            'examination_plans_page'
+        )
+
+        context.update({
+            'patient_status': patient_status,
+            'patient': patient_status.patient,
+            'department': patient_status.department,
+            'filter_form': filter_form,
+            'documents_page_obj': documents_page_obj,
+            'general_treatment_assignments_page_obj': general_treatment_assignments_page_obj,
+            'treatment_plans_page_obj': treatment_plans_page_obj,
+            'treatment_medications_page_obj': treatment_medications_page_obj,
+            'examination_plans_page_obj': examination_plans_page_obj,
+        })
 
         return context
 

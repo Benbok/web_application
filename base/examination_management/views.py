@@ -25,11 +25,15 @@ from treatment_assignments.models import LabTestAssignment, InstrumentalProcedur
 class OwnerContextMixin:
     """
     Миксин для получения контекста владельца и пациента
+    Устраняет дублирование кода в различных view классах
     """
     
     def get_owner(self):
         """
         Получает объект-владелец из URL параметров
+        
+        Returns:
+            Объект-владелец (encounter, department_stay, etc.)
         """
         owner_model = self.kwargs.get('owner_model')
         owner_id = self.kwargs.get('owner_id')
@@ -47,15 +51,32 @@ class OwnerContextMixin:
     def get_patient_from_owner(self, owner):
         """
         Получает пациента из владельца
+        
+        Args:
+            owner: Объект-владелец
+            
+        Returns:
+            Patient или None
         """
         if hasattr(owner, 'patient'):
             return owner.patient
         elif hasattr(owner, 'get_patient'):
             return owner.get_patient()
         return None
+    
+    def setup_owner_context(self):
+        """
+        Настраивает контекст владельца и пациента
+        Должен вызываться в dispatch() или get_context_data()
+        """
+        if not hasattr(self, 'owner'):
+            self.owner = self.get_owner()
+        
+        if not hasattr(self, 'patient'):
+            self.patient = self.get_patient_from_owner(self.owner)
 
 
-class ExaminationPlanListView(LoginRequiredMixin, OwnerContextMixin, ListView):
+class ExaminationPlanListView(LoginRequiredMixin, ListView):
     """
     Список планов обследования для владельца
     """
@@ -63,27 +84,57 @@ class ExaminationPlanListView(LoginRequiredMixin, OwnerContextMixin, ListView):
     template_name = 'examination_management/plan_list.html'
     context_object_name = 'examination_plans'
     
-    def get_queryset(self):
+    def dispatch(self, request, *args, **kwargs):
         # Проверяем, используем ли мы специальный URL для encounters
         if 'encounter_pk' in self.kwargs:
-            encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
-            return ExaminationPlan.objects.filter(encounter=encounter).order_by('-created_at')
+            self.encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
+            self.owner = self.encounter
+            self.owner_model = 'encounter'
+            self.patient = self.encounter.patient
         else:
-            owner = self.get_owner()
-            return ExaminationPlan.objects.filter(encounter=owner).order_by('-created_at')
+            # Используем универсальный подход с OwnerContextMixin
+            self.setup_owner_context()
+        return super().dispatch(request, *args, **kwargs)
+    
+    def setup_owner_context(self):
+        """
+        Настраивает контекст владельца и пациента для универсальных URL
+        """
+        owner_model = self.kwargs.get('owner_model')
+        owner_id = self.kwargs.get('owner_id')
+        
+        if not owner_model or not owner_id:
+            raise ValueError("owner_model и owner_id должны быть указаны в URL")
+        
+        # Получаем ContentType для модели владельца
+        content_type = ContentType.objects.get(model=owner_model)
+        owner_class = content_type.model_class()
+        self.owner = get_object_or_404(owner_class, id=owner_id)
+        self.owner_model = owner_model
+        self.patient = self.get_patient_from_owner(self.owner)
+    
+    def get_patient_from_owner(self, owner):
+        """
+        Получает пациента из владельца
+        """
+        if hasattr(owner, 'patient'):
+            return owner.patient
+        elif hasattr(owner, 'get_patient'):
+            return owner.get_patient()
+        return None
+    
+    def get_queryset(self):
+        # Используем GenericForeignKey для поиска планов
+        return ExaminationPlan.objects.filter(
+            content_type=ContentType.objects.get_for_model(self.owner),
+            object_id=self.owner.id
+        ).order_by('-created_at')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Проверяем, используем ли мы специальный URL для encounters
-        if 'encounter_pk' in self.kwargs:
-            encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
-            context['owner'] = encounter
-            context['owner_model'] = 'encounter'
-            context['patient'] = encounter.patient
-        else:
-            context['owner'] = self.get_owner()
-            context['owner_model'] = self.kwargs.get('owner_model')
-            context['patient'] = self.get_patient_from_owner(context['owner'])
+        context['owner'] = self.owner
+        context['owner_model'] = self.owner_model
+        context['patient'] = self.patient
         
         # Добавляем информацию о прогрессе для каждого плана
         plans_with_progress = []
@@ -99,7 +150,7 @@ class ExaminationPlanListView(LoginRequiredMixin, OwnerContextMixin, ListView):
         return context
 
 
-class ExaminationPlanCreateView(LoginRequiredMixin, OwnerContextMixin, CreateView):
+class ExaminationPlanCreateView(LoginRequiredMixin, CreateView):
     """
     Создание плана обследования
     """
@@ -107,46 +158,78 @@ class ExaminationPlanCreateView(LoginRequiredMixin, OwnerContextMixin, CreateVie
     form_class = ExaminationPlanForm
     template_name = 'examination_management/plan_form.html'
     
-    def form_valid(self, form):
+    def dispatch(self, request, *args, **kwargs):
         # Проверяем, используем ли мы специальный URL для encounters
         if 'encounter_pk' in self.kwargs:
-            encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
-            form.instance.encounter = encounter
+            self.encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
+            self.owner = self.encounter
+            self.owner_model = 'encounter'
+            self.patient = self.encounter.patient
         else:
-            owner = self.get_owner()
-            form.instance.encounter = owner
+            # Используем универсальный подход
+            self.setup_owner_context()
+        return super().dispatch(request, *args, **kwargs)
+    
+    def setup_owner_context(self):
+        """
+        Настраивает контекст владельца и пациента для универсальных URL
+        """
+        owner_model = self.kwargs.get('owner_model')
+        owner_id = self.kwargs.get('owner_id')
+        
+        if not owner_model or not owner_id:
+            raise ValueError("owner_model и owner_id должны быть указаны в URL")
+        
+        # Получаем ContentType для модели владельца
+        content_type = ContentType.objects.get(model=owner_model)
+        owner_class = content_type.model_class()
+        self.owner = get_object_or_404(owner_class, id=owner_id)
+        self.owner_model = owner_model
+        self.patient = self.get_patient_from_owner(self.owner)
+    
+    def get_patient_from_owner(self, owner):
+        """
+        Получает пациента из владельца
+        """
+        if hasattr(owner, 'patient'):
+            return owner.patient
+        elif hasattr(owner, 'get_patient'):
+            return owner.get_patient()
+        return None
+    
+    def form_valid(self, form):
+        # Устанавливаем владельца через GenericForeignKey
+        form.instance.owner = self.owner
+        
+        # Для обратной совместимости, если владелец - это Encounter
+        if isinstance(self.owner, Encounter):
+            form.instance.encounter = self.owner
+        
         response = super().form_valid(form)
         messages.success(self.request, _('План обследования успешно создан'))
         return response
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Проверяем, используем ли мы специальный URL для encounters
-        if 'encounter_pk' in self.kwargs:
-            encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
-            context['owner'] = encounter
-            context['owner_model'] = 'encounter'
-            context['patient'] = encounter.patient
-        else:
-            context['owner'] = self.get_owner()
-            context['owner_model'] = self.kwargs.get('owner_model')
-            context['patient'] = self.get_patient_from_owner(context['owner'])
+        context['owner'] = self.owner
+        context['owner_model'] = self.owner_model
+        context['patient'] = self.patient
         context['title'] = _('Создать план обследования')
         return context
     
     def get_success_url(self):
-        # Проверяем, используем ли мы специальный URL для encounters
-        if 'encounter_pk' in self.kwargs:
+        # Определяем URL в зависимости от типа владельца
+        if self.owner_model == 'encounter':
             return reverse('examination_management:examination_plan_detail',
                           kwargs={
-                              'encounter_pk': self.kwargs['encounter_pk'],
+                              'encounter_pk': self.owner.id,
                               'pk': self.object.pk
                           })
         else:
             return reverse('examination_management:plan_detail',
                           kwargs={
-                              'owner_model': self.kwargs.get('owner_model'),
-                              'owner_id': self.kwargs.get('owner_id'),
+                              'owner_model': self.owner_model,
+                              'owner_id': self.owner.id,
                               'pk': self.object.pk
                           })
 
@@ -161,19 +244,70 @@ class ExaminationPlanUpdateView(LoginRequiredMixin, UpdateView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['owner'] = self.object.encounter
-        context['owner_model'] = 'encounter'
-        context['patient'] = self.object.encounter.patient
+        
+        # Получаем владельца через GenericForeignKey или encounter для обратной совместимости
+        if hasattr(self.object, 'owner') and self.object.owner:
+            context['owner'] = self.object.owner
+            context['patient'] = self.get_patient_from_owner(self.object.owner)
+            # Определяем тип владельца для URL
+            if hasattr(self.object.owner, '_meta'):
+                context['owner_model'] = self.object.owner._meta.model_name
+                context['owner_id'] = self.object.owner.id
+            # Если владелец - это Encounter, добавляем его в контекст
+            if isinstance(self.object.owner, Encounter):
+                context['encounter'] = self.object.owner
+        elif hasattr(self.object, 'encounter') and self.object.encounter:
+            context['encounter'] = self.object.encounter
+            context['owner'] = self.object.encounter
+            context['patient'] = self.object.encounter.patient
+            context['owner_model'] = 'encounter'
+            context['owner_id'] = self.object.encounter.id
+        else:
+            context['owner'] = None
+            context['patient'] = None
+            context['owner_model'] = None
+            context['owner_id'] = None
+            context['encounter'] = None
+        
         context['title'] = _('Редактировать план обследования')
         return context
     
     def get_success_url(self):
-        return reverse('examination_management:plan_detail',
-                      kwargs={
-                          'owner_model': 'encounter',
-                          'owner_id': self.object.encounter.id,
-                          'pk': self.object.pk
-                      })
+        # Определяем URL в зависимости от типа владельца
+        if hasattr(self.object, 'owner') and self.object.owner:
+            if isinstance(self.object.owner, Encounter):
+                return reverse('examination_management:examination_plan_detail',
+                              kwargs={
+                                  'encounter_pk': self.object.owner.id,
+                                  'pk': self.object.pk
+                              })
+            else:
+                return reverse('examination_management:plan_detail',
+                              kwargs={
+                                  'owner_model': self.object.owner._meta.model_name,
+                                  'owner_id': self.object.owner.id,
+                                  'pk': self.object.pk
+                              })
+        elif hasattr(self.object, 'encounter') and self.object.encounter:
+            return reverse('examination_management:examination_plan_detail',
+                          kwargs={
+                              'encounter_pk': self.object.encounter.id,
+                              'pk': self.object.pk
+                          })
+        else:
+            # Fallback - возвращаемся к списку планов
+            return reverse('examination_management:examination_plan_list',
+                          kwargs={'encounter_pk': 1})  # Временное решение
+    
+    def get_patient_from_owner(self, owner):
+        """
+        Получает пациента из владельца
+        """
+        if hasattr(owner, 'patient'):
+            return owner.patient
+        elif hasattr(owner, 'get_patient'):
+            return owner.get_patient()
+        return None
 
 
 class ExaminationPlanDetailView(LoginRequiredMixin, DetailView):
@@ -186,8 +320,30 @@ class ExaminationPlanDetailView(LoginRequiredMixin, DetailView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['encounter'] = self.object.encounter
-        context['patient'] = self.object.encounter.patient
+        
+        # Получаем владельца через GenericForeignKey или encounter для обратной совместимости
+        if hasattr(self.object, 'owner') and self.object.owner:
+            context['owner'] = self.object.owner
+            context['patient'] = self.get_patient_from_owner(self.object.owner)
+            # Определяем тип владельца для URL
+            if hasattr(self.object.owner, '_meta'):
+                context['owner_model'] = self.object.owner._meta.model_name
+                context['owner_id'] = self.object.owner.id
+            # Если владелец - это Encounter, добавляем его в контекст
+            if isinstance(self.object.owner, Encounter):
+                context['encounter'] = self.object.owner
+        elif hasattr(self.object, 'encounter') and self.object.encounter:
+            context['encounter'] = self.object.encounter
+            context['owner'] = self.object.encounter
+            context['patient'] = self.object.encounter.patient
+            context['owner_model'] = 'encounter'
+            context['owner_id'] = self.object.encounter.id
+        else:
+            context['owner'] = None
+            context['patient'] = None
+            context['owner_model'] = None
+            context['owner_id'] = None
+            context['encounter'] = None
         
         # Получаем информацию о прогрессе плана
         progress_info = self.object.get_overall_progress()
@@ -213,6 +369,16 @@ class ExaminationPlanDetailView(LoginRequiredMixin, DetailView):
         context['instrumental_procedures_with_status'] = instrumental_procedures_with_status
         
         return context
+    
+    def get_patient_from_owner(self, owner):
+        """
+        Получает пациента из владельца
+        """
+        if hasattr(owner, 'patient'):
+            return owner.patient
+        elif hasattr(owner, 'get_patient'):
+            return owner.get_patient()
+        return None
 
 
 class ExaminationPlanDeleteView(LoginRequiredMixin, DeleteView):
@@ -224,18 +390,63 @@ class ExaminationPlanDeleteView(LoginRequiredMixin, DeleteView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['owner'] = self.object.encounter
-        context['owner_model'] = 'encounter'
-        context['patient'] = self.object.encounter.patient
+        
+        # Получаем владельца через GenericForeignKey или encounter для обратной совместимости
+        if hasattr(self.object, 'owner') and self.object.owner:
+            context['owner'] = self.object.owner
+            context['patient'] = self.get_patient_from_owner(self.object.owner)
+            # Определяем тип владельца для URL
+            if hasattr(self.object.owner, '_meta'):
+                context['owner_model'] = self.object.owner._meta.model_name
+                context['owner_id'] = self.object.owner.id
+            # Если владелец - это Encounter, добавляем его в контекст
+            if isinstance(self.object.owner, Encounter):
+                context['encounter'] = self.object.owner
+        elif hasattr(self.object, 'encounter') and self.object.encounter:
+            context['encounter'] = self.object.encounter
+            context['owner'] = self.object.encounter
+            context['patient'] = self.object.encounter.patient
+            context['owner_model'] = 'encounter'
+            context['owner_id'] = self.object.encounter.id
+        else:
+            context['owner'] = None
+            context['patient'] = None
+            context['owner_model'] = None
+            context['owner_id'] = None
+            context['encounter'] = None
+        
         context['title'] = _('Удалить план обследования')
         return context
     
     def get_success_url(self):
-        return reverse('examination_management:plan_list',
-                      kwargs={
-                          'owner_model': 'encounter',
-                          'owner_id': self.object.encounter.id
-                      })
+        # Определяем URL в зависимости от типа владельца
+        if hasattr(self.object, 'owner') and self.object.owner:
+            if isinstance(self.object.owner, Encounter):
+                return reverse('examination_management:examination_plan_list',
+                              kwargs={'encounter_pk': self.object.owner.id})
+            else:
+                return reverse('examination_management:plan_list',
+                              kwargs={
+                                  'owner_model': self.object.owner._meta.model_name,
+                                  'owner_id': self.object.owner.id
+                              })
+        elif hasattr(self.object, 'encounter') and self.object.encounter:
+            return reverse('examination_management:examination_plan_list',
+                          kwargs={'encounter_pk': self.object.encounter.id})
+        else:
+            # Fallback - возвращаемся к списку планов
+            return reverse('examination_management:examination_plan_list',
+                          kwargs={'encounter_pk': 1})  # Временное решение
+    
+    def get_patient_from_owner(self, owner):
+        """
+        Получает пациента из владельца
+        """
+        if hasattr(owner, 'patient'):
+            return owner.patient
+        elif hasattr(owner, 'get_patient'):
+            return owner.get_patient()
+        return None
 
 
 class ExaminationLabTestCreateView(LoginRequiredMixin, CreateView):
@@ -256,38 +467,91 @@ class ExaminationLabTestCreateView(LoginRequiredMixin, CreateView):
         form.instance.lab_test = form.cleaned_data['lab_test']
         response = super().form_valid(form)
         
+        # Получаем пациента из плана обследования
+        patient = None
+        if hasattr(self.examination_plan, 'owner') and self.examination_plan.owner:
+            patient = self.get_patient_from_owner(self.examination_plan.owner)
+        elif hasattr(self.examination_plan, 'encounter') and self.examination_plan.encounter:
+            patient = self.examination_plan.encounter.patient
+        
         # Автоматически создаем назначение для врача-лаборанта
-        try:
-            LabTestAssignment.objects.create(
-                content_type=ContentType.objects.get_for_model(form.instance),
-                object_id=form.instance.pk,
-                patient=self.examination_plan.encounter.patient,
-                assigning_doctor=self.request.user,
-                start_date=timezone.now(),
-                lab_test=form.instance.lab_test,
-                notes=form.instance.instructions
-            )
-            messages.success(self.request, _('Лабораторное исследование успешно добавлено в план и назначено для выполнения'))
-        except Exception as e:
-            messages.warning(self.request, _('Исследование добавлено в план, но назначение не создано: {}').format(str(e)))
+        if patient:
+            try:
+                LabTestAssignment.objects.create(
+                    content_type=ContentType.objects.get_for_model(form.instance),
+                    object_id=form.instance.pk,
+                    patient=patient,
+                    assigning_doctor=self.request.user,
+                    start_date=timezone.now(),
+                    lab_test=form.instance.lab_test,
+                    notes=form.instance.instructions
+                )
+                messages.success(self.request, _('Лабораторное исследование успешно добавлено в план и назначено для выполнения'))
+            except Exception as e:
+                messages.warning(self.request, _('Исследование добавлено в план, но назначение не создано: {}').format(str(e)))
+        else:
+            messages.warning(self.request, _('Исследование добавлено в план, но пациент не найден'))
         
         return response
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['examination_plan'] = self.examination_plan
-        context['encounter'] = self.examination_plan.encounter
-        context['patient'] = self.examination_plan.encounter.patient
+        
+        # Получаем владельца и пациента
+        if hasattr(self.examination_plan, 'owner') and self.examination_plan.owner:
+            context['owner'] = self.examination_plan.owner
+            context['patient'] = self.get_patient_from_owner(self.examination_plan.owner)
+            # Определяем тип владельца для URL
+            if hasattr(self.examination_plan.owner, '_meta'):
+                context['owner_model'] = self.examination_plan.owner._meta.model_name
+                context['owner_id'] = self.examination_plan.owner.id
+            # Если владелец - это Encounter, добавляем его в контекст
+            if isinstance(self.examination_plan.owner, Encounter):
+                context['encounter'] = self.examination_plan.owner
+        elif hasattr(self.examination_plan, 'encounter') and self.examination_plan.encounter:
+            context['encounter'] = self.examination_plan.encounter
+            context['owner'] = self.examination_plan.encounter
+            context['patient'] = self.examination_plan.encounter.patient
+            context['owner_model'] = 'encounter'
+            context['owner_id'] = self.examination_plan.encounter.id
+        
         context['title'] = _('Добавить лабораторное исследование')
         return context
     
     def get_success_url(self):
-        return reverse('examination_management:plan_detail',
-                      kwargs={
-                          'owner_model': 'encounter',
-                          'owner_id': self.examination_plan.encounter.id,
-                          'pk': self.examination_plan.pk
-                      })
+        # Определяем URL в зависимости от типа владельца
+        if hasattr(self.examination_plan, 'owner') and self.examination_plan.owner:
+            if isinstance(self.examination_plan.owner, Encounter):
+                return reverse('examination_management:examination_plan_detail',
+                              kwargs={
+                                  'encounter_pk': self.examination_plan.owner.id,
+                                  'pk': self.examination_plan.pk
+                              })
+            else:
+                return reverse('examination_management:plan_detail',
+                              kwargs={
+                                  'owner_model': self.examination_plan.owner._meta.model_name,
+                                  'owner_id': self.examination_plan.owner.id,
+                                  'pk': self.examination_plan.pk
+                              })
+        else:
+            # Для обратной совместимости с encounter
+            return reverse('examination_management:examination_plan_detail',
+                          kwargs={
+                              'encounter_pk': self.examination_plan.encounter.id,
+                              'pk': self.examination_plan.pk
+                          })
+    
+    def get_patient_from_owner(self, owner):
+        """
+        Получает пациента из владельца
+        """
+        if hasattr(owner, 'patient'):
+            return owner.patient
+        elif hasattr(owner, 'get_patient'):
+            return owner.get_patient()
+        return None
 
 
 class ExaminationLabTestUpdateView(LoginRequiredMixin, UpdateView):
@@ -393,38 +657,78 @@ class ExaminationInstrumentalCreateView(LoginRequiredMixin, CreateView):
         form.instance.instrumental_procedure = form.cleaned_data['instrumental_procedure']
         response = super().form_valid(form)
         
+        # Получаем пациента из плана обследования
+        patient = None
+        if hasattr(self.examination_plan, 'owner') and self.examination_plan.owner:
+            patient = self.get_patient_from_owner(self.examination_plan.owner)
+        elif hasattr(self.examination_plan, 'encounter') and self.examination_plan.encounter:
+            patient = self.examination_plan.encounter.patient
+        
         # Автоматически создаем назначение для врача-лаборанта
-        try:
-            InstrumentalProcedureAssignment.objects.create(
-                content_type=ContentType.objects.get_for_model(form.instance),
-                object_id=form.instance.pk,
-                patient=self.examination_plan.encounter.patient,
-                assigning_doctor=self.request.user,
-                start_date=timezone.now(),
-                instrumental_procedure=form.instance.instrumental_procedure,
-                notes=form.instance.instructions
-            )
-            messages.success(self.request, _('Инструментальное исследование успешно добавлено в план и назначено для выполнения'))
-        except Exception as e:
-            messages.warning(self.request, _('Исследование добавлено в план, но назначение не создано: {}').format(str(e)))
+        if patient:
+            try:
+                InstrumentalProcedureAssignment.objects.create(
+                    content_type=ContentType.objects.get_for_model(form.instance),
+                    object_id=form.instance.pk,
+                    patient=patient,
+                    assigning_doctor=self.request.user,
+                    start_date=timezone.now(),
+                    instrumental_procedure=form.instance.instrumental_procedure,
+                    notes=form.instance.instructions
+                )
+                messages.success(self.request, _('Инструментальное исследование успешно добавлено в план и назначено для выполнения'))
+            except Exception as e:
+                messages.warning(self.request, _('Исследование добавлено в план, но назначение не создано: {}').format(str(e)))
+        else:
+            messages.warning(self.request, _('Исследование добавлено в план, но пациент не найден'))
         
         return response
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['examination_plan'] = self.examination_plan
-        context['encounter'] = self.examination_plan.encounter
-        context['patient'] = self.examination_plan.encounter.patient
+        
+        # Получаем владельца и пациента
+        if hasattr(self.examination_plan, 'owner') and self.examination_plan.owner:
+            context['owner'] = self.examination_plan.owner
+            context['patient'] = self.get_patient_from_owner(self.examination_plan.owner)
+        elif hasattr(self.examination_plan, 'encounter') and self.examination_plan.encounter:
+            context['encounter'] = self.examination_plan.encounter
+            context['owner'] = self.examination_plan.encounter
+            context['patient'] = self.examination_plan.encounter.patient
+        
         context['title'] = _('Добавить инструментальное исследование')
         return context
     
     def get_success_url(self):
-        return reverse('examination_management:plan_detail',
-                      kwargs={
-                          'owner_model': 'encounter',
-                          'owner_id': self.examination_plan.encounter.id,
-                          'pk': self.examination_plan.pk
-                      })
+        # Определяем URL в зависимости от типа владельца
+        if hasattr(self.examination_plan, 'owner') and self.examination_plan.owner:
+            owner_model = self.examination_plan.owner._meta.model_name
+            owner_id = self.examination_plan.owner.id
+            return reverse('examination_management:plan_detail',
+                          kwargs={
+                              'owner_model': owner_model,
+                              'owner_id': owner_id,
+                              'pk': self.examination_plan.pk
+                          })
+        else:
+            # Для обратной совместимости с encounter
+            return reverse('examination_management:plan_detail',
+                          kwargs={
+                              'owner_model': 'encounter',
+                              'owner_id': self.examination_plan.encounter.id,
+                              'pk': self.examination_plan.pk
+                          })
+    
+    def get_patient_from_owner(self, owner):
+        """
+        Получает пациента из владельца
+        """
+        if hasattr(owner, 'patient'):
+            return owner.patient
+        elif hasattr(owner, 'get_patient'):
+            return owner.get_patient()
+        return None
 
 
 class ExaminationInstrumentalUpdateView(LoginRequiredMixin, UpdateView):
