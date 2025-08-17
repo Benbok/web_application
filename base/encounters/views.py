@@ -13,7 +13,7 @@ from django.utils import timezone
 from .models import Encounter, EncounterDiagnosis
 from .forms import (
     EncounterForm, EncounterUpdateForm, EncounterDiagnosisForm,
-    EncounterDiagnosisAdvancedForm
+    EncounterDiagnosisAdvancedForm, EncounterCloseForm
 )
 from patients.models import Patient
 
@@ -264,14 +264,44 @@ class EncounterDiagnosisAdvancedDeleteView(LoginRequiredMixin, DeleteView):
 class EncounterCloseView(LoginRequiredMixin, View):
     """Представление для закрытия случая"""
     
-    def post(self, request, pk):
+    def get(self, request, pk):
+        """Показывает форму для закрытия случая"""
         encounter = get_object_or_404(Encounter, pk=pk)
-        if encounter.is_active:
-            encounter.is_active = False
-            encounter.date_end = timezone.now()
-            encounter.save()
-            messages.success(request, 'Случай успешно закрыт')
-        return redirect('encounters:encounter_detail', pk=pk)
+        if not encounter.is_active:
+            messages.warning(request, 'Случай уже закрыт')
+            return redirect('encounters:encounter_detail', pk=pk)
+        
+        form = EncounterCloseForm(instance=encounter)
+        return render(request, 'encounters/close_form.html', {
+            'form': form,
+            'encounter': encounter,
+            'title': 'Закрыть случай'
+        })
+    
+    def post(self, request, pk):
+        """Обрабатывает закрытие случая"""
+        encounter = get_object_or_404(Encounter, pk=pk)
+        if not encounter.is_active:
+            messages.warning(request, 'Случай уже закрыт')
+            return redirect('encounters:encounter_detail', pk=pk)
+        
+        form = EncounterCloseForm(request.POST, instance=encounter)
+        if form.is_valid():
+            try:
+                # Сохраняем через форму, которая использует правильную логику
+                form.save(commit=True, user=request.user)
+                messages.success(request, 'Случай успешно закрыт')
+                return redirect('encounters:encounter_detail', pk=pk)
+            except Exception as e:
+                messages.error(request, f'Ошибка при закрытии случая: {str(e)}')
+        else:
+            messages.error(request, 'Пожалуйста, исправьте ошибки в форме')
+        
+        return render(request, 'encounters/close_form.html', {
+            'form': form,
+            'encounter': encounter,
+            'title': 'Закрыть случай'
+        })
 
 
 class EncounterReopenView(LoginRequiredMixin, View):
@@ -279,11 +309,23 @@ class EncounterReopenView(LoginRequiredMixin, View):
     
     def post(self, request, pk):
         encounter = get_object_or_404(Encounter, pk=pk)
-        if not encounter.is_active:
-            encounter.is_active = True
-            encounter.date_end = None
-            encounter.save()
-            messages.success(request, 'Случай возвращен в активное состояние')
+        if encounter.is_active:
+            messages.warning(request, 'Случай уже активен')
+            return redirect('encounters:encounter_detail', pk=pk)
+        
+        try:
+            # Используем сервис для правильной логики возврата
+            from .services.encounter_service import EncounterService
+            service = EncounterService(encounter)
+            
+            if service.reopen_encounter(user=request.user):
+                messages.success(request, 'Случай возвращен в активное состояние')
+            else:
+                messages.error(request, 'Не удалось вернуть случай в активное состояние')
+                
+        except Exception as e:
+            messages.error(request, f'Ошибка при возврате случая: {str(e)}')
+        
         return redirect('encounters:encounter_detail', pk=pk)
 
 

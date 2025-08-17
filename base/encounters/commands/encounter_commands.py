@@ -48,11 +48,12 @@ class Command(ABC):
 class CloseEncounterCommand(Command):
     """Команда для закрытия случая обращения"""
     
-    def __init__(self, encounter: Encounter, outcome: str, transfer_department: Department = None, user: User = None):
+    def __init__(self, encounter: Encounter, outcome: str, transfer_department: Department = None, user: User = None, date_end=None):
         super().__init__(encounter, user)
         self.outcome = outcome
         self.transfer_department = transfer_department
         self.previous_state = None
+        self.date_end = date_end
     
     def get_description(self) -> str:
         return f"Закрытие случая {self.encounter.id} с исходом '{self.outcome}'"
@@ -86,7 +87,9 @@ class CloseEncounterCommand(Command):
         try:
             with transaction.atomic():
                 # Устанавливаем дату завершения
-                if hasattr(self.encounter, 'appointment') and self.encounter.appointment and self.encounter.appointment.end:
+                if self.date_end:
+                    self.encounter.date_end = self.date_end
+                elif hasattr(self.encounter, 'appointment') and self.encounter.appointment and self.encounter.appointment.end:
                     self.encounter.date_end = self.encounter.appointment.end
                 else:
                     self.encounter.date_end = timezone.now()
@@ -301,9 +304,9 @@ class CommandFactory:
     """Фабрика для создания команд"""
     
     @staticmethod
-    def create_close_command(encounter: Encounter, outcome: str, transfer_department: Department = None, user: User = None) -> CloseEncounterCommand:
+    def create_close_command(encounter: Encounter, outcome: str, transfer_department: Department = None, user: User = None, date_end=None) -> CloseEncounterCommand:
         """Создает команду закрытия случая"""
-        return CloseEncounterCommand(encounter, outcome, transfer_department, user)
+        return CloseEncounterCommand(encounter, outcome, transfer_department, user, date_end)
     
     @staticmethod
     def create_reopen_command(encounter: Encounter, user: User = None) -> ReopenEncounterCommand:

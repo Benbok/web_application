@@ -1,11 +1,13 @@
-{% extends 'patients/base.html' %} {# Убедитесь, что это правильный базовый шаблон #}
-{% load static %} {# Для статических файлов, если используете #}
+{% extends 'patients/base.html' %}
+{% load static %}
+
+
 
 {% block title %}Детали обращения №{{ encounter_number }}{% endblock %} {# Обновлен заголовок #}
 {% block page_title %} Информация об обращении {% endblock %}
 
 {% block content %}
-<div class="card mt-4">
+<div class="card mt-4" style="z-index: 2;">
  <div class="card-body position-relative">
     {% if not encounter.is_active %}
       <form action="{% url 'encounters:encounter_reopen' pk=encounter.pk %}" method="post" style="position: absolute; top: 0.5rem; right: 0.5rem;">
@@ -140,7 +142,7 @@
         
         {% comment %} Выпадающее меню для второстепенных действий {% endcomment %}
         <div class="btn-group" role="group">
-          <button id="btnGroupDrop1" type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+          <button id="btnGroupDrop1" type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="false" aria-expanded="false">
             <i class="fas fa-cogs me-1"></i> Действия
           </button>
           <ul class="dropdown-menu" aria-labelledby="btnGroupDrop1">
@@ -154,6 +156,15 @@
               <a class="dropdown-item" href="{% url 'encounters:encounter_close' encounter.pk %}">
                 <i class="fas fa-lock me-2"></i>Закрыть случай
               </a>
+            </li>
+            {% else %}
+            <li>
+              <form method="post" action="{% url 'encounters:encounter_reopen' encounter.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="dropdown-item">
+                  <i class="fas fa-unlock me-2"></i>Вернуть в активное состояние
+                </button>
+              </form>
             </li>
             {% endif %}
             {% if perms.encounters.delete_encounter %}

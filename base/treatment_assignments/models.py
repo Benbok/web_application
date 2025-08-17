@@ -65,6 +65,35 @@ class BaseAssignment(models.Model):
         Проверяет, можно ли редактировать назначение
         """
         return self.status in ['active', 'completed', 'rejected']
+    
+    @classmethod
+    def search_by_patient_name(cls, query):
+        """
+        Поиск назначений по имени пациента с нечувствительностью к регистру
+        """
+        if not query:
+            return cls.objects.none()
+        
+        # Нормализуем поисковый запрос
+        query = query.strip().lower()
+        words = [word.strip() for word in query.split() if word.strip()]
+        
+        if not words:
+            return cls.objects.none()
+        
+        # Создаем Q-объект для поиска по любому из слов
+        from django.db.models import Q
+        q_objects = Q()
+        
+        for word in words:
+            word_q = (
+                Q(patient__first_name__icontains=word) |
+                Q(patient__last_name__icontains=word) |
+                Q(patient__middle_name__icontains=word)
+            )
+            q_objects |= word_q
+        
+        return cls.objects.filter(q_objects)
 
     class Meta:
         abstract = True

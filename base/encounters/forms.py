@@ -158,14 +158,27 @@ class EncounterCloseForm(forms.ModelForm):
         required=False,
         label="Перевести в отделение"
     )
+    
+    date_end = forms.DateTimeField(
+        label="Дата закрытия",
+        required=True,
+        widget=forms.DateTimeInput(
+            attrs={
+                'type': 'datetime-local',
+                'class': 'form-control',
+                'value': timezone.now().strftime('%Y-%m-%dT%H:%M')
+            }
+        ),
+        help_text="Укажите дату и время закрытия случая"
+    )
 
     class Meta:
         model = Encounter
-        fields = ['outcome']
+        fields = ['outcome', 'date_end']
         widgets = {
             'outcome': forms.Select(attrs={'class': 'form-select'}),
         }
-
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Динамически загружаем доступные исходы через Strategy Pattern
@@ -173,6 +186,11 @@ class EncounterCloseForm(forms.ModelForm):
         self.fields['outcome'].choices = [('', 'Выберите исход')] + [
             (code, display_name) for code, display_name in available_outcomes.items()
         ]
+        
+        # Настраиваем виджет для поля transfer_to_department
+        self.fields['transfer_to_department'].widget.attrs.update({
+            'class': 'form-select'
+        })
 
     def clean(self):
         cleaned_data = super().clean()
@@ -184,16 +202,9 @@ class EncounterCloseForm(forms.ModelForm):
         elif outcome != 'transferred' and transfer_to_department:
             self.add_error('transfer_to_department', "Отделение для перевода может быть выбрано только при исходе 'Переведён'.")
 
-        # Используем Strategy Pattern для валидации
-        if self.instance and outcome:
-            service = EncounterService(self.instance)
-            outcome_processor = service.get_outcome_requirements(outcome)
-            required_fields = outcome_processor.get('required_fields', [])
-            
-            if 'documents' in required_fields and not self.instance.documents.exists():
-                raise forms.ValidationError(
-                    "Невозможно закрыть случай обращения: нет прикрепленных документов."
-                )
+        # Проверяем наличие документов при любом исходе
+        if self.instance and not self.instance.documents.exists():
+            self.add_error('outcome', "Невозможно закрыть случай обращения: нет прикрепленных документов.")
 
         return cleaned_data
     
@@ -205,12 +216,14 @@ class EncounterCloseForm(forms.ModelForm):
             service = EncounterService(encounter)
             outcome = self.cleaned_data.get('outcome')
             transfer_department = self.cleaned_data.get('transfer_to_department')
+            date_end = self.cleaned_data.get('date_end')
             
             # Используем сервис для закрытия через команды
             success = service.close_encounter(
                 outcome=outcome,
                 transfer_department=transfer_department,
-                user=user
+                user=user,
+                date_end=date_end
             )
             
             if not success:

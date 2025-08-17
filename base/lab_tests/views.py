@@ -22,10 +22,17 @@ class LabTestAssignmentListView(LoginRequiredMixin, ListView):
         status = self.request.GET.get('status')
         
         if query:
+            # Нормализуем поисковый запрос
+            query = query.strip().lower()
             queryset = queryset.filter(
                 Q(patient__first_name__icontains=query) |
                 Q(patient__last_name__icontains=query) |
-                Q(lab_test__name__icontains=query)
+                Q(patient__middle_name__icontains=query) |
+                Q(lab_test__name__icontains=query) |
+                # Дополнительный поиск в верхнем регистре
+                Q(patient__first_name__icontains=query.capitalize()) |
+                Q(patient__last_name__icontains=query.capitalize()) |
+                Q(patient__middle_name__icontains=query.capitalize())
             )
         
         if status:

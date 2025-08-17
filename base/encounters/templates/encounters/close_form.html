@@ -1,63 +1,167 @@
-{% extends 'patients/base.html' %} {# Или ваш базовый шаблон #}
-{% load widget_tweaks %}
+{% extends 'patients/base.html' %}
+{% load static %}
 
 {% block title %}{{ title }}{% endblock %}
 
 {% block content %}
-    {% if messages %}
-    <ul class="messages">
-        {% for message in messages %}
-        <li{% if message.tags %} class="alert alert-{{ message.tags }}"{% endif %}>{{ message }}</li>
-        {% endfor %}
-    </ul>
-    {% endif %}
-    <h1>{{ title }}</h1>
-    <p>Вы завершаете случай обращения №{{ encounter_number }} для пациента: {{ encounter.patient.full_name }}</p>
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title mb-0">{{ title }}</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>Информация о случае</h6>
+                        <p class="mb-1"><strong>Пациент:</strong> {{ encounter.patient.get_full_name_with_age }}</p>
+                        <p class="mb-1"><strong>Дата начала:</strong> {{ encounter.date_start|date:'d.m.Y H:i' }}</p>
+                        <p class="mb-0"><strong>Врач:</strong> 
+                            {% if encounter.doctor.doctor_profile %}
+                                {{ encounter.doctor.doctor_profile.full_name }}
+                            {% else %}
+                                {{ encounter.doctor.get_full_name|default:encounter.doctor.username }}
+                            {% endif %}
+                        </p>
+                    </div>
 
-    <form method="post">
-        {% csrf_token %}
-        {% if form.non_field_errors %}
-            <div class="alert alert-danger">
-                {% for error in form.non_field_errors %}
-                    {{ error }}
-                {% endfor %}
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endif %}
+
+                    {% if not encounter.documents.exists %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Внимание!</strong> Для закрытия случая необходимо прикрепить хотя бы один документ.
+                            <a href="{% url 'encounters:encounter_detail' encounter.pk %}" class="alert-link">Вернуться к случаю</a> для прикрепления документов.
+                        </div>
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.outcome.id_for_label }}" class="form-label">
+                                {{ form.outcome.label }}
+                            </label>
+                            {{ form.outcome }}
+                            {% if form.outcome.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.outcome.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if form.outcome.help_text %}
+                                <div class="form-text">{{ form.outcome.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.date_end.id_for_label }}" class="form-label">
+                                {{ form.date_end.label }}
+                            </label>
+                            {{ form.date_end }}
+                            {% if form.date_end.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.date_end.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if form.date_end.help_text %}
+                                <div class="form-text">{{ form.date_end.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3" id="transfer-department-field" style="display: none;">
+                            <label for="{{ form.transfer_to_department.id_for_label }}" class="form-label">
+                                {{ form.transfer_to_department.label }}
+                            </label>
+                            {{ form.transfer_to_department }}
+                            {% if form.transfer_to_department.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.transfer_to_department.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if form.transfer_to_department.help_text %}
+                                <div class="form-text">{{ form.transfer_to_department.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Внимание!</strong> После закрытия случая его нельзя будет изменить. 
+                            {% if encounter.documents.exists %}
+                                Убедитесь, что все необходимые документы прикреплены.
+                            {% else %}
+                                <strong class="text-danger">Случай не может быть закрыт без прикрепленных документов!</strong>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary" data-has-documents="{% if encounter.documents.exists %}true{% else %}false{% endif %}">
+                                <i class="fas fa-check me-2"></i>Закрыть случай
+                            </button>
+                            <a href="{% url 'encounters:encounter_detail' encounter.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>Отмена
+                            </a>
+                        </div>
+                    </form>
+                </div>
             </div>
-        {% endif %}
-        {% for field in form %}
-            <div class="mb-3">
-                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                {% if field.name == 'outcome' or field.name == 'transfer_to_department' %}
-                    {{ field|add_class:"form-select" }}
-                {% else %}
-                    {{ field|add_class:"form-control" }}
-                {% endif %}
-                {% if field.help_text %}
-                    <div class="form-text">{{ field.help_text }}</div>
-                {% endif %}
-                {% for error in field.errors %}
-                    <div class="text-danger small">{{ error }}</div>
-                {% endfor %}
-            </div>
-        {% endfor %}
-        <button type="submit" class="btn btn-primary">Завершить</button>
-        <a href="{% url 'encounters:encounter_detail' pk=encounter.pk %}" class="btn btn-secondary">Отмена</a>
-    </form>
+        </div>
+    </div>
+</div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const outcomeSelect = document.getElementById('id_outcome');
-            const transferDepartmentField = document.getElementById('id_transfer_to_department').closest('.mb-3') || document.getElementById('id_transfer_to_department').parentElement; // Адаптируйте селектор под ваш CSS
-
-            function toggleTransferDepartmentField() {
-                if (outcomeSelect.value === 'transferred') {
-                    transferDepartmentField.style.display = 'block';
-                } else {
-                    transferDepartmentField.style.display = 'none';
-                }
-            }
-
-            outcomeSelect.addEventListener('change', toggleTransferDepartmentField);
-            toggleTransferDepartmentField(); // Вызвать при загрузке страницы для начального состояния
-        });
-    </script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const outcomeSelect = document.getElementById('{{ form.outcome.id_for_label }}');
+    const transferField = document.getElementById('{{ form.transfer_to_department.id_for_label }}');
+    const transferFieldContainer = transferField.closest('.mb-3');
+    const submitButton = document.querySelector('button[type="submit"]');
+    const hasDocuments = submitButton.dataset.hasDocuments === 'true';
+    
+    function toggleTransferField() {
+        if (outcomeSelect.value === 'transferred') {
+            transferField.required = true;
+            transferFieldContainer.style.display = 'block';
+        } else {
+            transferField.required = false;
+            transferField.value = '';
+            transferFieldContainer.style.display = 'none';
+        }
+    }
+    
+    function updateSubmitButton() {
+        if (!hasDocuments) {
+            submitButton.disabled = true;
+            submitButton.title = 'Случай не может быть закрыт без документов';
+        } else {
+            submitButton.disabled = false;
+            submitButton.title = '';
+        }
+    }
+    
+    outcomeSelect.addEventListener('change', toggleTransferField);
+    toggleTransferField(); // Инициализация при загрузке
+    updateSubmitButton(); // Инициализация кнопки
+});
+</script>
 {% endblock %}

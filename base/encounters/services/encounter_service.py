@@ -34,7 +34,7 @@ class EncounterService:
     def __init__(self, encounter: Encounter):
         self.encounter = encounter
     
-    def close_encounter(self, outcome: str, transfer_department: Optional[Department] = None, user=None) -> bool:
+    def close_encounter(self, outcome: str, transfer_department: Optional[Department] = None, user=None, date_end=None) -> bool:
         """
         Закрытие случая обращения с указанием исхода.
         
@@ -42,6 +42,7 @@ class EncounterService:
             outcome: Исход обращения ('consultation_end' или 'transferred')
             transfer_department: Отделение для перевода (только для 'transferred')
             user: Пользователь, выполняющий операцию
+            date_end: Дата и время закрытия (если не указана, используется текущее время)
             
         Returns:
             bool: True если случай успешно закрыт, False если уже закрыт
@@ -54,7 +55,8 @@ class EncounterService:
             encounter=self.encounter,
             outcome=outcome,
             transfer_department=transfer_department,
-            user=user
+            user=user,
+            date_end=date_end
         )
         
         # Выполняем команду через инвокер

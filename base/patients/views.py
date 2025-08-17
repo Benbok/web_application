@@ -67,8 +67,12 @@ def home(request):
 def patient_list(request):
     query = request.GET.get('q')
     patients = Patient.objects.all()
+    
     if query:
-        words = [word.strip() for word in query.strip().split()]
+        # Нормализуем поисковый запрос - приводим к нижнему регистру
+        query = query.strip().lower()
+        words = [word.strip() for word in query.split()]
+        
         # Создаем Q-объект для поиска по любому из слов
         q_objects = Q()
         for word in words:
@@ -76,9 +80,14 @@ def patient_list(request):
                 q_objects |= (
                     Q(last_name__icontains=word) |
                     Q(first_name__icontains=word) |
-                    Q(middle_name__icontains=word)
+                    Q(middle_name__icontains=word) |
+                    # Дополнительный поиск в верхнем регистре
+                    Q(last_name__icontains=word.capitalize()) |
+                    Q(first_name__icontains=word.capitalize()) |
+                    Q(middle_name__icontains=word.capitalize())
                 )
         patients = patients.filter(q_objects)
+    
     paginator = Paginator(patients, 10)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
