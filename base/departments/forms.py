@@ -3,6 +3,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from documents.models import DocumentType
 from django.utils.text import slugify
+from django.utils import timezone
 
 from .models import PatientDepartmentStatus, Department
 
@@ -25,7 +26,11 @@ class PatientAcceptanceForm(forms.ModelForm):
         fields = ['acceptance_date']
         widgets = {
             'acceptance_date': forms.DateTimeInput(
-                attrs={'type': 'datetime-local', 'class': 'form-control'}
+                attrs={
+                    'type': 'datetime-local', 
+                    'class': 'form-control',
+                    'value': timezone.now().strftime('%Y-%m-%dT%H:%M')
+                }
             ),
         }
         labels = {

@@ -227,21 +227,7 @@ class EncounterCloseForm(forms.ModelForm):
             service = EncounterService(encounter)
             outcome = self.cleaned_data.get('outcome')
             transfer_department = self.cleaned_data.get('transfer_to_department')
-            date_end_str = self.cleaned_data.get('date_end')
-            
-            # Преобразуем строку даты в datetime объект
-            date_end = None
-            if date_end_str:
-                try:
-                    from datetime import datetime
-                    date_end = datetime.strptime(date_end_str, '%d.%m.%Y %H:%M')
-                    # Приводим к timezone-aware datetime
-                    from django.utils import timezone
-                    date_end = timezone.make_aware(date_end)
-                except ValueError:
-                    # Если не удалось распарсить, используем текущее время
-                    from django.utils import timezone
-                    date_end = timezone.now()
+            date_end = self.cleaned_data.get('date_end')
             
             # Используем сервис для закрытия через команды
             success = service.close_encounter(
