@@ -174,12 +174,25 @@ class EncounterDiagnosisAdvancedView(UpdateView):
     """Представление для расширенной установки диагнозов"""
     model = Encounter
     form_class = EncounterDiagnosisAdvancedForm
-    template_name = 'encounters/diagnosis_advanced_form.html'
+    template_name = 'encounters/diagnosis_form.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['title'] = 'Установить диагнозы'
-        context['patient'] = self.object.patient
+        encounter = self.object
+        
+        # Добавляем информацию о диагнозах
+        main_diagnosis = encounter.diagnoses.filter(diagnosis_type='main').first()
+        complications = encounter.diagnoses.filter(diagnosis_type='complication')
+        comorbidities = encounter.diagnoses.filter(diagnosis_type='comorbidity')
+        
+        context.update({
+            'title': 'Установить диагнозы',
+            'patient': encounter.patient,
+            'encounter': encounter,
+            'main_diagnosis': main_diagnosis,
+            'complications': complications,
+            'comorbidities': comorbidities,
+        })
         return context
 
     def form_valid(self, form):
@@ -195,15 +208,33 @@ class EncounterDiagnosisAdvancedCreateView(LoginRequiredMixin, CreateView):
     """Представление для создания расширенного диагноза"""
     model = EncounterDiagnosis
     form_class = EncounterDiagnosisAdvancedForm
-    template_name = 'encounters/diagnosis_advanced_form.html'
+    template_name = 'encounters/diagnosis_create.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
-        context['encounter'] = encounter
-        context['patient'] = encounter.patient
-        context['title'] = 'Добавить диагноз'
+        
+        # Добавляем информацию о диагнозах
+        main_diagnosis = encounter.diagnoses.filter(diagnosis_type='main').first()
+        complications = encounter.diagnoses.filter(diagnosis_type='complication')
+        comorbidities = encounter.diagnoses.filter(diagnosis_type='comorbidity')
+        
+        context.update({
+            'encounter': encounter,
+            'patient': encounter.patient,
+            'title': 'Добавить диагноз',
+            'main_diagnosis': main_diagnosis,
+            'complications': complications,
+            'comorbidities': comorbidities,
+        })
         return context
+
+    def get_form_kwargs(self):
+        """Передаем encounter в форму, чтобы скрытое поле и queryset были корректными."""
+        kwargs = super().get_form_kwargs()
+        encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
+        kwargs['encounter'] = encounter
+        return kwargs
 
     def form_valid(self, form):
         encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
@@ -212,40 +243,70 @@ class EncounterDiagnosisAdvancedCreateView(LoginRequiredMixin, CreateView):
         return super().form_valid(form)
 
     def get_success_url(self):
-        return reverse('encounters:encounter_detail', kwargs={'pk': self.kwargs['encounter_pk']})
+        return reverse('encounters:encounter_diagnosis_advanced', kwargs={'pk': self.kwargs['encounter_pk']})
 
 
 class EncounterDiagnosisAdvancedUpdateView(LoginRequiredMixin, UpdateView):
     """Представление для редактирования расширенного диагноза"""
     model = EncounterDiagnosis
     form_class = EncounterDiagnosisAdvancedForm
-    template_name = 'encounters/diagnosis_advanced_form.html'
+    template_name = 'encounters/diagnosis_edit.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['encounter'] = self.object.encounter
-        context['patient'] = self.object.encounter.patient
-        context['title'] = 'Редактировать диагноз'
+        encounter = self.object.encounter
+        
+        # Добавляем информацию о диагнозах
+        main_diagnosis = encounter.diagnoses.filter(diagnosis_type='main').first()
+        complications = encounter.diagnoses.filter(diagnosis_type='complication')
+        comorbidities = encounter.diagnoses.filter(diagnosis_type='comorbidity')
+        
+        context.update({
+            'encounter': encounter,
+            'patient': encounter.patient,
+            'title': 'Редактировать диагноз',
+            'main_diagnosis': main_diagnosis,
+            'complications': complications,
+            'comorbidities': comorbidities,
+        })
         return context
 
     def get_success_url(self):
-        return reverse('encounters:encounter_detail', kwargs={'pk': self.object.encounter.pk})
+        return reverse('encounters:encounter_diagnosis_advanced', kwargs={'pk': self.object.encounter.pk})
+
+    def get_form_kwargs(self):
+        """Передаем encounter в форму для корректного hidden-поля."""
+        kwargs = super().get_form_kwargs()
+        kwargs['encounter'] = self.object.encounter
+        return kwargs
 
 
 class EncounterDiagnosisAdvancedDeleteView(LoginRequiredMixin, DeleteView):
     """Представление для удаления расширенного диагноза"""
     model = EncounterDiagnosis
-    template_name = 'encounters/diagnosis_advanced_confirm_delete.html'
+    template_name = 'encounters/diagnosis_confirm_delete.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['encounter'] = self.object.encounter
-        context['patient'] = self.object.encounter.patient
-        context['title'] = 'Удалить диагноз'
+        encounter = self.object.encounter
+        
+        # Добавляем информацию о диагнозах
+        main_diagnosis = encounter.diagnoses.filter(diagnosis_type='main').first()
+        complications = encounter.diagnoses.filter(diagnosis_type='complication')
+        comorbidities = encounter.diagnoses.filter(diagnosis_type='comorbidity')
+        
+        context.update({
+            'encounter': encounter,
+            'patient': encounter.patient,
+            'title': 'Удалить диагноз',
+            'main_diagnosis': main_diagnosis,
+            'complications': complications,
+            'comorbidities': comorbidities,
+        })
         return context
 
     def get_success_url(self):
-        return reverse('encounters:encounter_detail', kwargs={'pk': self.object.encounter.pk})
+        return reverse('encounters:encounter_diagnosis_advanced', kwargs={'pk': self.object.encounter.pk})
 
 
 class EncounterCloseView(LoginRequiredMixin, View):

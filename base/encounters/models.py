@@ -161,10 +161,7 @@ class Encounter(ArchivableModel, models.Model):
             return f"Случай от {self.date_start.strftime('%d.%m.%Y')} — {self.patient.full_name} ({self.get_outcome_display()})"
         return f"Случай от {self.date_start.strftime('%d.%m.%Y')} — {self.patient.full_name}"
     
-    def get_back_url(self):
-        """Возвращает URL для возврата к детальному просмотру случая"""
-        from django.urls import reverse
-        return reverse('encounters:encounter_detail', kwargs={'pk': self.pk})
+
         
     def close_encounter(self, outcome, transfer_department=None):
         """
@@ -279,13 +276,7 @@ class Encounter(ArchivableModel, models.Model):
         """Возвращает основной диагноз"""
         return self.diagnoses.filter(diagnosis_type='main').first()
     
-    def get_complications(self):
-        """Возвращает осложнения"""
-        return self.diagnoses.filter(diagnosis_type='complication')
-    
-    def get_comorbidities(self):
-        """Возвращает сопутствующие диагнозы"""
-        return self.diagnoses.filter(diagnosis_type='comorbidity')
+
     
     def add_diagnosis(self, diagnosis_type, diagnosis=None, custom_diagnosis='', description=''):
         """Добавляет диагноз к случаю"""
