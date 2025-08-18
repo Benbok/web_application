@@ -8,9 +8,13 @@ from django.urls import reverse, reverse_lazy
 from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
+from django.views import View
 
 from .models import ExaminationPlan, ExaminationLabTest, ExaminationInstrumental
 from .forms import ExaminationPlanForm, ExaminationLabTestForm, ExaminationInstrumentalForm
+
+# Импортируем сервис для создания планов обследования
+from .services import ExaminationPlanService
 
 # Импортируем Encounter для специальных URL
 try:
@@ -76,7 +80,31 @@ class OwnerContextMixin:
             self.patient = self.get_patient_from_owner(self.owner)
 
 
-class ExaminationPlanListView(LoginRequiredMixin, ListView):
+class ExaminationPlanQuickCreateView(LoginRequiredMixin, View):
+    """
+    Быстрое создание плана обследования для Encounter:
+    - если планов нет — создается "Основной" со стандартным описанием
+    - если планы есть — перенаправляем на список планов
+    """
+    def get(self, request, *args, **kwargs):
+        from encounters.models import Encounter
+        encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
+        plans_qs = ExaminationPlanService.get_examination_plans(encounter)
+        if plans_qs.exists():
+            return redirect('examination_management:examination_plan_list', encounter_pk=encounter.pk)
+        # создаем основной план
+        plan = ExaminationPlanService.create_examination_plan(
+            owner=encounter,
+            name='Основной',
+            description='Стандартный план обследования',
+            priority='normal',
+            is_active=True,
+            created_by=request.user,
+        )
+        return redirect('examination_management:examination_plan_detail', encounter_pk=encounter.pk, pk=plan.pk)
+
+
+class ExaminationPlanListView(LoginRequiredMixin, OwnerContextMixin, ListView):
     """
     Список планов обследования для владельца
     """
@@ -87,6 +115,7 @@ class ExaminationPlanListView(LoginRequiredMixin, ListView):
     def dispatch(self, request, *args, **kwargs):
         # Проверяем, используем ли мы специальный URL для encounters
         if 'encounter_pk' in self.kwargs:
+            from encounters.models import Encounter
             self.encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
             self.owner = self.encounter
             self.owner_model = 'encounter'
@@ -124,16 +153,13 @@ class ExaminationPlanListView(LoginRequiredMixin, ListView):
         return None
     
     def get_queryset(self):
-        # Используем GenericForeignKey для поиска планов
-        return ExaminationPlan.objects.filter(
-            content_type=ContentType.objects.get_for_model(self.owner),
-            object_id=self.owner.id
-        ).order_by('-created_at')
+        # Используем сервис для получения планов
+        return ExaminationPlanService.get_examination_plans(self.owner).order_by('-created_at')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['owner'] = self.owner
-        context['owner_model'] = self.owner_model
+        context['owner_model'] = self.owner._meta.model_name
         context['patient'] = self.patient
         
         # Добавляем информацию о прогрессе для каждого плана
@@ -150,7 +176,7 @@ class ExaminationPlanListView(LoginRequiredMixin, ListView):
         return context
 
 
-class ExaminationPlanCreateView(LoginRequiredMixin, CreateView):
+class ExaminationPlanCreateView(LoginRequiredMixin, OwnerContextMixin, CreateView):
     """
     Создание плана обследования
     """
@@ -161,12 +187,13 @@ class ExaminationPlanCreateView(LoginRequiredMixin, CreateView):
     def dispatch(self, request, *args, **kwargs):
         # Проверяем, используем ли мы специальный URL для encounters
         if 'encounter_pk' in self.kwargs:
+            from encounters.models import Encounter
             self.encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
             self.owner = self.encounter
             self.owner_model = 'encounter'
             self.patient = self.encounter.patient
         else:
-            # Используем универсальный подход
+            # Используем универсальный подход с OwnerContextMixin
             self.setup_owner_context()
         return super().dispatch(request, *args, **kwargs)
     
@@ -197,23 +224,43 @@ class ExaminationPlanCreateView(LoginRequiredMixin, CreateView):
             return owner.get_patient()
         return None
     
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        # Передаем owner в форму для валидации
+        kwargs['owner'] = self.owner
+        
+        # Устанавливаем initial значения для owner_type и owner_id
+        owner_model_name = self.owner._meta.model_name
+        if owner_model_name == 'patientdepartmentstatus':
+            kwargs['owner_type'] = 'department'
+            kwargs['owner_id'] = self.owner.pk
+        elif owner_model_name == 'encounter':
+            kwargs['owner_type'] = 'encounter'
+            kwargs['owner_id'] = self.owner.pk
+        
+        return kwargs
+    
     def form_valid(self, form):
-        # Устанавливаем владельца через GenericForeignKey
-        form.instance.owner = self.owner
+        # Создаем план обследования через сервис
+        examination_plan = ExaminationPlanService.create_examination_plan(
+            owner=self.owner,
+            name=form.cleaned_data['name'],
+            description=form.cleaned_data['description'],
+            priority=form.cleaned_data['priority'],
+            is_active=form.cleaned_data['is_active'],
+            created_by=self.request.user
+        )
         
-        # Для обратной совместимости, если владелец - это Encounter
-        if isinstance(self.owner, Encounter):
-            form.instance.encounter = self.owner
-        
-        response = super().form_valid(form)
         messages.success(self.request, _('План обследования успешно создан'))
-        return response
+        return redirect('examination_management:plan_detail',
+                       owner_model=self.kwargs['owner_model'],
+                       owner_id=self.kwargs['owner_id'],
+                       pk=examination_plan.pk)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['owner'] = self.owner
-        context['owner_model'] = self.owner_model
-        context['patient'] = self.patient
+        context['owner_model'] = self.owner._meta.model_name
         context['title'] = _('Создать план обследования')
         return context
     
@@ -241,6 +288,16 @@ class ExaminationPlanUpdateView(LoginRequiredMixin, UpdateView):
     model = ExaminationPlan
     form_class = ExaminationPlanForm
     template_name = 'examination_management/plan_form.html'
+    
+    def dispatch(self, request, *args, **kwargs):
+        # Проверяем, используем ли мы специальный URL для encounters
+        if 'encounter_pk' in self.kwargs:
+            from encounters.models import Encounter
+            self.encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
+            self.owner = self.encounter
+            self.owner_model = 'encounter'
+            self.patient = self.encounter.patient
+        return super().dispatch(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -318,6 +375,16 @@ class ExaminationPlanDetailView(LoginRequiredMixin, DetailView):
     template_name = 'examination_management/plan_detail.html'
     context_object_name = 'examination_plan'
     
+    def dispatch(self, request, *args, **kwargs):
+        # Проверяем, используем ли мы специальный URL для encounters
+        if 'encounter_pk' in self.kwargs:
+            from encounters.models import Encounter
+            self.encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
+            self.owner = self.encounter
+            self.owner_model = 'encounter'
+            self.patient = self.encounter.patient
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
@@ -387,6 +454,16 @@ class ExaminationPlanDeleteView(LoginRequiredMixin, DeleteView):
     """
     model = ExaminationPlan
     template_name = 'examination_management/plan_confirm_delete.html'
+    
+    def dispatch(self, request, *args, **kwargs):
+        # Проверяем, используем ли мы специальный URL для encounters
+        if 'encounter_pk' in self.kwargs:
+            from encounters.models import Encounter
+            self.encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
+            self.owner = self.encounter
+            self.owner_model = 'encounter'
+            self.patient = self.encounter.patient
+        return super().dispatch(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

@@ -78,31 +78,18 @@ class EncounterDetailView(LoginRequiredMixin, DetailView):
         })
         
         # Добавляем информацию о планах лечения
-        from treatment_management.models import TreatmentPlan
-        from django.contrib.contenttypes.models import ContentType
-        
-        content_type = ContentType.objects.get_for_model(encounter)
-        treatment_plans = TreatmentPlan.objects.filter(
-            content_type=content_type,
-            object_id=encounter.id
-        )
-        context['treatment_plans'] = treatment_plans
+        try:
+            from treatment_management.models import TreatmentPlan
+            treatment_plans = TreatmentPlan.objects.filter(encounter=encounter)
+            context['treatment_plans'] = treatment_plans
+        except ImportError:
+            # Если приложение treatment_management не установлено
+            context['treatment_plans'] = []
         
         # Добавляем информацию о планах обследования
         try:
             from examination_management.models import ExaminationPlan
             examination_plans = ExaminationPlan.objects.filter(encounter=encounter)
-            
-            # Если планов обследования нет, автоматически создаем "Основной" план
-            if not examination_plans.exists():
-                ExaminationPlan.objects.create(
-                    encounter=encounter,
-                    name='Основной',
-                    description='Автоматически созданный основной план обследования'
-                )
-                # Обновляем queryset после создания
-                examination_plans = ExaminationPlan.objects.filter(encounter=encounter)
-            
             context['examination_plans'] = examination_plans
         except ImportError:
             # Если приложение examination_management не установлено

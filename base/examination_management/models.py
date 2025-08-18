@@ -198,12 +198,38 @@ class ExaminationPlan(BaseExaminationPlan):
             
             if assignment:
                 # Проверяем наличие результатов
-                if hasattr(examination_lab_test, 'lab_test_result') and examination_lab_test.lab_test_result:
-                    return 'completed'
-                return assignment.status
-            return 'not_assigned'
-        except Exception:
-            return 'unknown'
+                from lab_tests.models import LabTestResult
+                has_results = LabTestResult.objects.filter(lab_test_assignment=assignment).exists()
+                
+                return {
+                    'status': assignment.status,
+                    'status_display': assignment.get_status_display(),
+                    'completed_by': assignment.completed_by,
+                    'end_date': assignment.end_date,
+                    'rejection_reason': assignment.rejection_reason,
+                    'assignment_id': assignment.pk,
+                    'has_results': has_results
+                }
+            return {
+                'status': 'not_assigned',
+                'status_display': 'Не назначено',
+                'completed_by': None,
+                'end_date': None,
+                'rejection_reason': None,
+                'assignment_id': None,
+                'has_results': False
+            }
+        except Exception as e:
+            print(f"Ошибка при получении статуса лабораторного исследования: {e}")
+            return {
+                'status': 'unknown',
+                'status_display': 'Неизвестно',
+                'completed_by': None,
+                'end_date': None,
+                'rejection_reason': None,
+                'assignment_id': None,
+                'has_results': False
+            }
     
     def get_instrumental_procedure_status(self, examination_instrumental):
         """
@@ -258,11 +284,11 @@ class ExaminationPlan(BaseExaminationPlan):
         for lab_test in self.lab_tests.all():
             total_items += 1
             status_info = self.get_lab_test_status(lab_test)
-            if status_info == 'completed':
+            if status_info['status'] == 'completed':
                 completed_items += 1
-            elif status_info == 'rejected':
+            elif status_info['status'] == 'rejected':
                 rejected_items += 1
-            elif status_info == 'active':
+            elif status_info['status'] == 'active':
                 active_items += 1
         
         # Подсчитываем инструментальные исследования

@@ -123,6 +123,27 @@ class LabTestResultUpdateView(LoginRequiredMixin, View):
             'result': result
         })
 
+class LabTestResultDeleteView(LoginRequiredMixin, View):
+    template_name = 'lab_tests/result_confirm_delete.html'
+
+    def get(self, request, pk):
+        result = get_object_or_404(LabTestResult, pk=pk)
+        return render(request, self.template_name, { 'result': result })
+
+    def post(self, request, pk):
+        result = get_object_or_404(LabTestResult, pk=pk)
+        assignment = result.lab_test_assignment
+        try:
+            result.delete()
+            # Возвращаем назначение в активное состояние
+            assignment.status = 'active'
+            assignment.end_date = None
+            assignment.save()
+            messages.success(request, 'Результат удалён. Назначение снова активно.')
+        except Exception as e:
+            messages.error(request, f'Не удалось удалить результат: {e}')
+        return redirect('lab_tests:assignment_list')
+
 class LabTestAssignmentRejectView(LoginRequiredMixin, View):
     """
     Представление для браковки лабораторного исследования

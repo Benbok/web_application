@@ -23,20 +23,21 @@ class TreatmentPlanService:
         Returns:
             TreatmentPlan: Созданный план лечения
         """
-        # Определяем тип владельца и устанавливаем соответствующее поле
-        if hasattr(owner, 'patient'):  # PatientDepartmentStatus
+        # Определяем тип владельца по имени модели и устанавливаем соответствующее поле
+        owner_model_name = owner._meta.model_name if hasattr(owner, '_meta') else None
+        if owner_model_name == 'patientdepartmentstatus':
             treatment_plan = TreatmentPlan.objects.create(
                 patient_department_status=owner,
                 name=name,
                 description=description,
-                created_by=created_by or (owner.accepted_by if hasattr(owner, 'accepted_by') else None)
+                created_by=created_by or (getattr(owner, 'accepted_by', None))
             )
-        elif hasattr(owner, 'patient_id'):  # Encounter
+        elif owner_model_name == 'encounter':
             treatment_plan = TreatmentPlan.objects.create(
                 encounter=owner,
                 name=name,
                 description=description,
-                created_by=created_by or (owner.doctor if hasattr(owner, 'doctor') else None)
+                created_by=created_by or (getattr(owner, 'doctor', None))
             )
         else:
             # Для обратной совместимости используем GenericForeignKey
@@ -62,10 +63,11 @@ class TreatmentPlanService:
         Returns:
             QuerySet: Планы лечения
         """
-        # Определяем тип владельца и используем соответствующее поле
-        if hasattr(owner, 'patient'):  # PatientDepartmentStatus
+        # Определяем тип владельца по имени модели и используем соответствующее поле
+        owner_model_name = owner._meta.model_name if hasattr(owner, '_meta') else None
+        if owner_model_name == 'patientdepartmentstatus':
             return TreatmentPlan.objects.filter(patient_department_status=owner)
-        elif hasattr(owner, 'patient_id'):  # Encounter
+        elif owner_model_name == 'encounter':
             return TreatmentPlan.objects.filter(encounter=owner)
         else:
             # Для обратной совместимости используем GenericForeignKey
@@ -527,5 +529,7 @@ class TreatmentRecommendationService:
                     'duration': first_instruction.get('duration', ''),
                     'notes': recommendation.get('notes', '')
                 })
+        
+        return grouped_recommendations 
         
         return grouped_recommendations 

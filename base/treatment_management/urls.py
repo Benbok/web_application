@@ -12,6 +12,11 @@ urlpatterns = [
     path('<str:owner_model>/<int:owner_id>/plans/create/', 
          views.TreatmentPlanCreateView.as_view(), 
          name='plan_create'),
+
+    # Быстрое создание/открытие основного плана для encounter
+    path('encounters/<int:encounter_pk>/plans/quick/',
+         views.TreatmentPlanQuickCreateView.as_view(),
+         name='plan_quick'),
     
     path('<str:owner_model>/<int:owner_id>/plans/<int:pk>/', 
          views.TreatmentPlanDetailView.as_view(), 

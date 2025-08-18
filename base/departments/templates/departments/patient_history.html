@@ -632,22 +632,24 @@
 
                 <hr class="my-5">
 
-                <!-- Планы лечения -->
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="fas fa-clipboard-list me-2"></i>Планы лечения
-                        </h5>
-                        <div class="d-flex gap-2">
-                            <a href="{% url 'treatment_management:plan_create' owner_model='patientdepartmentstatus' owner_id=patient_status.pk %}" class="btn btn-light btn-sm">
-                                <i class="fas fa-plus me-1"></i>Создать план
-                            </a>
-                            <a href="{% url 'treatment_management:plan_list' owner_model='patientdepartmentstatus' owner_id=patient_status.pk %}" class="btn btn-outline-light btn-sm">
-                                <i class="fas fa-list me-1"></i>Все планы
-                            </a>
-                            <span class="badge bg-primary">{{ treatment_plans_page_obj.paginator.count }}</span>
-                        </div>
-                    </div>
+                                 <!-- Планы лечения -->
+                 <div class="card shadow-sm mb-4">
+                     <div class="card-header">
+                         <div class="d-flex justify-content-between align-items-center">
+                             <h5 class="mb-0">
+                                 <i class="fas fa-clipboard-list me-2"></i>Планы лечения
+                             </h5>
+                             <div class="d-flex gap-2">
+                                 <a href="{% url 'treatment_management:plan_create' owner_model='patientdepartmentstatus' owner_id=patient_status.pk %}" class="btn btn-light btn-sm">
+                                     <i class="fas fa-plus me-1"></i>Создать план
+                                 </a>
+                                 <a href="{% url 'treatment_management:plan_list' owner_model='patientdepartmentstatus' owner_id=patient_status.pk %}" class="btn btn-outline-light btn-sm">
+                                     <i class="fas fa-list me-1"></i>Все планы
+                                 </a>
+                                 <span class="badge bg-primary">{{ treatment_plans_page_obj.paginator.count }}</span>
+                             </div>
+                         </div>
+                     </div>
                     <div class="card-body">
                         {% if treatment_plans_page_obj %}
                             <div class="list-group list-group-flush">
@@ -722,22 +724,24 @@
                     </div>
                 </div>
 
-                <!-- Планы обследования -->
-                <div id="examination-plans" class="card shadow-sm mb-4">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="fas fa-microscope me-2"></i>Планы обследования
-                        </h5>
-                        <div class="d-flex gap-2">
-                            <a href="{% url 'examination_management:plan_create' owner_model='patientdepartmentstatus' owner_id=patient_status.pk %}" class="btn btn-light btn-sm">
-                                <i class="fas fa-plus me-1"></i>Создать план
-                            </a>
-                            <a href="{% url 'examination_management:plan_list' owner_model='patientdepartmentstatus' owner_id=patient_status.pk %}" class="btn btn-outline-dark btn-sm">
-                                <i class="fas fa-list me-1"></i>Все планы
-                            </a>
-                            <span class="badge bg-primary">{{ examination_plans_page_obj.paginator.count }}</span>
-                        </div>
-                    </div>
+                                 <!-- Планы обследования -->
+                 <div id="examination-plans" class="card shadow-sm mb-4">
+                     <div class="card-header">
+                         <div class="d-flex justify-content-between align-items-center">
+                             <h5 class="mb-0">
+                                 <i class="fas fa-microscope me-2"></i>Планы обследования
+                             </h5>
+                             <div class="d-flex gap-2">
+                                 <a href="{% url 'examination_management:plan_create' owner_model='patientdepartmentstatus' owner_id=patient_status.pk %}" class="btn btn-light btn-sm">
+                                     <i class="fas fa-plus me-1"></i>Создать план
+                                 </a>
+                                 <a href="{% url 'examination_management:plan_list' owner_model='patientdepartmentstatus' owner_id=patient_status.pk %}" class="btn btn-outline-dark btn-sm">
+                                     <i class="fas fa-list me-1"></i>Все планы
+                                 </a>
+                                 <span class="badge bg-primary">{{ examination_plans_page_obj.paginator.count }}</span>
+                             </div>
+                         </div>
+                     </div>
                     <div class="card-body">
                         {% if examination_plans_page_obj %}
                             <div class="list-group list-group-flush">

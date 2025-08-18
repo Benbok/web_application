@@ -129,12 +129,6 @@ class TreatmentPlanListView(LoginRequiredMixin, OwnerContextMixin, ListView):
         context['owner_model'] = self.owner._meta.model_name
         context['patient'] = self.patient
         
-        # Автоматически создаем основной план лечения, если его нет
-        if not self.object_list.exists():
-            TreatmentPlan.get_or_create_main_plan(self.owner)
-            # Обновляем queryset
-            self.object_list = TreatmentPlanService.get_treatment_plans(self.owner)
-        
         # Получаем рекомендации по лечению (если есть диагноз)
         if hasattr(self.owner, 'get_main_diagnosis_for_recommendations'):
             main_diagnosis = self.owner.get_main_diagnosis_for_recommendations()
@@ -273,6 +267,21 @@ class TreatmentPlanDeleteView(LoginRequiredMixin, OwnerContextMixin, DeleteView)
                            'owner_model': owner._meta.model_name if owner is not None else 'unknown',
                            'owner_id': owner.id if owner is not None else 0
                        })
+
+    def delete(self, request, *args, **kwargs):
+        """Переопределяем метод delete для логирования"""
+        self.object = self.get_object()
+        print(f"DEBUG: Удаляем план лечения {self.object.pk} - {self.object.name}")
+        
+        try:
+            result = super().delete(request, *args, **kwargs)
+            print(f"DEBUG: План лечения успешно удален")
+            messages.success(request, _('План лечения успешно удален'))
+            return result
+        except Exception as e:
+            print(f"DEBUG: Ошибка при удалении: {e}")
+            messages.error(request, f'Ошибка при удалении плана лечения: {str(e)}')
+            raise
 
 
 class TreatmentMedicationCreateView(LoginRequiredMixin, OwnerContextMixin, CreateView):
@@ -776,4 +785,25 @@ class TreatmentRecommendationDeleteView(LoginRequiredMixin, DeleteView):
                           'owner_model': self.object.treatment_plan.owner._meta.model_name,
                           'owner_id': self.object.treatment_plan.owner.id,
                           'pk': self.object.treatment_plan.pk
-        })
+                      })
+
+
+class TreatmentPlanQuickCreateView(LoginRequiredMixin, View):
+	"""
+	Быстрое создание плана лечения для Encounter:
+	- если планы есть — перейти к списку планов
+	- если планов нет — создать "Основной" и перейти на его детальную страницу
+	"""
+	def get(self, request, *args, **kwargs):
+		from encounters.models import Encounter
+		encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
+		plans_qs = TreatmentPlanService.get_treatment_plans(encounter)
+		if plans_qs.exists():
+			return redirect('treatment_management:plan_list', owner_model='encounter', owner_id=encounter.pk)
+		plan = TreatmentPlanService.create_treatment_plan(
+			owner=encounter,
+			name='Основной',
+			description='Стандартный план лечения',
+			created_by=request.user,
+		)
+		return redirect('treatment_management:plan_detail', owner_model='encounter', owner_id=encounter.pk, pk=plan.pk)

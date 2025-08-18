@@ -13,6 +13,11 @@ urlpatterns = [
          views.ExaminationPlanCreateView.as_view(), 
          name='examination_plan_create'),
     
+    # Быстрое создание/открытие основного плана для encounter
+    path('encounters/<int:encounter_pk>/plans/quick/',
+         views.ExaminationPlanQuickCreateView.as_view(),
+         name='examination_plan_quick'),
+    
     path('encounters/<int:encounter_pk>/plans/<int:pk>/', 
          views.ExaminationPlanDetailView.as_view(), 
          name='examination_plan_detail'),

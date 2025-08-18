@@ -46,10 +46,10 @@
                             <button type="submit" class="btn btn-danger">
                                 <i class="fas fa-trash"></i> Удалить план лечения
                             </button>
-                                                <a href="{% url 'treatment_management:plan_detail' owner_model=owner_model owner_id=owner.id pk=object.pk %}" 
-                       class="btn btn-secondary">
-                        <i class="fas fa-times"></i> Отмена
-                    </a>
+                            <a href="{% url 'treatment_management:plan_detail' owner_model=owner_model owner_id=owner.id pk=object.pk %}" 
+                               class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Отмена
+                            </a>
                         </div>
                     </form>
                 </div>

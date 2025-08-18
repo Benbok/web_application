@@ -59,8 +59,43 @@
                             {% endif %}
                         </div>
                         
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.priority.id_for_label }}" class="form-label">
+                                        {{ form.priority.label }}
+                                    </label>
+                                    {{ form.priority }}
+                                    {% if form.priority.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.priority.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        {{ form.is_active }}
+                                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                            {{ form.is_active.label }}
+                                        </label>
+                                    </div>
+                                    {% if form.is_active.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.is_active.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="d-flex justify-content-between">
-                            <a href="{% if object %}{% url 'examination_management:examination_plan_detail' encounter_pk=object.encounter.pk pk=object.pk %}{% else %}{% url 'examination_management:examination_plan_list' encounter_pk=owner.pk %}{% endif %}" 
+                            <a href="{% if object %}{% url 'examination_management:plan_detail' owner_model=owner_model owner_id=owner.id pk=object.pk %}{% else %}{% url 'examination_management:plan_list' owner_model=owner_model owner_id=owner.id %}{% endif %}" 
                                class="btn btn-secondary">
                                 <i class="fas fa-arrow-left me-1"></i> Назад
                             </a>

@@ -81,32 +81,32 @@
             {% endif %}
             
             {% comment %} Блок прогресса выполнения плана {% endcomment %}
-            {% if progress.total > 0 %}
+            {% if progress and progress.total > 0 %}
             <div class="mb-3">
                 <h6 class="card-subtitle mb-2 text-muted">Прогресс выполнения:</h6>
                 <div class="row">
                     <div class="col-md-8">
                         <div class="progress mb-2" style="height: 25px;">
                             <div class="progress-bar bg-success" role="progressbar" 
-                                 style="width: {{ progress.percentage }}%" 
-                                 aria-valuenow="{{ progress.percentage }}" 
+                                 style="width: {{ progress.percentage|default:0 }}%" 
+                                 aria-valuenow="{{ progress.percentage|default:0 }}" 
                                  aria-valuemin="0" 
                                  aria-valuemax="100">
-                                {{ progress.percentage }}%
+                                {{ progress.percentage|default:0 }}%
                             </div>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="d-flex flex-column">
                             <small class="text-success">
-                                <i class="fas fa-check-circle me-1"></i>Выполнено: {{ progress.completed }}/{{ progress.total }}
+                                <i class="fas fa-check-circle me-1"></i>Выполнено: {{ progress.completed|default:0 }}/{{ progress.total }}
                             </small>
-                            {% if progress.rejected > 0 %}
+                            {% if progress.rejected and progress.rejected > 0 %}
                             <small class="text-danger">
                                 <i class="fas fa-times-circle me-1"></i>Забраковано: {{ progress.rejected }}
                             </small>
                             {% endif %}
-                            {% if progress.active > 0 %}
+                            {% if progress.active and progress.active > 0 %}
                             <small class="text-primary">
                                 <i class="fas fa-clock me-1"></i>В работе: {{ progress.active }}
                             </small>
@@ -133,6 +133,21 @@
                         <span class="badge bg-secondary fs-6">
                             <i class="fas fa-hourglass-start me-1"></i>План ожидает выполнения
                         </span>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div class="mb-3">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Прогресс выполнения:</strong> 
+                    {% if progress %}
+                        Всего исследований: {{ progress.total|default:0 }}, 
+                        Выполнено: {{ progress.completed|default:0 }}, 
+                        Забраковано: {{ progress.rejected|default:0 }}, 
+                        В работе: {{ progress.active|default:0 }}
+                    {% else %}
+                        Данные прогресса недоступны
                     {% endif %}
                 </div>
             </div>
@@ -165,7 +180,7 @@
                             <div class="d-flex justify-content-between align-items-start">
                                 <div class="flex-grow-1">
                                     <h6 class="mb-1">
-                                        {% if status_info.status != 'active' %}
+                                        {% if status_info.status != 'active' and status_info.has_results %}
                                             <i class="fas fa-lock text-muted me-2" title="Исследование заблокировано для редактирования"></i>
                                         {% endif %}
                                         {{ lab_test.lab_test.name }}
@@ -260,16 +275,29 @@
                                        class="btn btn-outline-info btn-sm">
                                         <i class="fas fa-eye me-1"></i> Просмотреть результат
                                     </a>
-                                {% elif status_info.status == 'completed' %}
+                                {% elif status_info.status == 'completed' and not status_info.has_results %}
                                     <span class="btn btn-outline-secondary btn-sm disabled" 
                                           title="Исследование завершено без результатов. Редактирование недоступно.">
                                         <i class="fas fa-lock me-1"></i> Завершено
                                     </span>
-                                {% elif status_info.status == 'rejected' %}
+                                    <a href="{% url 'examination_management:lab_test_delete' pk=lab_test.pk %}" 
+                                       class="btn btn-outline-danger btn-sm">
+                                        <i class="fas fa-trash me-1"></i> Удалить
+                                    </a>
+                                {% elif status_info.status == 'rejected' and not status_info.has_results %}
                                     <span class="btn btn-outline-secondary btn-sm disabled" 
-                                          title="Исследование забраковано. Редактирование недоступно.">
+                                          title="Исследование забраковано без результатов. Редактирование недоступно.">
                                         <i class="fas fa-lock me-1"></i> Забраковано
                                     </span>
+                                    <a href="{% url 'examination_management:lab_test_delete' pk=lab_test.pk %}" 
+                                       class="btn btn-outline-danger btn-sm">
+                                        <i class="fas fa-trash me-1"></i> Удалить
+                                    </a>
+                                {% elif not status_info.has_results %}
+                                    <a href="{% url 'examination_management:lab_test_delete' pk=lab_test.pk %}" 
+                                       class="btn btn-outline-danger btn-sm">
+                                        <i class="fas fa-trash me-1"></i> Удалить
+                                    </a>
                                 {% else %}
                                     <span class="btn btn-outline-secondary btn-sm disabled" 
                                           title="Исследование заблокировано для редактирования.">

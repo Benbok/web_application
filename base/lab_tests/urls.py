@@ -4,7 +4,8 @@ from .views import (
     LabTestResultCreateView,
     LabTestResultDetailView,
     LabTestResultUpdateView,
-    LabTestAssignmentRejectView
+    LabTestAssignmentRejectView,
+    LabTestResultDeleteView
 )
 
 app_name = 'lab_tests'
@@ -15,4 +16,5 @@ urlpatterns = [
     path('assignments/<int:pk>/reject/', LabTestAssignmentRejectView.as_view(), name='assignment_reject'),
     path('results/<int:pk>/', LabTestResultDetailView.as_view(), name='result_detail'),
     path('results/<int:pk>/update/', LabTestResultUpdateView.as_view(), name='result_update'),
+    path('results/<int:pk>/delete/', LabTestResultDeleteView.as_view(), name='result_delete'),
 ]

@@ -49,6 +49,7 @@ class ExaminationPlanForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
+        self.owner = kwargs.pop('owner', None)
         owner_type = kwargs.pop('owner_type', None)
         owner_id = kwargs.pop('owner_id', None)
         super().__init__(*args, **kwargs)
@@ -68,6 +69,13 @@ class ExaminationPlanForm(forms.ModelForm):
         if self.instance.pk:
             self.fields['patient_department_status'].required = False
             self.fields['encounter'].required = False
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        # Устанавливаем owner для валидации (для обратной совместимости)
+        if self.owner:
+            self.instance.owner = self.owner
+        return cleaned_data
 
 
 class ExaminationLabTestForm(forms.ModelForm):
