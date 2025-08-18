@@ -34,7 +34,9 @@ class PatientDepartmentStatus(ArchivableModel, models.Model):
         ('transfer_cancelled', 'Перевод отменен'),
     ]
 
-    documents = GenericRelation('documents.ClinicalDocument')
+    # Убираем GenericRelation - теперь используются прямые связи
+    # documents = GenericRelation('documents.ClinicalDocument')  # ❌ УБРАТЬ
+    
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='department_statuses', verbose_name="Пациент")
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='patients_in_department', verbose_name="Отделение")
     status = models.CharField("Статус в отделении", max_length=20, choices=STATUS_CHOICES, default='pending')

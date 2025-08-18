@@ -5,101 +5,172 @@ from django.utils.translation import gettext_lazy as _
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from django.urls import reverse
+from django.core.exceptions import ValidationError
+from django.conf import settings
+from django.db.models import Q
 from encounters.models import Encounter
 from lab_tests.models import LabTestDefinition
 from instrumental_procedures.models import InstrumentalProcedureDefinition
 
 
-class ExaminationPlan(models.Model):
-    """
-    Универсальный план обследования, который может быть привязан к любому объекту
-    (encounter, department_stay, etc.)
-    """
-    PRIORITY_CHOICES = [
-        ('normal', _('Обычный')),
-        ('urgent', _('Срочный')),
-        ('emergency', _('Экстренный')),
-    ]
+class BaseExaminationPlan(models.Model):
+    """Базовый класс для планов обследования с поддержкой двух типов связей"""
     
-    name = models.CharField(_('Название плана'), max_length=255)
-    description = models.TextField(_('Описание'), blank=True)
+    # Прямые связи для departments
+    patient_department_status = models.ForeignKey(
+        'departments.PatientDepartmentStatus',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='examination_plans',
+        verbose_name=_('Статус пациента в отделении')
+    )
     
-    # GenericForeignKey для связи с любым объектом (как в treatment_management)
+    # Прямая связь для encounters
+    encounter = models.ForeignKey(
+        'encounters.Encounter',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='examination_plans',
+        verbose_name=_('Случай обращения')
+    )
+    
+    # GenericForeignKey для обратной совместимости и гибкости
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
     object_id = models.PositiveIntegerField(null=True, blank=True)
     owner = GenericForeignKey('content_type', 'object_id')
     
-    # Оставляем encounter для обратной совместимости
-    encounter = models.ForeignKey(
-        Encounter, 
-        on_delete=models.CASCADE, 
-        null=True, 
-        blank=True,
-        verbose_name=_('Случай обращения'),
-        related_name='examination_plans'
-    )
-    
+    # Общие поля
+    name = models.CharField(_('Название плана'), max_length=255)
+    description = models.TextField(_('Описание'), blank=True)
     priority = models.CharField(
         _('Приоритет'), 
         max_length=20, 
-        choices=PRIORITY_CHOICES, 
+        choices=[
+            ('normal', _('Обычный')),
+            ('urgent', _('Срочный')),
+            ('emergency', _('Экстренный')),
+        ], 
         default='normal'
     )
     is_active = models.BooleanField(_('Активен'), default=True)
     created_at = models.DateTimeField(_('Создан'), auto_now_add=True)
     updated_at = models.DateTimeField(_('Обновлен'), auto_now=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        verbose_name=_('Создатель плана')
+    )
+    
+    class Meta:
+        abstract = True
+        constraints = [
+            # Обеспечиваем, что заполнен только один тип связи
+            models.CheckConstraint(
+                check=(
+                    models.Q(patient_department_status__isnull=False, encounter__isnull=True, content_type__isnull=True) |
+                    models.Q(patient_department_status__isnull=True, encounter__isnull=False, content_type__isnull=True) |
+                    models.Q(patient_department_status__isnull=True, encounter__isnull=True, content_type__isnull=False)
+                ),
+                name='single_owner_constraint'
+            )
+        ]
+    
+    def clean(self):
+        """Проверяем, что указан только один тип владельца"""
+        owners = [
+            bool(self.patient_department_status),
+            bool(self.encounter),
+            bool(self.owner)
+        ]
+        if sum(owners) != 1:
+            raise ValidationError("Должен быть указан ровно один тип владельца")
+    
+    def get_owner_display(self):
+        """Возвращает читаемое представление владельца"""
+        if self.patient_department_status:
+            return f"Отделение: {self.patient_department_status.department.name}"
+        elif self.encounter:
+            return f"Случай: {self.encounter.patient.full_name}"
+        elif self.owner:
+            if hasattr(self.owner, 'get_display_name'):
+                return self.owner.get_display_name()
+            return str(self.owner)
+        return "Неизвестно"
+    
+    def get_owner_model_name(self):
+        """Возвращает имя модели владельца для использования в шаблонах"""
+        if self.patient_department_status:
+            return 'patientdepartmentstatus'
+        elif self.encounter:
+            return 'encounter'
+        elif self.owner:
+            return self.owner._meta.model_name
+        return 'unknown'
+    
+    @classmethod
+    def get_or_create_main_plan(cls, owner_type, owner_id, owner_model=None):
+        """
+        Получает или создает основной план обследования для указанного владельца
+        
+        Args:
+            owner_type: 'department', 'encounter', или 'generic'
+            owner_id: ID владельца
+            owner_model: модель для GenericForeignKey (если owner_type == 'generic')
+        """
+        if owner_type == 'department':
+            from departments.models import PatientDepartmentStatus
+            owner = PatientDepartmentStatus.objects.get(pk=owner_id)
+            plan, created = cls.objects.get_or_create(
+                patient_department_status=owner,
+                name="Основной",
+                defaults={'description': 'Основной план обследования'}
+            )
+        elif owner_type == 'encounter':
+            from encounters.models import Encounter
+            owner = Encounter.objects.get(pk=owner_id)
+            plan, created = cls.objects.get_or_create(
+                encounter=owner,
+                name="Основной",
+                defaults={'description': 'Основной план обследования'}
+            )
+        elif owner_type == 'generic' and owner_model:
+            content_type = ContentType.objects.get_for_model(owner_model)
+            owner = content_type.model_class().objects.get(pk=owner_id)
+            plan, created = cls.objects.get_or_create(
+                content_type=content_type,
+                object_id=owner_id,
+                name="Основной",
+                defaults={'description': 'Основной план обследования'}
+            )
+        else:
+            raise ValueError("Неверный тип владельца")
+        
+        return plan, created
+
+
+class ExaminationPlan(BaseExaminationPlan):
+    """План обследования с поддержкой двух типов связей"""
     
     class Meta:
         verbose_name = _('План обследования')
         verbose_name_plural = _('Планы обследования')
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['patient_department_status', 'created_at']),
+            models.Index(fields=['encounter', 'created_at']),
+            models.Index(fields=['content_type', 'object_id', 'created_at']),
+        ]
     
     def __str__(self):
-        if self.owner:
-            return f"{self.name} ({self.owner})"
-        elif self.encounter:
-            return f"{self.name} - {self.encounter.patient.full_name}"
-        return self.name
+        owner_info = self.get_owner_display()
+        return f"{self.name} ({owner_info})"
     
     def get_absolute_url(self):
         return reverse('examination_management:plan_detail', kwargs={'pk': self.pk})
-    
-    def get_owner_display(self):
-        """Возвращает читаемое представление владельца"""
-        if self.owner:
-            if hasattr(self.owner, 'get_display_name'):
-                return self.owner.get_display_name()
-            return str(self.owner)
-        elif self.encounter:
-            return f"Случай: {self.encounter.patient.full_name}"
-        return "Неизвестно"
-    
-    def get_owner_model_name(self):
-        """Возвращает имя модели владельца для использования в шаблонах"""
-        if self.owner:
-            return self.owner._meta.model_name
-        elif self.encounter:
-            return 'encounter'
-        return 'unknown'
-    
-    @classmethod
-    def get_or_create_main_plan(cls, owner):
-        """
-        Получает или создает основной план обследования для указанного владельца
-        """
-        content_type = ContentType.objects.get_for_model(owner)
-        
-        # Пытаемся найти существующий основной план
-        main_plan, created = cls.objects.get_or_create(
-            content_type=content_type,
-            object_id=owner.id,
-            name="Основной план обследования",
-            defaults={
-                'description': 'Основной план обследования'
-            }
-        )
-        
-        return main_plan, created
     
     @property
     def lab_tests(self):
@@ -127,29 +198,12 @@ class ExaminationPlan(models.Model):
             
             if assignment:
                 # Проверяем наличие результатов
-                has_results = assignment.results.exists()
-                
-                return {
-                    'status': assignment.status,
-                    'status_display': assignment.get_status_display(),
-                    'completed_by': assignment.completed_by,
-                    'end_date': assignment.end_date,
-                    'rejection_reason': assignment.rejection_reason,
-                    'assignment_id': assignment.pk,
-                    'has_results': has_results
-                }
-        except Exception as e:
-            print(f"Ошибка при получении статуса лабораторного исследования: {e}")
-        
-        return {
-            'status': 'unknown',
-            'status_display': 'Неизвестно',
-            'completed_by': None,
-            'end_date': None,
-            'rejection_reason': None,
-            'assignment_id': None,
-            'has_results': False
-        }
+                if hasattr(examination_lab_test, 'lab_test_result') and examination_lab_test.lab_test_result:
+                    return 'completed'
+                return assignment.status
+            return 'not_assigned'
+        except Exception:
+            return 'unknown'
     
     def get_instrumental_procedure_status(self, examination_instrumental):
         """
@@ -204,11 +258,11 @@ class ExaminationPlan(models.Model):
         for lab_test in self.lab_tests.all():
             total_items += 1
             status_info = self.get_lab_test_status(lab_test)
-            if status_info['status'] == 'completed':
+            if status_info == 'completed':
                 completed_items += 1
-            elif status_info['status'] == 'rejected':
+            elif status_info == 'rejected':
                 rejected_items += 1
-            elif status_info['status'] == 'active':
+            elif status_info == 'active':
                 active_items += 1
         
         # Подсчитываем инструментальные исследования
@@ -257,13 +311,15 @@ class ExaminationPlan(models.Model):
         """
         Получает пациента из владельца плана
         """
-        if self.owner:
+        if self.patient_department_status:
+            return self.patient_department_status.patient
+        elif self.encounter:
+            return self.encounter.patient
+        elif self.owner:
             if hasattr(self.owner, 'patient'):
                 return self.owner.patient
             elif hasattr(self.owner, 'get_patient'):
                 return self.owner.get_patient()
-        elif self.encounter:
-            return self.encounter.patient
         return None
 
 

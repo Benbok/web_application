@@ -11,11 +11,29 @@ class TreatmentPlanForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         self.owner = kwargs.pop('owner', None)
+        owner_type = kwargs.pop('owner_type', None)
+        owner_id = kwargs.pop('owner_id', None)
         super().__init__(*args, **kwargs)
+        
+        # Скрываем поля владельца, если они переданы
+        if owner_type and owner_id:
+            if owner_type == 'department':
+                self.fields['patient_department_status'].initial = owner_id
+                self.fields['encounter'].widget = forms.HiddenInput()
+                self.fields['created_by'].widget = forms.HiddenInput()
+            elif owner_type == 'encounter':
+                self.fields['encounter'].initial = owner_id
+                self.fields['patient_department_status'].widget = forms.HiddenInput()
+                self.fields['created_by'].widget = forms.HiddenInput()
+        
+        # Делаем поля владельца необязательными для редактирования
+        if self.instance.pk:
+            self.fields['patient_department_status'].required = False
+            self.fields['encounter'].required = False
     
     class Meta:
         model = TreatmentPlan
-        fields = ['name', 'description']
+        fields = ['name', 'description', 'patient_department_status', 'encounter', 'created_by']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -25,16 +43,28 @@ class TreatmentPlanForm(forms.ModelForm):
                 'class': 'form-control',
                 'rows': 3,
                 'placeholder': _('Описание плана лечения (необязательно)')
+            }),
+            'patient_department_status': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'encounter': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'created_by': forms.Select(attrs={
+                'class': 'form-select'
             })
         }
         labels = {
             'name': _('Название плана'),
-            'description': _('Описание')
+            'description': _('Описание'),
+            'patient_department_status': _('Статус пациента в отделении'),
+            'encounter': _('Случай обращения'),
+            'created_by': _('Создатель плана')
         }
     
     def clean(self):
         cleaned_data = super().clean()
-        # Устанавливаем owner для валидации
+        # Устанавливаем owner для валидации (для обратной совместимости)
         if self.owner:
             self.instance.owner = self.owner
         return cleaned_data

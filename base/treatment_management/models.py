@@ -3,65 +3,168 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
+from django.conf import settings
+from django.db.models import Q
 from pharmacy.models import Medication
 
 
-class TreatmentPlan(models.Model):
-    """
-    Универсальный план лечения, который может быть привязан к любому объекту
-    (encounter, department_stay, etc.)
-    """
+class BaseTreatmentPlan(models.Model):
+    """Базовый класс для планов лечения с поддержкой двух типов связей"""
+    
+    # Прямые связи для departments
+    patient_department_status = models.ForeignKey(
+        'departments.PatientDepartmentStatus',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='treatment_plans',
+        verbose_name=_('Статус пациента в отделении')
+    )
+    
+    # Прямая связь для encounters
+    encounter = models.ForeignKey(
+        'encounters.Encounter',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='treatment_plans',
+        verbose_name=_('Случай обращения')
+    )
+    
+    # GenericForeignKey для обратной совместимости
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
+    object_id = models.PositiveIntegerField(null=True, blank=True)
+    owner = GenericForeignKey('content_type', 'object_id')
+    
+    # Общие поля
     name = models.CharField(_("Название плана"), max_length=200)
     description = models.TextField(_("Описание"), blank=True)
     created_at = models.DateTimeField(_("Дата создания"), auto_now_add=True)
     updated_at = models.DateTimeField(_("Дата обновления"), auto_now=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("Создатель плана")
+    )
     
-    # GenericForeignKey для связи с любым объектом
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    object_id = models.PositiveIntegerField()
-    owner = GenericForeignKey('content_type', 'object_id')
+    class Meta:
+        abstract = True
+        constraints = [
+            models.CheckConstraint(
+                check=(
+                    models.Q(patient_department_status__isnull=False, encounter__isnull=True, content_type__isnull=True) |
+                    models.Q(patient_department_status__isnull=True, encounter__isnull=False, content_type__isnull=True) |
+                    models.Q(patient_department_status__isnull=True, encounter__isnull=True, content_type__isnull=False)
+                ),
+                name='single_owner_constraint_treatment'
+            )
+        ]
+    
+    def clean(self):
+        """Проверяем, что указан только один тип владельца"""
+        owners = [
+            bool(self.patient_department_status),
+            bool(self.encounter),
+            bool(self.owner)
+        ]
+        if sum(owners) != 1:
+            raise ValidationError("Должен быть указан ровно один тип владельца")
+    
+    def get_owner_display(self):
+        """Возвращает читаемое представление владельца"""
+        if self.patient_department_status:
+            return f"Отделение: {self.patient_department_status.department.name}"
+        elif self.encounter:
+            return f"Случай: {self.encounter.patient.full_name}"
+        elif self.owner:
+            if hasattr(self.owner, 'get_display_name'):
+                return self.owner.get_display_name()
+            return str(self.owner)
+        return "Неизвестно"
+    
+    def get_owner_model_name(self):
+        """Возвращает имя модели владельца для использования в шаблонах"""
+        if self.patient_department_status:
+            return 'patientdepartmentstatus'
+        elif self.encounter:
+            return 'encounter'
+        elif self.owner:
+            return self.owner._meta.model_name
+        return 'unknown'
+    
+    @classmethod
+    def get_or_create_main_plan(cls, owner_type, owner_id, owner_model=None):
+        """
+        Получает или создает основной план лечения для указанного владельца
+        
+        Args:
+            owner_type: 'department', 'encounter', или 'generic'
+            owner_id: ID владельца
+            owner_model: модель для GenericForeignKey (если owner_type == 'generic')
+        """
+        if owner_type == 'department':
+            from departments.models import PatientDepartmentStatus
+            owner = PatientDepartmentStatus.objects.get(pk=owner_id)
+            plan, created = cls.objects.get_or_create(
+                patient_department_status=owner,
+                name="Основной",
+                defaults={'description': 'Основной план лечения'}
+            )
+        elif owner_type == 'encounter':
+            from encounters.models import Encounter
+            owner = Encounter.objects.get(pk=owner_id)
+            plan, created = cls.objects.get_or_create(
+                encounter=owner,
+                name="Основной",
+                defaults={'description': 'Основной план лечения'}
+            )
+        elif owner_type == 'generic' and owner_model:
+            content_type = ContentType.objects.get_for_model(owner_model)
+            owner = content_type.model_class().objects.get(pk=owner_id)
+            plan, created = cls.objects.get_or_create(
+                content_type=content_type,
+                object_id=owner_id,
+                name="Основной",
+                defaults={'description': 'Основной план лечения'}
+            )
+        else:
+            raise ValueError("Неверный тип владельца")
+        
+        return plan, created
+
+
+class TreatmentPlan(BaseTreatmentPlan):
+    """План лечения с поддержкой двух типов связей"""
     
     class Meta:
         verbose_name = _("План лечения")
         verbose_name_plural = _("Планы лечения")
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['patient_department_status', 'created_at']),
+            models.Index(fields=['encounter', 'created_at']),
+            models.Index(fields=['content_type', 'object_id', 'created_at']),
+        ]
     
     def __str__(self):
-        return f"{self.name} ({self.owner})"
+        owner_info = self.get_owner_display()
+        return f"{self.name} ({owner_info})"
     
     def clean(self):
         """Проверка, что owner существует"""
-        if not self.owner:
+        super().clean()
+        if not self.patient_department_status and not self.encounter and not self.owner:
             raise ValidationError(_("Владелец плана лечения должен быть указан"))
     
     def get_owner_display(self):
         """Возвращает читаемое представление владельца"""
-        if hasattr(self.owner, 'get_display_name'):
-            return self.owner.get_display_name()
-        return str(self.owner)
+        return super().get_owner_display()
     
     def get_owner_model_name(self):
         """Возвращает имя модели владельца для использования в шаблонах"""
-        return self.owner._meta.model_name
-    
-    @classmethod
-    def get_or_create_main_plan(cls, owner):
-        """
-        Получает или создает основной план лечения для указанного владельца
-        """
-        content_type = ContentType.objects.get_for_model(owner)
-        
-        # Пытаемся найти существующий основной план
-        main_plan, created = cls.objects.get_or_create(
-            content_type=content_type,
-            object_id=owner.id,
-            name="Основной",
-            defaults={
-                'description': 'Основной план лечения'
-            }
-        )
-        
-        return main_plan, created
+        return super().get_owner_model_name()
 
 
 class TreatmentMedication(models.Model):

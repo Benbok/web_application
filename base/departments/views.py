@@ -90,39 +90,20 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
         return DocumentAndAssignmentFilterForm(self.request.GET, department=self.get_object().department)
 
     def get_filtered_documents_and_assignments(self, patient_status, filter_form):
-        content_type = ContentType.objects.get_for_model(PatientDepartmentStatus)
-
-        # Получаем все документы для данного пациента
-        all_documents = ClinicalDocument.objects.filter(
-            content_type=content_type,
-            object_id=patient_status.pk,
-        )
-        
-        # Получаем документы, отфильтрованные по отделению
-        # Временно убираем фильтрацию для отладки
-        documents = all_documents  # .filter(document_type__department=patient_status.department)
-        
-        # Отладочная информация
-        print(f"DEBUG: Всего документов для пациента {patient_status.pk}: {all_documents.count()}")
-        print(f"DEBUG: Документов после фильтрации по отделению {patient_status.department.name}: {documents.count()}")
-        if documents.exists():
-            print(f"DEBUG: Типы документов: {[doc.document_type.name for doc in documents[:5]]}")
-        else:
-            print(f"DEBUG: Нет документов после фильтрации по отделению")
-            # Показываем все документы для отладки
-            print(f"DEBUG: Все документы: {[(doc.document_type.name, doc.document_type.department.name if doc.document_type.department else 'None') for doc in all_documents[:5]]}")
-
-        general_treatment_assignments = GeneralTreatmentAssignment.objects.filter(
-            content_type=content_type, object_id=patient_status.pk
-        ).select_related('assigning_doctor__doctor_profile', 'completed_by__doctor_profile')
-
-        # Получаем планы лечения и их препараты
-        treatment_plans = TreatmentPlan.objects.filter(
-            content_type=content_type, object_id=patient_status.pk
-        ).prefetch_related(
+        # Теперь используем прямые связи для departments
+        documents = patient_status.clinical_documents.all().select_related('document_type', 'author')
+        treatment_plans = patient_status.treatment_plans.all().prefetch_related(
             'medications__medication',
             'medications__route'
         )
+        examination_plans = patient_status.examination_plans.all()
+        
+        # Получаем назначения через GenericForeignKey (пока не мигрировали)
+        content_type = ContentType.objects.get_for_model(PatientDepartmentStatus)
+        general_treatment_assignments = GeneralTreatmentAssignment.objects.filter(
+            content_type=content_type,
+            object_id=patient_status.pk
+        ).select_related('assigning_doctor__doctor_profile', 'completed_by__doctor_profile')
 
         # Получаем препараты из планов лечения
         treatment_medications = []
@@ -132,13 +113,8 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
                     'plan': plan,
                     'medication': medication,
                     'created_date': plan.created_at,
-                    'created_by': None  # В модели TreatmentPlan нет поля created_by
+                    'created_by': plan.created_by
                 })
-
-        # Получаем планы обследования
-        examination_plans = ExaminationPlan.objects.filter(
-            content_type=content_type, object_id=patient_status.pk
-        )
 
         # Применяем фильтры
         if filter_form.is_valid():
@@ -163,7 +139,8 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
             if author:
                 documents = documents.filter(author__username__icontains=author)
                 general_treatment_assignments = general_treatment_assignments.filter(assigning_doctor__username__icontains=author)
-                # В TreatmentPlan нет поля created_by, поэтому фильтр по автору не применяется
+                treatment_plans = treatment_plans.filter(created_by__username__icontains=author)
+                examination_plans = examination_plans.filter(created_by__username__icontains=author)
 
             if document_type:
                 documents = documents.filter(document_type=document_type)
@@ -185,17 +162,6 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
                     Q(name__icontains=search_query) |
                     Q(description__icontains=search_query)
                 )
-
-        # Обновляем список препаратов после фильтрации
-        treatment_medications = []
-        for plan in treatment_plans:
-            for medication in plan.medications.all():
-                treatment_medications.append({
-                    'plan': plan,
-                    'medication': medication,
-                    'created_date': plan.created_at,
-                    'created_by': None  # В модели TreatmentPlan нет поля created_by
-                })
 
         return {
             'documents': documents,
@@ -241,6 +207,7 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
         )
 
         context.update({
+            'title': f"История пациента: {patient_status.patient.get_full_name_with_age()} в {patient_status.department.name}",
             'patient_status': patient_status,
             'patient': patient_status.patient,
             'department': patient_status.department,

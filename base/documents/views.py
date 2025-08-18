@@ -7,13 +7,14 @@ from django.contrib import messages
 from .models import DocumentType, ClinicalDocument, DocumentTemplate
 from .mixins import TemplateApplicationMixin, DocumentPermissionMixin
 from decimal import Decimal
+from django.utils import timezone
 
 from .forms import build_document_form
 from departments.models import Department
 
 def convert_decimals_to_str(data):
     """
-    Рекурсивно преобразует объекты Decimal в строки в словаре.
+    Рекурсивно преобразует объекты Decimal и datetime в строки в словаре.
     """
     if isinstance(data, dict):
         return {k: convert_decimals_to_str(v) for k, v in data.items()}
@@ -21,6 +22,8 @@ def convert_decimals_to_str(data):
         return [convert_decimals_to_str(elem) for elem in data]
     elif isinstance(data, Decimal):
         return str(data)
+    elif hasattr(data, 'isoformat'):  # datetime, date объекты
+        return data.isoformat()
     return data
 
 class DocumentTypeSelectionView(View):
@@ -80,28 +83,37 @@ class DocumentCreateView(TemplateApplicationMixin, View):
 
         if form.is_valid():
             cleaned_data = form.cleaned_data
-            datetime_document = cleaned_data.pop('datetime_document')
-            template_choice = cleaned_data.pop('template_choice') # Удаляем поле шаблона, оно не хранится в data
-
-            # Преобразуем Decimal в строки перед сохранением в JSONField
-            data_to_save = convert_decimals_to_str(cleaned_data)
-
-            # Получаем текущую должность автора
-            author_position = None
-            if request.user.is_authenticated and hasattr(request.user, 'doctor_profile'):
-                author_position = request.user.doctor_profile.get_current_position(at_date=datetime_document.date())
-
-            ClinicalDocument.objects.create(
+            
+            # Создаем документ с новыми полями
+            document = ClinicalDocument(
                 document_type=document_type,
-                content_type=content_type,
-                object_id=object_id,
                 author=request.user,
-                author_position=author_position, # Сохраняем должность автора
-                datetime_document=datetime_document,
-                data=data_to_save
+                author_position=request.user.doctor_profile.position if hasattr(request.user, 'doctor_profile') else '',
+                datetime_document=cleaned_data.get('datetime_document', timezone.now()),
+                data=convert_decimals_to_str(cleaned_data)
             )
-            return redirect(request.GET.get('next', reverse('patients:patient_list')))
-
+            
+            # Определяем тип владельца и устанавливаем соответствующее поле
+            if model_name == 'patientdepartmentstatus':
+                document.patient_department_status = parent_object
+            elif model_name == 'encounter':
+                document.encounter = parent_object
+            else:
+                # Для обратной совместимости используем GenericForeignKey
+                document.content_type = content_type
+                document.object_id = object_id
+            
+            document.save()
+            
+            messages.success(request, f"Документ '{document_type.name}' успешно создан.")
+            
+            # Перенаправляем на страницу документа или обратно
+            next_url = request.GET.get('next', '')
+            if next_url:
+                return redirect(next_url)
+            else:
+                return redirect('documents:document_detail', pk=document.pk)
+        
         context = self._get_form_context(document_type)
         context['form'] = form
         return render(request, 'documents/form.html', context)

@@ -11,7 +11,7 @@ class TreatmentPlanService:
     """
     
     @staticmethod
-    def create_treatment_plan(owner, name, description=''):
+    def create_treatment_plan(owner, name, description='', created_by=None):
         """
         Создает новый план лечения для указанного владельца
         
@@ -23,14 +23,31 @@ class TreatmentPlanService:
         Returns:
             TreatmentPlan: Созданный план лечения
         """
-        content_type = ContentType.objects.get_for_model(owner)
-        
-        treatment_plan = TreatmentPlan.objects.create(
-            content_type=content_type,
-            object_id=owner.id,
-            name=name,
-            description=description
-        )
+        # Определяем тип владельца и устанавливаем соответствующее поле
+        if hasattr(owner, 'patient'):  # PatientDepartmentStatus
+            treatment_plan = TreatmentPlan.objects.create(
+                patient_department_status=owner,
+                name=name,
+                description=description,
+                created_by=created_by or (owner.accepted_by if hasattr(owner, 'accepted_by') else None)
+            )
+        elif hasattr(owner, 'patient_id'):  # Encounter
+            treatment_plan = TreatmentPlan.objects.create(
+                encounter=owner,
+                name=name,
+                description=description,
+                created_by=created_by or (owner.doctor if hasattr(owner, 'doctor') else None)
+            )
+        else:
+            # Для обратной совместимости используем GenericForeignKey
+            content_type = ContentType.objects.get_for_model(owner)
+            treatment_plan = TreatmentPlan.objects.create(
+                content_type=content_type,
+                object_id=owner.id,
+                name=name,
+                description=description,
+                created_by=created_by
+            )
         
         return treatment_plan
     
@@ -45,11 +62,18 @@ class TreatmentPlanService:
         Returns:
             QuerySet: Планы лечения
         """
-        content_type = ContentType.objects.get_for_model(owner)
-        return TreatmentPlan.objects.filter(
-            content_type=content_type,
-            object_id=owner.id
-        )
+        # Определяем тип владельца и используем соответствующее поле
+        if hasattr(owner, 'patient'):  # PatientDepartmentStatus
+            return TreatmentPlan.objects.filter(patient_department_status=owner)
+        elif hasattr(owner, 'patient_id'):  # Encounter
+            return TreatmentPlan.objects.filter(encounter=owner)
+        else:
+            # Для обратной совместимости используем GenericForeignKey
+            content_type = ContentType.objects.get_for_model(owner)
+            return TreatmentPlan.objects.filter(
+                content_type=content_type,
+                object_id=owner.id
+            )
     
     @staticmethod
     def delete_treatment_plan(treatment_plan):
