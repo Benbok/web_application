@@ -9,7 +9,7 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    <h4 class="card-title text-danger">
+                    <h4 class="card-title text-warning">
                         <i class="fas fa-exclamation-triangle"></i> {{ title }}
                     </h4>
                     <small class="text-muted">
@@ -19,27 +19,39 @@
                     </small>
                 </div>
                 <div class="card-body">
-                    <div class="alert alert-warning">
+                    <div class="alert alert-info">
                         <h5 class="alert-heading">
-                            <i class="fas fa-exclamation-triangle"></i> Внимание!
+                            <i class="fas fa-info-circle"></i> Информация об отмене исследования
                         </h5>
-                        <p>Вы собираетесь удалить лабораторное исследование:</p>
+                        <p>Вы собираетесь <strong>отменить</strong> лабораторное исследование:</p>
                         <ul class="mb-0">
                             <li><strong>Название:</strong> {{ object.get_lab_test_name }}</li>
                             {% if object.notes %}<li><strong>Примечания:</strong> {{ object.notes }}</li>{% endif %}
                         </ul>
                     </div>
                     
+                    <div class="mt-3">
+                        <div class="alert alert-success">
+                            <h6><i class="fas fa-info-circle"></i> Что происходит при отмене:</h6>
+                            <ul class="mb-0">
+                                <li>Исследование помечается как "Отменено"</li>
+                                <li>Сохраняется полная история исследования</li>
+                                <li>Автоматически отменяются все запланированные события</li>
+                                <li>Запись остается в базе данных для аудита</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
                     <p class="text-muted">
                         <i class="fas fa-info-circle"></i>
-                        Это действие нельзя отменить. Все данные о лабораторном исследовании будут безвозвратно удалены.
+                        <strong>Это действие можно отменить, возобновив исследование!</strong>
                     </p>
                     
                     <form method="post">
                         {% csrf_token %}
                         <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-danger">
-                                <i class="fas fa-trash"></i> Удалить
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-ban"></i> Отменить исследование
                             </button>
                             
                             <a href="{% url 'examination_management:examination_plan_detail' encounter_pk=encounter.pk pk=examination_plan.pk %}" class="btn btn-secondary">

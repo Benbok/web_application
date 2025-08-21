@@ -1,9 +1,9 @@
 {% extends 'patients/base.html' %}
 {% load static %}
 
-{% block title %}Удалить план обследования{% endblock %}
+{% block title %}Отменить план обследования{% endblock %}
 
-{% block page_title %}Удалить план обследования{% endblock %}
+{% block page_title %}Отменить план обследования{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
@@ -11,16 +11,29 @@
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="card-title mb-0 text-danger">
-                        <i class="fas fa-exclamation-triangle me-1"></i> Подтверждение удаления
+                    <h5 class="card-title mb-0 text-warning">
+                        <i class="fas fa-exclamation-triangle me-1"></i> Подтверждение отмены
                     </h5>
                 </div>
                 <div class="card-body">
                     <p class="card-text">
-                        Вы действительно хотите удалить план обследования <strong>"{{ object.name }}"</strong>?
+                        Вы действительно хотите <strong>отменить</strong> план обследования <strong>"{{ object.name }}"</strong>?
                     </p>
+                    
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle"></i> Что происходит при отмене:</h6>
+                        <ul class="mb-0">
+                            <li>План обследования помечается как "Отменено"</li>
+                            <li>Все лабораторные исследования в плане отменяются</li>
+                            <li>Все инструментальные исследования в плане отменяются</li>
+                            <li>Сохраняется полная история всех исследований</li>
+                            <li>Автоматически отменяются все запланированные события</li>
+                            <li>Все записи остаются в базе данных для аудита</li>
+                        </ul>
+                    </div>
+                    
                     <p class="card-text text-muted">
-                        Это действие нельзя отменить. Все связанные лабораторные и инструментальные исследования также будут удалены.
+                        <strong>Это действие можно отменить, возобновив план обследования!</strong>
                     </p>
                     
                     <form method="post">
@@ -30,8 +43,8 @@
                                class="btn btn-secondary">
                                 <i class="fas fa-times me-1"></i> Отмена
                             </a>
-                            <button type="submit" class="btn btn-danger">
-                                <i class="fas fa-trash me-1"></i> Удалить
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-ban me-1"></i> Отменить план
                             </button>
                         </div>
                     </form>

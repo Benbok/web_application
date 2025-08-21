@@ -442,3 +442,53 @@ class ClinicalSchedulingService:
         return queryset.select_related(
             'executed_by', 'rejected_by', 'created_department'
         ).order_by('scheduled_date', 'scheduled_time')
+    
+    @staticmethod
+    def create_schedule_for_recommendation(recommendation, patient, department, start_date, first_time, times_per_day, duration_days, encounter=None):
+        """
+        Создает расписание для рекомендации
+        
+        Args:
+            recommendation: Рекомендация (TreatmentRecommendation)
+            patient: Пациент
+            department: Отделение
+            start_date: Дата начала
+            first_time: Время первого выполнения
+            times_per_day: Количество раз в день
+            duration_days: Длительность в днях
+            encounter: Случай поступления (опционально)
+        """
+        from django.contrib.contenttypes.models import ContentType
+        
+        content_type = ContentType.objects.get_for_model(recommendation)
+        schedules = []
+        
+        # Создаем расписание на каждый день
+        for day in range(duration_days):
+            appointment_date = start_date + timedelta(days=day)
+            
+            # Создаем записи на каждый прием в день
+            for time_index in range(times_per_day):
+                # Вычисляем время для текущего приема
+                if time_index == 0:
+                    appointment_time = first_time
+                else:
+                    # Распределяем приемы равномерно в течение дня
+                    hours_between = 24 // times_per_day
+                    appointment_time = ClinicalSchedulingService._add_hours_to_time(
+                        first_time, hours_between * time_index
+                    )
+                
+                # Создаем запланированное событие
+                schedule = ScheduledAppointment.objects.create(
+                    content_type=content_type,
+                    object_id=recommendation.id,
+                    patient=patient,
+                    created_department=department,
+                    encounter=encounter,
+                    scheduled_date=appointment_date,
+                    scheduled_time=appointment_time
+                )
+                schedules.append(schedule)
+        
+        return schedules

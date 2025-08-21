@@ -1,25 +1,156 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
+from django.utils import timezone
+
 from .models import ExaminationLabTest, ExaminationInstrumental
-from clinical_scheduling.services import ClinicalSchedulingService
+from clinical_scheduling.models import ScheduledAppointment
 
-User = get_user_model()
 
-# Сигнал отключен, так как расписание теперь создается через интегрированную форму
-# @receiver(post_save, sender=ExaminationLabTest)
-# def create_lab_test_schedule(sender, instance, created, **kwargs):
-#     """
-#     Автоматически создает расписание для нового лабораторного исследования
-#     """
-#     # Сигнал отключен - расписание создается через форму
-#     pass
+@receiver(post_save, sender=ExaminationLabTest)
+def sync_examination_lab_test_status(sender, instance, created, **kwargs):
+    """
+    Синхронизирует статус лабораторного исследования с запланированными событиями
+    
+    Когда статус ExaminationLabTest изменяется, автоматически обновляются
+    соответствующие ScheduledAppointment в clinical_scheduling
+    """
+    if created:
+        # Новое исследование - ничего не синхронизируем
+        return
+    
+    # Получаем ContentType для ExaminationLabTest
+    content_type = ContentType.objects.get_for_model(ExaminationLabTest)
+    
+    # Находим все запланированные события для этого исследования
+    scheduled_appointments = ScheduledAppointment.objects.filter(
+        content_type=content_type,
+        object_id=instance.pk
+    )
+    
+    if not scheduled_appointments.exists():
+        return
+    
+    # Обновляем статус запланированных событий в зависимости от статуса исследования
+    if instance.status == 'cancelled':
+        # Отменяем все будущие запланированные события
+        future_appointments = scheduled_appointments.filter(
+            scheduled_date__gte=timezone.now().date()
+        )
+        
+        for appointment in future_appointments:
+            appointment.execution_status = 'canceled'
+            appointment.save(update_fields=['execution_status'])
+            
+    elif instance.status == 'paused':
+        # Приостанавливаем все будущие запланированные события
+        future_appointments = scheduled_appointments.filter(
+            scheduled_date__gte=timezone.now().date()
+        )
+        
+        for appointment in future_appointments:
+            appointment.execution_status = 'skipped'  # Пропускаем на время приостановки
+            appointment.save(update_fields=['execution_status'])
+            
+    elif instance.status == 'active':
+        # Возобновляем приостановленные события
+        paused_appointments = scheduled_appointments.filter(
+            execution_status='skipped'
+        )
+        
+        for appointment in paused_appointments:
+            appointment.execution_status = 'scheduled'
+            appointment.save(update_fields=['execution_status'])
+            
+    elif instance.status == 'completed':
+        # Помечаем все события как завершенные
+        for appointment in scheduled_appointments:
+            if appointment.execution_status == 'scheduled':
+                appointment.execution_status = 'completed'
+                appointment.executed_at = timezone.now()
+                appointment.save(update_fields=['execution_status', 'executed_at'])
 
-# Сигнал отключен, так как расписание теперь создается через интегрированную форму
-# @receiver(post_save, sender=ExaminationInstrumental)
-# def create_instrumental_schedule(sender, instance, created, **kwargs):
-#     """
-#     Автоматически создает расписание для нового инструментального исследования
-#     """
-#     # Сигнал отключен - расписание создается через форму
-#     pass 
+
+@receiver(post_save, sender=ExaminationInstrumental)
+def sync_examination_instrumental_status(sender, instance, created, **kwargs):
+    """
+    Синхронизирует статус инструментального исследования с запланированными событиями
+    
+    Аналогично ExaminationLabTest, но для инструментальных исследований
+    """
+    if created:
+        return
+    
+    content_type = ContentType.objects.get_for_model(ExaminationInstrumental)
+    
+    scheduled_appointments = ScheduledAppointment.objects.filter(
+        content_type=content_type,
+        object_id=instance.pk
+    )
+    
+    if not scheduled_appointments.exists():
+        return
+    
+    if instance.status == 'cancelled':
+        future_appointments = scheduled_appointments.filter(
+            scheduled_date__gte=timezone.now().date()
+        )
+        
+        for appointment in future_appointments:
+            appointment.execution_status = 'canceled'
+            appointment.save(update_fields=['execution_status'])
+            
+    elif instance.status == 'paused':
+        future_appointments = scheduled_appointments.filter(
+            scheduled_date__gte=timezone.now().date()
+        )
+        
+        for appointment in future_appointments:
+            appointment.execution_status = 'skipped'
+            appointment.save(update_fields=['execution_status'])
+            
+    elif instance.status == 'active':
+        paused_appointments = scheduled_appointments.filter(
+            execution_status='skipped'
+        )
+        
+        for appointment in paused_appointments:
+            appointment.execution_status = 'scheduled'
+            appointment.save(update_fields=['execution_status'])
+            
+    elif instance.status == 'completed':
+        for appointment in scheduled_appointments:
+            if appointment.execution_status == 'scheduled':
+                appointment.execution_status = 'completed'
+                appointment.executed_at = timezone.now()
+                appointment.save(update_fields=['execution_status', 'executed_at'])
+
+
+@receiver(post_delete, sender=ExaminationLabTest)
+def cleanup_examination_lab_test_appointments(sender, instance, **kwargs):
+    """
+    Очищает запланированные события при физическом удалении исследования
+    
+    ВНИМАНИЕ: Физическое удаление исследований не рекомендуется в медицинской системе!
+    Используйте мягкое удаление (отмену) вместо этого.
+    """
+    content_type = ContentType.objects.get_for_model(ExaminationLabTest)
+    
+    # Находим и удаляем все связанные запланированные события
+    ScheduledAppointment.objects.filter(
+        content_type=content_type,
+        object_id=instance.pk
+    ).delete()
+
+
+@receiver(post_delete, sender=ExaminationInstrumental)
+def cleanup_examination_instrumental_appointments(sender, instance, **kwargs):
+    """
+    Очищает запланированные события при физическом удалении инструментального исследования
+    """
+    content_type = ContentType.objects.get_for_model(ExaminationInstrumental)
+    
+    ScheduledAppointment.objects.filter(
+        content_type=content_type,
+        object_id=instance.pk
+    ).delete() 

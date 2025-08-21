@@ -25,14 +25,18 @@ class ExaminationPlanAdmin(admin.ModelAdmin):
 
 @admin.register(ExaminationLabTest)
 class ExaminationLabTestAdmin(admin.ModelAdmin):
-    list_display = ['examination_plan', 'lab_test', 'is_active', 'created_at']
-    list_filter = ['is_active', 'created_at']
+    list_display = ['examination_plan', 'lab_test', 'status', 'created_at']
+    list_filter = ['status', 'created_at']
     search_fields = ['examination_plan__name', 'lab_test__name']
     readonly_fields = ['created_at', 'updated_at']
     
     fieldsets = (
         ('Основная информация', {
-            'fields': ('examination_plan', 'lab_test', 'is_active', 'instructions')
+            'fields': ('examination_plan', 'lab_test', 'status', 'instructions')
+        }),
+        ('Статус', {
+            'fields': ('cancelled_at', 'cancelled_by', 'cancellation_reason', 'paused_at', 'paused_by', 'pause_reason', 'completed_at', 'completed_by', 'completion_notes'),
+            'classes': ('collapse',)
         }),
         ('Временные метки', {
             'fields': ('created_at', 'updated_at'),
@@ -43,14 +47,18 @@ class ExaminationLabTestAdmin(admin.ModelAdmin):
 
 @admin.register(ExaminationInstrumental)
 class ExaminationInstrumentalAdmin(admin.ModelAdmin):
-    list_display = ['examination_plan', 'instrumental_procedure', 'is_active', 'created_at']
-    list_filter = ['is_active', 'created_at']
+    list_display = ['examination_plan', 'instrumental_procedure', 'status', 'created_at']
+    list_filter = ['status', 'created_at']
     search_fields = ['examination_plan__name', 'instrumental_procedure__name']
     readonly_fields = ['created_at', 'updated_at']
     
     fieldsets = (
         ('Основная информация', {
-            'fields': ('examination_plan', 'instrumental_procedure', 'is_active', 'instructions')
+            'fields': ('examination_plan', 'instrumental_procedure', 'status', 'instructions')
+        }),
+        ('Статус', {
+            'fields': ('cancelled_at', 'cancelled_by', 'cancellation_reason', 'paused_at', 'paused_by', 'pause_reason', 'completed_at', 'completed_by', 'completion_notes'),
+            'classes': ('collapse',)
         }),
         ('Временные метки', {
             'fields': ('created_at', 'updated_at'),

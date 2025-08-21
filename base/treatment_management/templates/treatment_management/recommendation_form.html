@@ -1,55 +1,305 @@
 {% extends "patients/base.html" %}
 {% load i18n %}
+{% load widget_tweaks %}
 
 {% block title %}{{ title }}{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-md-8 mx-auto">
-            <div class="card">
-                <div class="card-header">
-                    <h4 class="mb-0">
-                        <i class="fas fa-clipboard-list me-2"></i>
-                        {{ title }}
-                    </h4>
+<style>
+    .card {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        transform: translateY(-2px);
+    }
+    
+    .card-header {
+        border-bottom: none;
+    }
+    
+    .form-label.fw-bold {
+        color: #495057;
+    }
+    
+    .text-primary {
+        color: #0d6efd !important;
+    }
+    
+    .text-success {
+        color: #198754 !important;
+    }
+    
+    .text-info {
+        color: #0dcaf0 !important;
+    }
+    
+    .border-primary {
+        border-color: #bbdefb !important;
+    }
+    
+    .border-success {
+        border-color: #c8e6c9 !important;
+    }
+    
+    .border-warning {
+        border-color: #fff3cd !important;
+    }
+    
+    .border-info {
+        border-color: #b2dfdb !important;
+    }
+    
+    /* Мягкие цвета для заголовков карточек */
+    .bg-primary {
+        background-color: #e3f2fd !important;
+        color: #1565c0 !important;
+    }
+    
+    .bg-info {
+        background-color: #e0f2f1 !important;
+        color: #00695c !important;
+    }
+    
+    .bg-success {
+        background-color: #e8f5e8 !important;
+        color: #2e7d32 !important;
+    }
+    
+    /* Дополнительные мягкие цвета для текста внутри карточек */
+    .text-primary {
+        color: #1976d2 !important;
+    }
+    
+    .text-success {
+        color: #388e3c !important;
+    }
+    
+    .text-info {
+        color: #0097a7 !important;
+    }
+</style>
+
+{% if messages %}
+<ul class="messages">
+    {% for message in messages %}
+    <li{% if message.tags == "error" %} class="alert alert-danger"{% elif message.tags %} class="alert alert-{{ message.tags }}"{% endif %}>{{ message }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h4 class="card-title mb-0">{{ title }}</h4>
+        <small class="text-muted">
+            {% if patient %}
+                Пациент: {{ patient.get_full_name_with_age }} | 
+            {% endif %}
+            План: {{ treatment_plan.name }}
+        </small>
+    </div>
+    <div class="card-body">
+        <form method="post" novalidate>
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {% for error in form.non_field_errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+            
+            <!-- БЛОК 1: Основная информация -->
+            <div class="card mb-4 border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-clipboard-list me-2"></i> Основная информация
+                    </h5>
                 </div>
                 <div class="card-body">
-                    <form method="post">
-                        {% csrf_token %}
-                        
-                        <div class="mb-3">
-                            <label for="{{ form.text.id_for_label }}" class="form-label">
-                                {{ form.text.label }}
-                            </label>
-                            {{ form.text }}
-                            {% if form.text.help_text %}
-                                <div class="form-text">{{ form.text.help_text }}</div>
-                            {% endif %}
-                            {% if form.text.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {% for error in form.text.errors %}
-                                        {{ error }}
-                                    {% endfor %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-primary">
+                                    <i class="fas fa-user me-1"></i> Пациент:
+                                </label>
+                                {% if patient %}
+                                    <div class="text-success">
+                                        <a href="{% url 'patients:patient_detail' patient.pk %}">{{ patient.get_full_name_with_age }}</a>
+                                    </div>
+                                {% else %}
+                                    <div class="text-muted">Не указан</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-primary">
+                                    <i class="fas fa-calendar me-1"></i> План лечения:
+                                </label>
+                                <div class="text-info">{{ treatment_plan.name }}</div>
+                                {% if treatment_plan.description %}
+                                    <small class="text-muted">{{ treatment_plan.description }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% if encounter %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-primary">
+                                    <i class="fas fa-hospital me-1"></i> Случай:
+                                </label>
+                                <div class="text-success">
+                                    <a href="{% url 'encounters:encounter_detail' encounter.id %}">{{ encounter.date_start|date:"d.m.Y" }}</a>
                                 </div>
-                            {% endif %}
+                            </div>
                         </div>
-                        
-                        <div class="d-flex justify-content-between">
-                            <a href="{% url 'treatment_management:plan_detail' owner_model=treatment_plan.get_owner_model_name owner_id=treatment_plan.owner.id pk=treatment_plan.pk %}" 
-                               class="btn btn-secondary">
-                                <i class="fas fa-arrow-left me-1"></i>
-                                {% trans "Назад" %}
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-1"></i>
-                                {% trans "Сохранить" %}
-                            </button>
-                        </div>
-                    </form>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
-        </div>
+            
+            <!-- БЛОК 2: Текст рекомендации -->
+            <div class="card mb-4 border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-clipboard-prescription me-2"></i> Текст рекомендации
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <label for="{{ form.text.id_for_label }}" class="form-label fw-bold">
+                            <i class="fas fa-clipboard-list me-1"></i> {{ form.text.label }}
+                        </label>
+                        {{ form.text }}
+                        {% if form.text.help_text %}
+                            <div class="form-text">{{ form.text.help_text }}</div>
+                        {% endif %}
+                        {% for error in form.text.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- БЛОК 3: Настройка расписания -->
+            <div class="card mb-4 border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-calendar-alt me-2"></i>
+                        Настройка расписания
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.start_date.id_for_label }}" class="form-label fw-bold">{{ form.start_date.label }}</label>
+                                {{ form.start_date }}
+                                {% if form.start_date.help_text %}
+                                    <div class="form-text">{{ form.start_date.help_text }}</div>
+                                {% endif %}
+                                {% for error in form.start_date.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.first_time.id_for_label }}" class="form-label fw-bold">{{ form.first_time.label }}</label>
+                                {{ form.first_time }}
+                                {% if form.first_time.help_text %}
+                                    <div class="form-text">{{ form.first_time.help_text }}</div>
+                                {% endif %}
+                                {% for error in form.first_time.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.times_per_day.id_for_label }}" class="form-label fw-bold">{{ form.times_per_day.label }}</label>
+                                {{ form.times_per_day }}
+                                {% if form.times_per_day.help_text %}
+                                    <div class="form-text">{{ form.times_per_day.help_text }}</div>
+                                {% endif %}
+                                {% for error in form.times_per_day.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.duration_days.id_for_label }}" class="form-label fw-bold">{{ form.duration_days.label }}</label>
+                                {{ form.duration_days }}
+                                {% if form.duration_days.help_text %}
+                                    <div class="form-text">{{ form.duration_days.help_text }}</div>
+                                {% endif %}
+                                {% for error in form.duration_days.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Скрытое поле для включения расписания -->
+                    {{ form.enable_schedule }}
+                </div>
+            </div>
+            
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> {% if object %}Сохранить{% else %}Добавить рекомендацию{% endif %}
+                </button>
+                {% if owner_model == 'encounter' %}
+                    <a href="{% url 'encounters:encounter_detail' pk=owner_id %}" 
+                       class="btn btn-outline-primary">
+                        <i class="fas fa-arrow-left"></i> К случаю
+                    </a>
+                {% elif owner_model == 'patientdepartmentstatus' %}
+                    <a href="{% url 'departments:patient_history' pk=owner_id %}" 
+                       class="btn btn-outline-primary">
+                        <i class="fas fa-arrow-left"></i> К истории
+                    </a>
+                {% endif %}
+                <a href="{% url 'treatment_management:plan_detail' owner_model=owner_model owner_id=owner_id pk=treatment_plan.pk %}" 
+                   class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Назад
+                </a>
+            </div>
+        </form>
     </div>
 </div>
+
+<script>
+console.log('🚀 Скрипт загружен для формы рекомендаций!');
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ DOM загружен для формы рекомендаций!');
+    
+    // Устанавливаем текущую дату по умолчанию для поля start_date
+    const startDateField = document.getElementById('{{ form.start_date.id_for_label }}');
+    if (startDateField) {
+        // Если поле пустое, устанавливаем сегодняшнюю дату
+        if (!startDateField.value) {
+            const today = new Date().toISOString().split('T')[0];
+            startDateField.value = today;
+        }
+        
+        // Устанавливаем минимальную дату как сегодня (нельзя выбрать прошедшую дату)
+        const today = new Date().toISOString().split('T')[0];
+        startDateField.setAttribute('min', today);
+    }
+    
+    console.log('✅ Настройка расписания завершена');
+});
+</script>
 {% endblock %} 

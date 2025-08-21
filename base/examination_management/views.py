@@ -369,7 +369,7 @@ class ExaminationPlanDetailView(LoginRequiredMixin, DetailView):
 
 class ExaminationPlanDeleteView(LoginRequiredMixin, DeleteView):
     """
-    Удаление плана обследования
+    Удаление плана обследования (мягкое удаление)
     """
     model = ExaminationPlan
     template_name = 'examination_management/plan_confirm_delete.html'
@@ -411,8 +411,37 @@ class ExaminationPlanDeleteView(LoginRequiredMixin, DeleteView):
             context['owner_id'] = None
             context['encounter'] = None
         
-        context['title'] = _('Удалить план обследования')
+        context['title'] = _('Отменить план обследования')
         return context
+    
+    def delete(self, request, *args, **kwargs):
+        """
+        Переопределяем метод delete для использования soft delete
+        """
+        self.object = self.get_object()
+        
+        # Сначала отменяем все активные лабораторные исследования в плане
+        for lab_test in self.object.lab_tests.filter(status='active'):
+            lab_test.cancel(
+                reason="План обследования отменен",
+                cancelled_by=request.user
+            )
+        
+        # Отменяем все активные инструментальные исследования в плане
+        for instrumental in self.object.instrumental_procedures.filter(status='active'):
+            instrumental.cancel(
+                reason="План обследования отменен",
+                cancelled_by=request.user
+            )
+        
+        # Отменяем сам план обследования
+        self.object.cancel(
+            reason="Отменено через веб-интерфейс",
+            cancelled_by=request.user
+        )
+        
+        messages.success(request, _('План обследования и все исследования успешно отменены'))
+        return redirect(self.get_success_url())
     
     def get_success_url(self):
         # Определяем URL в зависимости от типа владельца
@@ -563,54 +592,33 @@ class ExaminationLabTestCreateView(LoginRequiredMixin, CreateView):
 
 class ExaminationLabTestDeleteView(LoginRequiredMixin, DeleteView):
     """
-    Удаление лабораторного исследования из плана обследования
+    Удаление лабораторного исследования из плана обследования (мягкое удаление)
     """
     model = ExaminationLabTest
     template_name = 'examination_management/lab_test_confirm_delete.html'
-    
-    def delete(self, request, *args, **kwargs):
-        # Получаем объект перед удалением
-        self.object = self.get_object()
-        
-        # Проверяем, есть ли уже результаты у назначения
-        try:
-            content_type = ContentType.objects.get_for_model(self.object)
-            assignment = LabTestAssignment.objects.filter(
-                content_type=content_type,
-                object_id=self.object.pk
-            ).first()
-            
-            if assignment:
-                # Проверяем, есть ли результаты
-                from lab_tests.models import LabTestResult
-                has_results = LabTestResult.objects.filter(lab_test_assignment=assignment).exists()
-                
-                if has_results:
-                    messages.error(request, _('Нельзя удалить исследование, у которого уже есть результаты. Сначала очистите результаты в разделе лабораторных исследований.'))
-                    return redirect('examination_management:plan_detail',
-                                  kwargs={
-                                      'owner_model': 'encounter',
-                                      'owner_id': self.object.examination_plan.encounter.id,
-                                      'pk': self.object.examination_plan.pk
-                                  })
-                else:
-                    # Если результатов нет, назначение будет удалено автоматически через сигнал
-                    messages.success(request, _('Лабораторное исследование и связанное назначение будут удалены'))
-            else:
-                messages.info(request, _('Связанное назначение не найдено'))
-                
-        except Exception as e:
-            messages.warning(request, _('Ошибка при проверке назначения: {}').format(str(e)))
-        
-        return super().delete(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['examination_plan'] = self.object.examination_plan
         context['encounter'] = self.object.examination_plan.encounter
         context['patient'] = self.object.examination_plan.encounter.patient
-        context['title'] = _('Удалить лабораторное исследование')
+        context['title'] = _('Отменить лабораторное исследование')
         return context
+    
+    def delete(self, request, *args, **kwargs):
+        """
+        Переопределяем метод delete для использования soft delete
+        """
+        self.object = self.get_object()
+        
+        # Используем soft delete вместо физического удаления
+        self.object.cancel(
+            reason="Отменено через веб-интерфейс",
+            cancelled_by=request.user
+        )
+        
+        messages.success(request, _('Лабораторное исследование успешно отменено'))
+        return redirect(self.get_success_url())
     
     def get_success_url(self):
         return reverse('examination_management:plan_detail',
@@ -727,54 +735,33 @@ class ExaminationInstrumentalCreateView(LoginRequiredMixin, CreateView):
 
 class ExaminationInstrumentalDeleteView(LoginRequiredMixin, DeleteView):
     """
-    Удаление инструментального исследования из плана обследования
+    Удаление инструментального исследования из плана обследования (мягкое удаление)
     """
     model = ExaminationInstrumental
     template_name = 'examination_management/instrumental_confirm_delete.html'
-    
-    def delete(self, request, *args, **kwargs):
-        # Получаем объект перед удалением
-        self.object = self.get_object()
-        
-        # Проверяем, есть ли уже результаты у назначения
-        try:
-            content_type = ContentType.objects.get_for_model(self.object)
-            assignment = InstrumentalProcedureAssignment.objects.filter(
-                content_type=content_type,
-                object_id=self.object.pk
-            ).first()
-            
-            if assignment:
-                # Проверяем, есть ли результаты
-                from instrumental_procedures.models import InstrumentalProcedureResult
-                has_results = InstrumentalProcedureResult.objects.filter(instrumental_procedure_assignment=assignment).exists()
-                
-                if has_results:
-                    messages.error(request, _('Нельзя удалить исследование, у которого уже есть результаты. Сначала очистите результаты в разделе инструментальных исследований.'))
-                    return redirect('examination_management:plan_detail',
-                                  kwargs={
-                                      'owner_model': 'encounter',
-                                      'owner_id': self.object.examination_plan.encounter.id,
-                                      'pk': self.object.examination_plan.pk
-                                  })
-                else:
-                    # Если результатов нет, назначение будет удалено автоматически через сигнал
-                    messages.success(request, _('Инструментальное исследование и связанное назначение будут удалены'))
-            else:
-                messages.info(request, _('Связанное назначение не найдено'))
-                
-        except Exception as e:
-            messages.warning(request, _('Ошибка при проверке назначения: {}').format(str(e)))
-        
-        return super().delete(request, *args, **kwargs)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['examination_plan'] = self.object.examination_plan
         context['encounter'] = self.object.examination_plan.encounter
         context['patient'] = self.object.examination_plan.encounter.patient
-        context['title'] = _('Удалить инструментальное исследование')
+        context['title'] = _('Отменить инструментальное исследование')
         return context
+    
+    def delete(self, request, *args, **kwargs):
+        """
+        Переопределяем метод delete для использования soft delete
+        """
+        self.object = self.get_object()
+        
+        # Используем soft delete вместо физического удаления
+        self.object.cancel(
+            reason="Отменено через веб-интерфейс",
+            cancelled_by=request.user
+        )
+        
+        messages.success(request, _('Инструментальное исследование успешно отменено'))
+        return redirect(self.get_success_url())
     
     def get_success_url(self):
         return reverse('examination_management:plan_detail',

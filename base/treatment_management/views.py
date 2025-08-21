@@ -247,7 +247,7 @@ class TreatmentPlanUpdateView(LoginRequiredMixin, OwnerContextMixin, UpdateView)
 
 class TreatmentPlanDeleteView(LoginRequiredMixin, OwnerContextMixin, DeleteView):
     """
-    Удаление плана лечения
+    Удаление плана лечения (мягкое удаление)
     """
     model = TreatmentPlan
     template_name = 'treatment_management/plan_confirm_delete.html'
@@ -258,8 +258,37 @@ class TreatmentPlanDeleteView(LoginRequiredMixin, OwnerContextMixin, DeleteView)
         context['owner'] = owner
         context['owner_model'] = owner._meta.model_name if owner is not None else 'unknown'
         context['medications'] = self.object.medications.all()
-        context['title'] = _('Удалить план лечения')
+        context['title'] = _('Отменить план лечения')
         return context
+    
+    def delete(self, request, *args, **kwargs):
+        """
+        Переопределяем метод delete для использования soft delete
+        """
+        self.object = self.get_object()
+        
+        # Сначала отменяем все активные назначения в плане
+        for medication in self.object.medications.filter(status='active'):
+            medication.cancel(
+                reason="План лечения отменен",
+                cancelled_by=request.user
+            )
+        
+        # Отменяем все активные рекомендации в плане
+        for recommendation in self.object.recommendations.filter(status='active'):
+            recommendation.cancel(
+                reason="План лечения отменен",
+                cancelled_by=request.user
+            )
+        
+        # Отменяем сам план лечения
+        self.object.cancel(
+            reason="Отменено через веб-интерфейс",
+            cancelled_by=request.user
+        )
+        
+        messages.success(request, _('План лечения и все назначения успешно отменены'))
+        return redirect(self.get_success_url())
     
     def get_success_url(self):
         owner = self.resolve_owner_from_plan(self.object)
@@ -268,21 +297,6 @@ class TreatmentPlanDeleteView(LoginRequiredMixin, OwnerContextMixin, DeleteView)
                            'owner_model': owner._meta.model_name if owner is not None else 'unknown',
                            'owner_id': owner.id if owner is not None else 0
                        })
-
-    def delete(self, request, *args, **kwargs):
-        """Переопределяем метод delete для логирования"""
-        self.object = self.get_object()
-        print(f"DEBUG: Удаляем план лечения {self.object.pk} - {self.object.name}")
-        
-        try:
-            result = super().delete(request, *args, **kwargs)
-            print(f"DEBUG: План лечения успешно удален")
-            messages.success(request, _('План лечения успешно удален'))
-            return result
-        except Exception as e:
-            print(f"DEBUG: Ошибка при удалении: {e}")
-            messages.error(request, f'Ошибка при удалении плана лечения: {str(e)}')
-            raise
 
 
 class TreatmentMedicationCreateView(LoginRequiredMixin, OwnerContextMixin, CreateView):
@@ -393,7 +407,7 @@ class TreatmentMedicationUpdateView(LoginRequiredMixin, UpdateView):
 
 class TreatmentMedicationDeleteView(LoginRequiredMixin, DeleteView):
     """
-    Удаление лекарства из плана лечения
+    Удаление лекарства из плана лечения (мягкое удаление)
     """
     model = TreatmentMedication
     template_name = 'treatment_management/medication_confirm_delete.html'
@@ -413,8 +427,23 @@ class TreatmentMedicationDeleteView(LoginRequiredMixin, DeleteView):
         owner = self.get_owner_from_plan(self.object.treatment_plan)
         context['owner'] = owner
         context['owner_model'] = owner._meta.model_name if owner is not None else 'unknown'
-        context['title'] = _('Удалить лекарство')
+        context['title'] = _('Отменить назначение лекарства')
         return context
+    
+    def delete(self, request, *args, **kwargs):
+        """
+        Переопределяем метод delete для использования soft delete
+        """
+        self.object = self.get_object()
+        
+        # Используем soft delete вместо физического удаления
+        self.object.cancel(
+            reason="Отменено через веб-интерфейс",
+            cancelled_by=request.user
+        )
+        
+        messages.success(request, _('Назначение лекарства успешно отменено'))
+        return redirect(self.get_success_url())
     
     def get_success_url(self):
         owner = self.get_owner_from_plan(self.object.treatment_plan)
@@ -778,21 +807,136 @@ class TreatmentRecommendationCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         form.instance.treatment_plan = self.treatment_plan
         response = super().form_valid(form)
-        messages.success(self.request, _('Рекомендация успешно добавлена'))
+        
+        # Если включено расписание, создаем ScheduledAppointment
+        if form.cleaned_data.get('enable_schedule'):
+            try:
+                self.create_scheduled_appointments(form.cleaned_data)
+                messages.success(self.request, _('Рекомендация успешно добавлена с расписанием'))
+            except Exception as e:
+                messages.warning(self.request, _('Рекомендация добавлена, но не удалось создать расписание: {}').format(str(e)))
+        else:
+            messages.success(self.request, _('Рекомендация успешно добавлена'))
+        
         return response
+    
+    def create_scheduled_appointments(self, cleaned_data):
+        """Создает запланированные события для рекомендации"""
+        from clinical_scheduling.models import ScheduledAppointment
+        from clinical_scheduling.services import ClinicalSchedulingService
+        from departments.models import Department
+        
+        # Получаем данные расписания
+        start_date = cleaned_data['start_date']
+        first_time = cleaned_data['first_time']
+        times_per_day = cleaned_data['times_per_day']
+        duration_days = cleaned_data['duration_days']
+        
+        # Получаем пациента и отделение
+        owner = self.resolve_owner_from_plan(self.treatment_plan)
+        if not owner:
+            raise ValueError("Не удалось определить владельца плана лечения")
+        
+        patient = None
+        department = None
+        
+        if hasattr(owner, 'patient'):
+            patient = owner.patient
+        elif hasattr(owner, 'get_patient'):
+            patient = owner.get_patient()
+        
+        if hasattr(owner, 'department'):
+            department = owner.department
+        elif hasattr(owner, 'get_department'):
+            department = owner.get_department()
+        
+        # Если не удалось определить отделение, используем отделение по умолчанию
+        if not department:
+            try:
+                # Сначала пытаемся найти отделение с slug 'admission'
+                department = Department.objects.filter(slug='admission').first()
+                if not department:
+                    # Если нет отделения 'admission', используем первое доступное
+                    department = Department.objects.first()
+                if not department:
+                    raise ValueError("Не удалось найти ни одного отделения в системе")
+            except Exception as e:
+                raise ValueError(f"Не удалось определить отделение по умолчанию: {str(e)}")
+        
+        if not patient:
+            raise ValueError("Не удалось определить пациента")
+        
+        # Создаем расписание через сервис
+        ClinicalSchedulingService.create_schedule_for_recommendation(
+            recommendation=self.object,
+            patient=patient,
+            department=department,
+            start_date=start_date,
+            first_time=first_time,
+            times_per_day=times_per_day,
+            duration_days=duration_days,
+            encounter=getattr(self.treatment_plan, 'encounter', None)
+        )
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['treatment_plan'] = self.treatment_plan
+        
+        # Получаем владельца и пациента для контекста
+        owner = self.resolve_owner_from_plan(self.treatment_plan)
+        context['owner'] = owner
+        
+        # Убеждаемся, что у нас есть валидный владелец
+        if owner is not None:
+            context['owner_model'] = owner._meta.model_name
+            context['owner_id'] = owner.id
+        else:
+            # Fallback - используем encounter если есть
+            if hasattr(self.treatment_plan, 'encounter') and self.treatment_plan.encounter:
+                context['owner'] = self.treatment_plan.encounter
+                context['owner_model'] = 'encounter'
+                context['owner_id'] = self.treatment_plan.encounter.id
+            else:
+                context['owner_model'] = 'unknown'
+                context['owner_id'] = 0
+        
+        # Получаем пациента
+        if context['owner'] is not None:
+            if hasattr(context['owner'], 'patient'):
+                context['patient'] = context['owner'].patient
+            elif hasattr(context['owner'], 'get_patient'):
+                context['patient'] = context['owner'].get_patient()
+            else:
+                context['patient'] = None
+        else:
+            context['patient'] = None
+        
+        # Добавляем encounter для обратной совместимости
+        if hasattr(self.treatment_plan, 'encounter') and self.treatment_plan.encounter:
+            context['encounter'] = self.treatment_plan.encounter
+        
         context['title'] = _('Добавить рекомендацию')
         return context
     
     def get_success_url(self):
         owner = self.resolve_owner_from_plan(self.treatment_plan)
+        if owner is None:
+            # Fallback - используем encounter если есть
+            if hasattr(self.treatment_plan, 'encounter') and self.treatment_plan.encounter:
+                return reverse('treatment_management:plan_detail',
+                              kwargs={
+                                  'owner_model': 'encounter',
+                                  'owner_id': self.treatment_plan.encounter.id,
+                                  'pk': self.treatment_plan.pk
+                              })
+            else:
+                # Если ничего не найдено, возвращаемся к списку планов
+                return reverse('treatment_management:plan_list')
+        
         return reverse('treatment_management:plan_detail',
                       kwargs={
-                          'owner_model': owner._meta.model_name if owner is not None else 'unknown',
-                          'owner_id': owner.id if owner is not None else 0,
+                          'owner_model': owner._meta.model_name,
+                          'owner_id': owner.id,
                           'pk': self.treatment_plan.pk
                       })
 
@@ -816,22 +960,167 @@ class TreatmentRecommendationUpdateView(LoginRequiredMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['treatment_plan'] = self.object.treatment_plan
+        
+        # Получаем владельца и пациента для контекста
+        owner = self.resolve_owner_from_plan(self.object.treatment_plan)
+        context['owner'] = owner
+        
+        # Убеждаемся, что у нас есть валидный владелец
+        if owner is not None:
+            context['owner_model'] = owner._meta.model_name
+            context['owner_id'] = owner.id
+        else:
+            # Fallback - используем encounter если есть
+            if hasattr(self.object.treatment_plan, 'encounter') and self.object.treatment_plan.encounter:
+                context['owner'] = self.object.treatment_plan.encounter
+                context['owner_model'] = 'encounter'
+                # Проверяем, что encounter.id действительно существует и не пустой
+                encounter_id = getattr(self.object.treatment_plan.encounter, 'id', None)
+                if encounter_id is not None and encounter_id != '':
+                    context['owner_id'] = encounter_id
+                else:
+                    # Если encounter.id пустой, используем pk
+                    context['owner_id'] = self.object.treatment_plan.encounter.pk
+            else:
+                context['owner_model'] = 'unknown'
+                context['owner_id'] = 0
+        
+        # Получаем пациента
+        if context['owner'] is not None:
+            if hasattr(context['owner'], 'patient'):
+                context['patient'] = context['owner'].patient
+            elif hasattr(context['owner'], 'get_patient'):
+                context['patient'] = context['owner'].get_patient()
+            else:
+                context['patient'] = None
+        else:
+            context['patient'] = None
+        
+        # Добавляем encounter для обратной совместимости
+        if hasattr(self.object.treatment_plan, 'encounter') and self.object.treatment_plan.encounter:
+            context['encounter'] = self.object.treatment_plan.encounter
+        
         context['title'] = _('Редактировать рекомендацию')
         return context
     
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        
+        # Если включено расписание, обновляем или создаем ScheduledAppointment
+        if form.cleaned_data.get('enable_schedule'):
+            try:
+                self.update_scheduled_appointments(form.cleaned_data)
+                messages.success(self.request, _('Рекомендация успешно обновлена с расписанием'))
+            except Exception as e:
+                messages.warning(self.request, _('Рекомендация обновлена, но не удалось обновить расписание: {}').format(str(e)))
+        else:
+            # Если расписание отключено, удаляем существующие ScheduledAppointment
+            try:
+                self.remove_scheduled_appointments()
+                messages.success(self.request, _('Рекомендация успешно обновлена, расписание удалено'))
+            except Exception as e:
+                messages.warning(self.request, _('Рекомендация обновлена, но не удалось удалить расписание: {}').format(str(e)))
+        
+        return response
+    
+    def update_scheduled_appointments(self, cleaned_data):
+        """Обновляет или создает запланированные события для рекомендации"""
+        from clinical_scheduling.models import ScheduledAppointment
+        from clinical_scheduling.services import ClinicalSchedulingService
+        from departments.models import Department
+        
+        # Сначала удаляем существующие записи
+        self.remove_scheduled_appointments()
+        
+        # Создаем новые записи
+        start_date = cleaned_data['start_date']
+        first_time = cleaned_data['first_time']
+        times_per_day = cleaned_data['times_per_day']
+        duration_days = cleaned_data['duration_days']
+        
+        # Получаем пациента и отделение
+        owner = self.resolve_owner_from_plan(self.object.treatment_plan)
+        if not owner:
+            raise ValueError("Не удалось определить владельца плана лечения")
+        
+        patient = None
+        department = None
+        
+        if hasattr(owner, 'patient'):
+            patient = owner.patient
+        elif hasattr(owner, 'get_patient'):
+            patient = owner.get_patient()
+        
+        if hasattr(owner, 'department'):
+            department = owner.department
+        elif hasattr(owner, 'get_department'):
+            department = owner.get_department()
+        
+        # Если не удалось определить отделение, используем отделение по умолчанию
+        if not department:
+            try:
+                # Сначала пытаемся найти отделение с slug 'admission'
+                department = Department.objects.filter(slug='admission').first()
+                if not department:
+                    # Если нет отделения 'admission', используем первое доступное
+                    department = Department.objects.first()
+                if not department:
+                    raise ValueError("Не удалось найти ни одного отделения в системе")
+            except Exception as e:
+                raise ValueError(f"Не удалось определить отделение по умолчанию: {str(e)}")
+        
+        if not patient:
+            raise ValueError("Не удалось определить пациента")
+        
+        # Создаем новое расписание
+        ClinicalSchedulingService.create_schedule_for_recommendation(
+            recommendation=self.object,
+            patient=patient,
+            department=department,
+            start_date=start_date,
+            first_time=first_time,
+            times_per_day=times_per_day,
+            duration_days=duration_days,
+            encounter=getattr(self.object.treatment_plan, 'encounter', None)
+        )
+    
+    def remove_scheduled_appointments(self):
+        """Удаляет существующие запланированные события для рекомендации"""
+        from clinical_scheduling.models import ScheduledAppointment
+        from django.contrib.contenttypes.models import ContentType
+        
+        content_type = ContentType.objects.get_for_model(self.object)
+        ScheduledAppointment.objects.filter(
+            content_type=content_type,
+            object_id=self.object.id
+        ).delete()
+    
     def get_success_url(self):
         owner = self.resolve_owner_from_plan(self.object.treatment_plan)
+        if owner is None:
+            # Fallback - используем encounter если есть
+            if hasattr(self.object.treatment_plan, 'encounter') and self.object.treatment_plan.encounter:
+                return reverse('treatment_management:plan_detail',
+                              kwargs={
+                                  'owner_model': 'encounter',
+                                  'owner_id': self.object.treatment_plan.encounter.id,
+                                  'pk': self.object.treatment_plan.pk
+                              })
+            else:
+                # Если ничего не найдено, возвращаемся к списку планов
+                return reverse('treatment_management:plan_list')
+        
         return reverse('treatment_management:plan_detail',
                       kwargs={
-                          'owner_model': owner._meta.model_name if owner is not None else 'unknown',
-                          'owner_id': owner.id if owner is not None else 0,
+                          'owner_model': owner._meta.model_name,
+                          'owner_id': owner.id,
                           'pk': self.object.treatment_plan.pk
                       })
 
 
 class TreatmentRecommendationDeleteView(LoginRequiredMixin, DeleteView):
     """
-    Удаление рекомендации из плана лечения
+    Удаление рекомендации из плана лечения (мягкое удаление)
     """
     model = TreatmentRecommendation
     template_name = 'treatment_management/recommendation_confirm_delete.html'
@@ -847,15 +1136,100 @@ class TreatmentRecommendationDeleteView(LoginRequiredMixin, DeleteView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['treatment_plan'] = self.object.treatment_plan
-        context['title'] = _('Удалить рекомендацию')
+        
+        # Получаем владельца и пациента для контекста
+        owner = self.resolve_owner_from_plan(self.object.treatment_plan)
+        context['owner'] = owner
+        
+        # Убеждаемся, что у нас есть валидный владелец
+        if owner is not None:
+            context['owner_model'] = owner._meta.model_name
+            context['owner_id'] = owner.id
+        else:
+            # Fallback - используем encounter если есть
+            if hasattr(self.object.treatment_plan, 'encounter') and self.object.treatment_plan.encounter:
+                context['owner'] = self.object.treatment_plan.encounter
+                context['owner_model'] = 'encounter'
+                # Проверяем, что encounter.id действительно существует и не пустой
+                encounter_id = getattr(self.object.treatment_plan.encounter, 'id', None)
+                if encounter_id is not None and encounter_id != '':
+                    context['owner_id'] = encounter_id
+                else:
+                    # Если encounter.id пустой, используем pk
+                    context['owner_id'] = self.object.treatment_plan.encounter.pk
+            else:
+                context['owner_model'] = 'unknown'
+                context['owner_id'] = 0
+        
+        # Получаем пациента
+        if context['owner'] is not None:
+            if hasattr(context['owner'], 'patient'):
+                context['patient'] = context['owner'].patient
+            elif hasattr(context['owner'], 'get_patient'):
+                context['patient'] = context['owner'].get_patient()
+            else:
+                context['patient'] = None
+        else:
+            context['patient'] = None
+        
+        # Добавляем encounter для обратной совместимости
+        if hasattr(self.object.treatment_plan, 'encounter') and self.object.treatment_plan.encounter:
+            context['encounter'] = self.object.treatment_plan.encounter
+        
+        context['title'] = _('Отменить рекомендацию')
         return context
+    
+    def delete(self, request, *args, **kwargs):
+        """
+        Переопределяем метод delete для использования soft delete
+        """
+        self.object = self.get_object()
+        
+        # Удаляем связанные ScheduledAppointment
+        try:
+            self.remove_scheduled_appointments()
+        except Exception as e:
+            messages.warning(request, _('Не удалось удалить расписание: {}').format(str(e)))
+        
+        # Используем soft delete вместо физического удаления
+        self.object.cancel(
+            reason="Отменено через веб-интерфейс",
+            cancelled_by=request.user
+        )
+        
+        messages.success(request, _('Рекомендация успешно отменена'))
+        return redirect(self.get_success_url())
+    
+    def remove_scheduled_appointments(self):
+        """Удаляет существующие запланированные события для рекомендации"""
+        from clinical_scheduling.models import ScheduledAppointment
+        from django.contrib.contenttypes.models import ContentType
+        
+        content_type = ContentType.objects.get_for_model(self.object)
+        ScheduledAppointment.objects.filter(
+            content_type=content_type,
+            object_id=self.object.id
+        ).delete()
     
     def get_success_url(self):
         owner = self.resolve_owner_from_plan(self.object.treatment_plan)
+        if owner is None:
+            # Fallback - используем encounter если есть
+            if hasattr(self.object.treatment_plan, 'encounter') and self.object.treatment_plan.encounter:
+                return reverse('treatment_management:plan_detail',
+                              kwargs={
+                                  'owner_model': 'encounter',
+                                  'owner_id': self.object.treatment_plan.encounter.id,
+                                  'pk': self.object.treatment_plan.pk
+                              })
+            else:
+                # Если ничего не найдено, возвращаемся к списку планов
+                return reverse('treatment_management:plan_list')
+        
         return reverse('treatment_management:plan_detail',
                       kwargs={
-                          'owner_model': owner._meta.model_name if owner is not None else 'unknown',
-                          'owner_id': owner.id if owner is not None else 0,
+                          'owner_model': owner._meta.model_name,
+                          'owner_id': owner.id,
                           'pk': self.object.treatment_plan.pk
                       })
 

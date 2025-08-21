@@ -5,6 +5,61 @@ from .models import TreatmentPlan, TreatmentMedication, TreatmentRecommendation
 from pharmacy.widgets import MedicationSelect2Widget
 
 
+class ScheduleFieldsMixin:
+    """
+    Миксин для добавления полей расписания к формам
+    """
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Добавляем поля расписания в self.fields
+        self.fields['start_date'] = forms.DateField(
+            label=_('Дата начала'),
+            widget=forms.DateInput(attrs={
+                'type': 'date',
+                'class': 'form-control'
+            }),
+            initial=date.today,
+            help_text=_('С какой даты начинать')
+        )
+        
+        self.fields['first_time'] = forms.TimeField(
+            label=_('Время начала'),
+            widget=forms.TimeInput(attrs={
+                'type': 'time',
+                'class': 'form-control'
+            }),
+            initial=time(9, 0),
+            help_text=_('Время начала в день')
+        )
+        
+        self.fields['times_per_day'] = forms.IntegerField(
+            label=_('Количество раз в день'),
+            min_value=1,
+            max_value=24,
+            initial=2,
+            widget=forms.NumberInput(attrs={'class': 'form-control'}),
+            help_text=_('Сколько раз в день выполнять')
+        )
+        
+        self.fields['duration_days'] = forms.IntegerField(
+            label=_('Длительность (дней)'),
+            min_value=1,
+            max_value=365,
+            initial=7,
+            widget=forms.NumberInput(attrs={'class': 'form-control'}),
+            help_text=_('На сколько дней планируется')
+        )
+        
+        # Скрытое поле для включения расписания
+        self.fields['enable_schedule'] = forms.BooleanField(
+            required=False,
+            initial=True,
+            widget=forms.HiddenInput()
+        )
+
+
 class TreatmentPlanForm(forms.ModelForm):
     """
     Форма для создания/редактирования плана лечения
@@ -150,67 +205,46 @@ class TreatmentMedicationForm(forms.ModelForm):
         return cleaned_data
 
 
-class TreatmentMedicationWithScheduleForm(TreatmentMedicationForm):
+class TreatmentMedicationWithScheduleForm(ScheduleFieldsMixin, TreatmentMedicationForm):
     """
     Интегрированная форма для добавления лекарства в план лечения с настройкой расписания
     """
     
-    # Поля для расписания
-    start_date = forms.DateField(
-        label=_('Дата начала'),
-        widget=forms.DateInput(attrs={
-            'type': 'date',
-            'class': 'form-control'
-        }),
-        initial=date.today,
-        help_text=_('С какой даты начинать прием лекарства')
-    )
-    
-    first_time = forms.TimeField(
-        label=_('Время первого приема'),
-        widget=forms.TimeInput(attrs={
-            'type': 'time',
-            'class': 'form-control'
-        }),
-        initial=time(9, 0),
-        help_text=_('Время первого приема в день')
-    )
-    
-    times_per_day = forms.IntegerField(
-        label=_('Количество приемов в день'),
-        min_value=1,
-        max_value=24,
-        initial=2,
-        widget=forms.NumberInput(attrs={'class': 'form-control'}),
-        help_text=_('Сколько раз в день принимать лекарство')
-    )
-    
-    duration_days = forms.IntegerField(
-        label=_('Длительность курса (дней)'),
-        min_value=1,
-        max_value=365,
-        initial=7,
-        widget=forms.NumberInput(attrs={'class': 'form-control'}),
-        help_text=_('На сколько дней планируется курс лечения')
-    )
-    
-    # Скрытое поле для включения расписания
-    enable_schedule = forms.BooleanField(
-        required=False,
-        initial=True,
-        widget=forms.HiddenInput()
-    )
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Настраиваем поля расписания для лекарств (после super().__init__)
+        if 'start_date' in self.fields:
+            self.fields['start_date'].help_text = _('С какой даты начинать прием лекарства')
+        if 'first_time' in self.fields:
+            self.fields['first_time'].help_text = _('Время первого приема в день')
+        if 'times_per_day' in self.fields:
+            self.fields['times_per_day'].help_text = _('Сколько раз в день принимать лекарство')
+        if 'duration_days' in self.fields:
+            self.fields['duration_days'].help_text = _('На сколько дней планируется курс лечения')
     
     def clean(self):
         cleaned_data = super().clean()
-        times_per_day = cleaned_data.get('times_per_day')
-        duration_days = cleaned_data.get('duration_days')
+        enable_schedule = cleaned_data.get('enable_schedule')
         
-        if times_per_day and duration_days:
-            if times_per_day * duration_days > 1000:
+        if enable_schedule:
+            # Проверяем обязательные поля расписания
+            start_date = cleaned_data.get('start_date')
+            first_time = cleaned_data.get('first_time')
+            times_per_day = cleaned_data.get('times_per_day')
+            duration_days = cleaned_data.get('duration_days')
+            
+            if not all([start_date, first_time, times_per_day, duration_days]):
                 raise forms.ValidationError(
-                    _('Слишком много записей в расписании. Уменьшите количество приемов в день или длительность курса.')
+                    _('При включении расписания все поля расписания должны быть заполнены')
                 )
+            
+            # Проверяем разумность параметров
+            if times_per_day and duration_days:
+                if times_per_day * duration_days > 1000:
+                    raise forms.ValidationError(
+                        _('Слишком много записей в расписании. Уменьшите количество приемов в день или длительность курса.')
+                    )
         
         return cleaned_data
 
@@ -243,9 +277,9 @@ class QuickAddMedicationForm(TreatmentMedicationForm):
                     self.fields['custom_medication'].initial = recommended_medication.name
 
 
-class TreatmentRecommendationForm(forms.ModelForm):
+class TreatmentRecommendationForm(ScheduleFieldsMixin, forms.ModelForm):
     """
-    Форма для создания/редактирования рекомендаций в плане лечения
+    Форма для создания/редактирования рекомендаций в плане лечения с настройкой расписания
     """
     
     class Meta:
@@ -263,4 +297,46 @@ class TreatmentRecommendationForm(forms.ModelForm):
         }
         help_texts = {
             'text': _('Введите рекомендацию для пациента')
-        } 
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Настраиваем поля расписания для рекомендаций (после super().__init__)
+        if 'duration_days' in self.fields:
+            self.fields['duration_days'].initial = 1
+        if 'times_per_day' in self.fields:
+            self.fields['times_per_day'].initial = 1
+        if 'start_date' in self.fields:
+            self.fields['start_date'].help_text = _('С какой даты начинать выполнение рекомендации')
+        if 'first_time' in self.fields:
+            self.fields['first_time'].help_text = _('Время начала выполнения рекомендации')
+        if 'times_per_day' in self.fields:
+            self.fields['times_per_day'].help_text = _('Сколько раз в день выполнять рекомендацию')
+        if 'duration_days' in self.fields:
+            self.fields['duration_days'].help_text = _('На сколько дней планируется выполнение рекомендации')
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        enable_schedule = cleaned_data.get('enable_schedule')
+        
+        if enable_schedule:
+            # Проверяем обязательные поля расписания
+            start_date = cleaned_data.get('start_date')
+            first_time = cleaned_data.get('first_time')
+            times_per_day = cleaned_data.get('times_per_day')
+            duration_days = cleaned_data.get('duration_days')
+            
+            if not all([start_date, first_time, times_per_day, duration_days]):
+                raise forms.ValidationError(
+                    _('При включении расписания все поля расписания должны быть заполнены')
+                )
+            
+            # Проверяем разумность параметров
+            if times_per_day and duration_days:
+                if times_per_day * duration_days > 1000:
+                    raise forms.ValidationError(
+                        _('Слишком много записей в расписании. Уменьшите количество раз в день или длительность.')
+                    )
+        
+        return cleaned_data 

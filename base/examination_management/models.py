@@ -349,9 +349,11 @@ class ExaminationPlan(BaseExaminationPlan):
         return None
 
 
-class ExaminationLabTest(models.Model):
+from treatment_management.mixins import SoftDeleteMixin
+
+class ExaminationLabTest(SoftDeleteMixin):
     """
-    Лабораторное исследование в плане обследования
+    Лабораторное исследование в плане обследования с поддержкой мягкого удаления
     """
     examination_plan = models.ForeignKey(
         ExaminationPlan, 
@@ -365,10 +367,11 @@ class ExaminationLabTest(models.Model):
         verbose_name=_('Лабораторное исследование'),
         related_name='examination_lab_tests'
     )
-    is_active = models.BooleanField(_('Активно'), default=True)
     instructions = models.TextField(_('Особые указания'), blank=True)
     created_at = models.DateTimeField(_('Создано'), auto_now_add=True)
     updated_at = models.DateTimeField(_('Обновлено'), auto_now=True)
+    
+    # Убираем поле is_active, так как теперь используем status из SoftDeleteMixin
     
     class Meta:
         verbose_name = _('Лабораторное исследование в плане')
@@ -386,9 +389,9 @@ class ExaminationLabTest(models.Model):
         return self.lab_test.name
 
 
-class ExaminationInstrumental(models.Model):
+class ExaminationInstrumental(SoftDeleteMixin):
     """
-    Инструментальное исследование в плане обследования
+    Инструментальное исследование в плане обследования с поддержкой мягкого удаления
     """
     examination_plan = models.ForeignKey(
         ExaminationPlan, 
@@ -402,10 +405,11 @@ class ExaminationInstrumental(models.Model):
         verbose_name=_('Инструментальное исследование'),
         related_name='examination_instrumentals'
     )
-    is_active = models.BooleanField(_('Активно'), default=True)
     instructions = models.TextField(_('Особые указания'), blank=True)
     created_at = models.DateTimeField(_('Создано'), auto_now_add=True)
     updated_at = models.DateTimeField(_('Обновлено'), auto_now=True)
+    
+    # Убираем поле is_active, так как теперь используем status из SoftDeleteMixin
     
     class Meta:
         verbose_name = _('Инструментальное исследование в плане')

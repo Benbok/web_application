@@ -13,10 +13,9 @@ class ExaminationLabTestForm(forms.ModelForm):
     
     class Meta:
         model = ExaminationLabTest
-        fields = ['lab_test', 'is_active', 'instructions']
+        fields = ['lab_test', 'instructions']
         widgets = {
             'lab_test': forms.Select(attrs={'class': 'form-select'}),
-            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'instructions': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
@@ -94,10 +93,9 @@ class ExaminationInstrumentalForm(forms.ModelForm):
     
     class Meta:
         model = ExaminationInstrumental
-        fields = ['instrumental_procedure', 'is_active', 'instructions']
+        fields = ['instrumental_procedure', 'instructions']
         widgets = {
             'instrumental_procedure': forms.Select(attrs={'class': 'form-select'}),
-            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'instructions': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 

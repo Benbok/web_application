@@ -11,7 +11,9 @@ from lab_tests.models import LabTestDefinition
 from instrumental_procedures.models import InstrumentalProcedureDefinition
 from django.utils import timezone
 
-class BaseAssignment(models.Model):
+from treatment_management.mixins import SoftDeleteMixin
+
+class BaseAssignment(SoftDeleteMixin):
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey('content_type', 'object_id')
@@ -21,19 +23,10 @@ class BaseAssignment(models.Model):
     start_date = models.DateTimeField("Дата и время назначения", null=False, blank=False)
     end_date = models.DateTimeField("Дата и время завершения", null=True, blank=True)
     notes = models.TextField("Примечания", blank=True, null=True)
-    cancellation_reason = models.TextField("Причина отмены", blank=True, null=True)
-    rejection_reason = models.TextField("Причина брака", blank=True, null=True)
-
-    STATUS_CHOICES = [
-        ('active', 'Активно'),
-        ('completed', 'Завершено'),
-        ('canceled', 'Отменено'),
-        ('paused', 'Приостановлено'),
-        ('rejected', 'Забраковано'),
-    ]
-    status = models.CharField("Статус", max_length=10, choices=STATUS_CHOICES, default='active')
-    completed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Завершено кем", related_name='+')
-
+    
+    # Убираем дублирующие поля, так как они уже есть в SoftDeleteMixin
+    # cancellation_reason, rejection_reason, status, completed_by
+    
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
 
@@ -42,7 +35,6 @@ class BaseAssignment(models.Model):
         Переводит назначение в статус 'Забраковано'
         """
         self.status = 'rejected'
-        self.rejection_reason = reason
         if rejected_by:
             self.completed_by = rejected_by
         self.end_date = timezone.now()
@@ -58,7 +50,7 @@ class BaseAssignment(models.Model):
         """
         Проверяет, можно ли удалить назначение
         """
-        return self.status in ['active', 'canceled', 'paused']
+        return self.status in ['active', 'cancelled', 'paused']
     
     def can_be_edited(self):
         """
