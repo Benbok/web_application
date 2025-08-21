@@ -22,9 +22,7 @@ urlpatterns = [
          views.ExaminationPlanDetailView.as_view(), 
          name='examination_plan_detail'),
     
-    path('encounters/<int:encounter_pk>/plans/<int:pk>/edit/', 
-         views.ExaminationPlanUpdateView.as_view(), 
-         name='examination_plan_update'),
+
     
     path('encounters/<int:encounter_pk>/plans/<int:pk>/delete/', 
          views.ExaminationPlanDeleteView.as_view(), 
@@ -43,9 +41,7 @@ urlpatterns = [
          views.ExaminationPlanDetailView.as_view(), 
          name='plan_detail'),
     
-    path('<str:owner_model>/<int:owner_id>/plans/<int:pk>/edit/', 
-         views.ExaminationPlanUpdateView.as_view(), 
-         name='plan_update'),
+
     
     path('<str:owner_model>/<int:owner_id>/plans/<int:pk>/delete/', 
          views.ExaminationPlanDeleteView.as_view(), 
@@ -56,9 +52,7 @@ urlpatterns = [
          views.ExaminationLabTestCreateView.as_view(), 
          name='lab_test_create'),
     
-    path('lab-tests/<int:pk>/edit/', 
-         views.ExaminationLabTestUpdateView.as_view(), 
-         name='lab_test_update'),
+
     
     path('lab-tests/<int:pk>/delete/', 
          views.ExaminationLabTestDeleteView.as_view(), 
@@ -69,9 +63,7 @@ urlpatterns = [
          views.ExaminationInstrumentalCreateView.as_view(), 
          name='instrumental_create'),
     
-    path('instrumental/<int:pk>/edit/', 
-         views.ExaminationInstrumentalUpdateView.as_view(), 
-         name='instrumental_update'),
+
     
     path('instrumental/<int:pk>/delete/', 
          views.ExaminationInstrumentalDeleteView.as_view(), 

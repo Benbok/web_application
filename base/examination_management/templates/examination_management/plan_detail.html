@@ -56,10 +56,7 @@
                         Действия
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="{% url 'examination_management:examination_plan_update' encounter_pk=encounter.pk pk=examination_plan.pk %}">
-                            <i class="fas fa-edit fa-fw me-2"></i>Редактировать план
-                        </a></li>
-                        <li><hr class="dropdown-divider"></li>
+
                         <li><a class="dropdown-item text-danger" href="{% url 'examination_management:examination_plan_delete' encounter_pk=encounter.pk pk=examination_plan.pk %}">
                             <i class="fas fa-trash fa-fw me-2"></i>Удалить план
                         </a></li>
@@ -262,10 +259,7 @@
                         <div class="card-footer bg-white p-2">
                             <div class="btn-group w-100" role="group">
                                 {% if status_info.status == 'active' %}
-                                    <a href="{% url 'examination_management:lab_test_update' pk=lab_test.pk %}" 
-                                       class="btn btn-outline-primary btn-sm">
-                                        <i class="fas fa-edit me-1"></i> Редактировать
-                                    </a>
+
                                     <a href="{% url 'examination_management:lab_test_delete' pk=lab_test.pk %}" 
                                        class="btn btn-outline-danger btn-sm">
                                         <i class="fas fa-trash me-1"></i> Удалить
@@ -405,10 +399,7 @@
                     </div>
                     <div class="btn-group btn-group-sm" role="group">
                         {% if status_info.status == 'active' %}
-                            <a href="{% url 'examination_management:instrumental_update' pk=instrumental.pk %}" 
-                               class="btn btn-outline-primary btn-sm">
-                                <i class="fas fa-edit"></i>
-                            </a>
+
                             <a href="{% url 'examination_management:instrumental_delete' pk=instrumental.pk %}" 
                                class="btn btn-outline-danger btn-sm">
                                 <i class="fas fa-trash"></i>

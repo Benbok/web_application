@@ -10,12 +10,21 @@
 <div class="container mt-4">
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h3 class="mb-0">{{ department.name }}</h3>
-    <a
-      href="{% url 'departments:department_list' %}"
-      class="btn btn-outline-secondary"
-    >
-      <i class="fas fa-arrow-left me-1"></i> К списку отделений
-    </a>
+    <div>
+      <a
+        href="{% url 'clinical_scheduling:dashboard' %}?department_id={{ department.pk }}"
+        class="btn btn-warning me-2"
+        title="Посмотреть все назначения в отделении"
+      >
+        <i class="fas fa-calendar-alt me-1"></i> Лист назначений отделения
+      </a>
+      <a
+        href="{% url 'departments:department_list' %}"
+        class="btn btn-outline-secondary"
+      >
+        <i class="fas fa-arrow-left me-1"></i> К списку отделений
+      </a>
+    </div>
   </div>
 
   <div class="card mb-4">
@@ -102,6 +111,10 @@
               </div>
               <div class="d-flex gap-2">
                 {% if patient_status.acceptance_date %}
+                  <a href="{% url 'clinical_scheduling:dashboard' %}?patient_id={{ patient_status.patient.pk }}&department_id={{ department.pk }}" 
+                     class="btn btn-sm btn-outline-warning" title="Посмотреть назначения пациента">
+                      <i class="fas fa-calendar-alt me-1"></i> Назначения
+                  </a>
                   <a href="{% url 'departments:patient_history' patient_status.pk %}" class="btn btn-sm btn-outline-info">
                       <i class="fas fa-user me-1"></i> Карточка пациента
                   </a>

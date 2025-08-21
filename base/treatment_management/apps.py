@@ -6,3 +6,10 @@ class TreatmentManagementConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'treatment_management'
     verbose_name = _('Управление лечением')
+    
+    def ready(self):
+        """Регистрируем сигналы при запуске приложения"""
+        try:
+            import treatment_management.signals
+        except ImportError:
+            pass

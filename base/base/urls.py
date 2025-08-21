@@ -34,6 +34,7 @@ urlpatterns = [
     path('diagnosis/', include('diagnosis.urls')),  # Добавляем URL-адреса diagnosis
     path('treatment/', include('treatment_management.urls')),  # Добавляем URL-адреса treatment_management
     path('examination/', include('examination_management.urls')),  # Добавляем URL-адреса examination_management
+    path('scheduling/', include('clinical_scheduling.urls')),  # Добавляем URL-адреса clinical_scheduling
 ]
 
 if settings.DEBUG:

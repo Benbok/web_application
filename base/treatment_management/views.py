@@ -17,6 +17,7 @@ from .services import (
     TreatmentPlanService, TreatmentMedicationService, TreatmentRecommendationService
 )
 from patients.models import Patient
+from clinical_scheduling.mixins import MedicationScheduleRedirectMixin
 
 # Общая функция для преобразования текстового способа введения в ID AdministrationMethod
 def map_route_to_form_value(route_text):
@@ -284,7 +285,7 @@ class TreatmentPlanDeleteView(LoginRequiredMixin, OwnerContextMixin, DeleteView)
             raise
 
 
-class TreatmentMedicationCreateView(LoginRequiredMixin, OwnerContextMixin, CreateView):
+class TreatmentMedicationCreateView(LoginRequiredMixin, OwnerContextMixin, MedicationScheduleRedirectMixin, CreateView):
     """
     Добавление лекарства в план лечения
     """
@@ -298,9 +299,7 @@ class TreatmentMedicationCreateView(LoginRequiredMixin, OwnerContextMixin, Creat
     
     def form_valid(self, form):
         form.instance.treatment_plan = self.treatment_plan
-        response = super().form_valid(form)
-        messages.success(self.request, _('Лекарство успешно добавлено в план лечения'))
-        return response
+        return super().form_valid(form)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -410,9 +409,7 @@ class QuickAddMedicationView(LoginRequiredMixin, OwnerContextMixin, CreateView):
     
     def form_valid(self, form):
         form.instance.treatment_plan = self.treatment_plan
-        response = super().form_valid(form)
-        messages.success(self.request, _('Лекарство успешно добавлено в план лечения'))
-        return response
+        return super().form_valid(form)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import (
-    ListView, CreateView, UpdateView, DeleteView, DetailView
+    ListView, CreateView, DeleteView, DetailView
 )
 from django.urls import reverse, reverse_lazy
 from django.contrib.contenttypes.models import ContentType
@@ -15,6 +15,9 @@ from .forms import ExaminationPlanForm, ExaminationLabTestForm, ExaminationInstr
 
 # Импортируем сервис для создания планов обследования
 from .services import ExaminationPlanService
+
+# Импортируем миксины для перенаправления на настройку расписания
+from clinical_scheduling.mixins import LabTestScheduleRedirectMixin, ProcedureScheduleRedirectMixin
 
 # Импортируем Encounter для специальных URL
 try:
@@ -281,91 +284,6 @@ class ExaminationPlanCreateView(LoginRequiredMixin, OwnerContextMixin, CreateVie
                           })
 
 
-class ExaminationPlanUpdateView(LoginRequiredMixin, UpdateView):
-    """
-    Редактирование плана обследования
-    """
-    model = ExaminationPlan
-    form_class = ExaminationPlanForm
-    template_name = 'examination_management/plan_form.html'
-    
-    def dispatch(self, request, *args, **kwargs):
-        # Проверяем, используем ли мы специальный URL для encounters
-        if 'encounter_pk' in self.kwargs:
-            from encounters.models import Encounter
-            self.encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
-            self.owner = self.encounter
-            self.owner_model = 'encounter'
-            self.patient = self.encounter.patient
-        return super().dispatch(request, *args, **kwargs)
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        
-        # Получаем владельца через GenericForeignKey или encounter для обратной совместимости
-        if hasattr(self.object, 'owner') and self.object.owner:
-            context['owner'] = self.object.owner
-            context['patient'] = self.get_patient_from_owner(self.object.owner)
-            # Определяем тип владельца для URL
-            if hasattr(self.object.owner, '_meta'):
-                context['owner_model'] = self.object.owner._meta.model_name
-                context['owner_id'] = self.object.owner.id
-            # Если владелец - это Encounter, добавляем его в контекст
-            if isinstance(self.object.owner, Encounter):
-                context['encounter'] = self.object.owner
-        elif hasattr(self.object, 'encounter') and self.object.encounter:
-            context['encounter'] = self.object.encounter
-            context['owner'] = self.object.encounter
-            context['patient'] = self.object.encounter.patient
-            context['owner_model'] = 'encounter'
-            context['owner_id'] = self.object.encounter.id
-        else:
-            context['owner'] = None
-            context['patient'] = None
-            context['owner_model'] = None
-            context['owner_id'] = None
-            context['encounter'] = None
-        
-        context['title'] = _('Редактировать план обследования')
-        return context
-    
-    def get_success_url(self):
-        # Определяем URL в зависимости от типа владельца
-        if hasattr(self.object, 'owner') and self.object.owner:
-            if isinstance(self.object.owner, Encounter):
-                return reverse('examination_management:examination_plan_detail',
-                              kwargs={
-                                  'encounter_pk': self.object.owner.id,
-                                  'pk': self.object.pk
-                              })
-            else:
-                return reverse('examination_management:plan_detail',
-                              kwargs={
-                                  'owner_model': self.object.owner._meta.model_name,
-                                  'owner_id': self.object.owner.id,
-                                  'pk': self.object.pk
-                              })
-        elif hasattr(self.object, 'encounter') and self.object.encounter:
-            return reverse('examination_management:examination_plan_detail',
-                          kwargs={
-                              'encounter_pk': self.object.encounter.id,
-                              'pk': self.object.pk
-                          })
-        else:
-            # Fallback - возвращаемся к списку планов
-            return reverse('examination_management:examination_plan_list',
-                          kwargs={'encounter_pk': 1})  # Временное решение
-    
-    def get_patient_from_owner(self, owner):
-        """
-        Получает пациента из владельца
-        """
-        if hasattr(owner, 'patient'):
-            return owner.patient
-        elif hasattr(owner, 'get_patient'):
-            return owner.get_patient()
-        return None
-
 
 class ExaminationPlanDetailView(LoginRequiredMixin, DetailView):
     """
@@ -526,7 +444,7 @@ class ExaminationPlanDeleteView(LoginRequiredMixin, DeleteView):
         return None
 
 
-class ExaminationLabTestCreateView(LoginRequiredMixin, CreateView):
+class ExaminationLabTestCreateView(LoginRequiredMixin, LabTestScheduleRedirectMixin, CreateView):
     """
     Добавление лабораторного исследования в план обследования
     """
@@ -542,32 +460,27 @@ class ExaminationLabTestCreateView(LoginRequiredMixin, CreateView):
         form.instance.examination_plan = self.examination_plan
         # Сохраняем значение lab_test из формы
         form.instance.lab_test = form.cleaned_data['lab_test']
+        
+        # Сохраняем объект
         response = super().form_valid(form)
         
-        # Получаем пациента из плана обследования
-        patient = None
-        if hasattr(self.examination_plan, 'owner') and self.examination_plan.owner:
-            patient = self.get_patient_from_owner(self.examination_plan.owner)
-        elif hasattr(self.examination_plan, 'encounter') and self.examination_plan.encounter:
-            patient = self.examination_plan.encounter.patient
+        # Создаем LabTestAssignment для отображения в списке назначений
+        try:
+            LabTestAssignment.objects.create(
+                lab_test=form.instance.lab_test,
+                patient=form.instance.examination_plan.owner.patient if hasattr(form.instance.examination_plan.owner, 'patient') else form.instance.examination_plan.encounter.patient,
+                content_type=ContentType.objects.get_for_model(form.instance.__class__),
+                object_id=form.instance.id,
+                start_date=timezone.now(),
+                assigning_doctor=self.request.user,
+                status='active'
+            )
+        except Exception as e:
+            # Логируем ошибку, но не прерываем процесс
+            print(f"Ошибка при создании LabTestAssignment: {e}")
         
-        # Автоматически создаем назначение для врача-лаборанта
-        if patient:
-            try:
-                LabTestAssignment.objects.create(
-                    content_type=ContentType.objects.get_for_model(form.instance),
-                    object_id=form.instance.pk,
-                    patient=patient,
-                    assigning_doctor=self.request.user,
-                    start_date=timezone.now(),
-                    lab_test=form.instance.lab_test,
-                    notes=form.instance.instructions
-                )
-                messages.success(self.request, _('Лабораторное исследование успешно добавлено в план и назначено для выполнения'))
-            except Exception as e:
-                messages.warning(self.request, _('Исследование добавлено в план, но назначение не создано: {}').format(str(e)))
-        else:
-            messages.warning(self.request, _('Исследование добавлено в план, но пациент не найден'))
+        # Добавляем сообщение об успехе (миксин обработает перенаправление)
+        messages.success(self.request, _('Лабораторное исследование успешно добавлено в план. Теперь настройте расписание.'))
         
         return response
     
@@ -631,29 +544,6 @@ class ExaminationLabTestCreateView(LoginRequiredMixin, CreateView):
         return None
 
 
-class ExaminationLabTestUpdateView(LoginRequiredMixin, UpdateView):
-    """
-    Редактирование лабораторного исследования в плане обследования
-    """
-    model = ExaminationLabTest
-    form_class = ExaminationLabTestForm
-    template_name = 'examination_management/lab_test_form.html'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['examination_plan'] = self.object.examination_plan
-        context['encounter'] = self.object.examination_plan.encounter
-        context['patient'] = self.object.examination_plan.encounter.patient
-        context['title'] = _('Редактировать лабораторное исследование')
-        return context
-    
-    def get_success_url(self):
-        return reverse('examination_management:plan_detail',
-                      kwargs={
-                          'owner_model': 'encounter',
-                          'owner_id': self.object.examination_plan.encounter.id,
-                          'pk': self.object.examination_plan.pk
-                      })
 
 
 class ExaminationLabTestDeleteView(LoginRequiredMixin, DeleteView):
@@ -716,7 +606,7 @@ class ExaminationLabTestDeleteView(LoginRequiredMixin, DeleteView):
                       })
 
 
-class ExaminationInstrumentalCreateView(LoginRequiredMixin, CreateView):
+class ExaminationInstrumentalCreateView(LoginRequiredMixin, ProcedureScheduleRedirectMixin, CreateView):
     """
     Добавление инструментального исследования в план обследования
     """
@@ -732,32 +622,27 @@ class ExaminationInstrumentalCreateView(LoginRequiredMixin, CreateView):
         form.instance.examination_plan = self.examination_plan
         # Сохраняем значение instrumental_procedure из формы
         form.instance.instrumental_procedure = form.cleaned_data['instrumental_procedure']
+        
+        # Сохраняем объект
         response = super().form_valid(form)
         
-        # Получаем пациента из плана обследования
-        patient = None
-        if hasattr(self.examination_plan, 'owner') and self.examination_plan.owner:
-            patient = self.get_patient_from_owner(self.examination_plan.owner)
-        elif hasattr(self.examination_plan, 'encounter') and self.examination_plan.encounter:
-            patient = self.examination_plan.encounter.patient
+        # Создаем InstrumentalProcedureAssignment для отображения в списке назначений
+        try:
+            InstrumentalProcedureAssignment.objects.create(
+                instrumental_procedure=form.instance.instrumental_procedure,
+                patient=form.instance.examination_plan.owner.patient if hasattr(form.instance.examination_plan.owner, 'patient') else form.instance.examination_plan.encounter.patient,
+                content_type=ContentType.objects.get_for_model(form.instance.__class__),
+                object_id=form.instance.id,
+                start_date=timezone.now(),
+                assigning_doctor=self.request.user,
+                status='active'
+            )
+        except Exception as e:
+            # Логируем ошибку, но не прерываем процесс
+            print(f"Ошибка при создании InstrumentalProcedureAssignment: {e}")
         
-        # Автоматически создаем назначение для врача-лаборанта
-        if patient:
-            try:
-                InstrumentalProcedureAssignment.objects.create(
-                    content_type=ContentType.objects.get_for_model(form.instance),
-                    object_id=form.instance.pk,
-                    patient=patient,
-                    assigning_doctor=self.request.user,
-                    start_date=timezone.now(),
-                    instrumental_procedure=form.instance.instrumental_procedure,
-                    notes=form.instance.instructions
-                )
-                messages.success(self.request, _('Инструментальное исследование успешно добавлено в план и назначено для выполнения'))
-            except Exception as e:
-                messages.warning(self.request, _('Исследование добавлено в план, но назначение не создано: {}').format(str(e)))
-        else:
-            messages.warning(self.request, _('Исследование добавлено в план, но пациент не найден'))
+        # Добавляем сообщение об успехе (миксин обработает перенаправление)
+        messages.success(self.request, _('Инструментальное исследование успешно добавлено в план. Теперь настройте расписание.'))
         
         return response
     
@@ -808,29 +693,7 @@ class ExaminationInstrumentalCreateView(LoginRequiredMixin, CreateView):
         return None
 
 
-class ExaminationInstrumentalUpdateView(LoginRequiredMixin, UpdateView):
-    """
-    Редактирование инструментального исследования в плане обследования
-    """
-    model = ExaminationInstrumental
-    form_class = ExaminationInstrumentalForm
-    template_name = 'examination_management/instrumental_form.html'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['examination_plan'] = self.object.examination_plan
-        context['encounter'] = self.object.examination_plan.encounter
-        context['patient'] = self.object.examination_plan.encounter.patient
-        context['title'] = _('Редактировать инструментальное исследование')
-        return context
-    
-    def get_success_url(self):
-        return reverse('examination_management:plan_detail',
-                      kwargs={
-                          'owner_model': 'encounter',
-                          'owner_id': self.object.examination_plan.encounter.id,
-                          'pk': self.object.examination_plan.pk
-                      })
+
 
 
 class ExaminationInstrumentalDeleteView(LoginRequiredMixin, DeleteView):

@@ -146,6 +146,18 @@
           {% endif %}
         </div>
         
+        {% comment %} Кнопка лист назначений {% endcomment %}
+        <div class="btn-group me-2" role="group">
+          <a
+            href="{% url 'clinical_scheduling:dashboard' %}?patient_id={{ encounter.patient.pk }}&encounter_id={{ encounter.pk }}"
+            class="btn btn-outline-warning"
+            title="Посмотреть расписание назначений для этого пациента"
+          >
+            <i class="fas fa-calendar-alt me-1"></i> 
+            Лист назначений
+          </a>
+        </div>
+        
         {% comment %} Выпадающее меню для второстепенных действий {% endcomment %}
         <div class="btn-group" role="group">
           <button id="btnGroupDrop1" type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="false" aria-expanded="false">
