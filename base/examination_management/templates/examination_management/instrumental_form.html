@@ -1,5 +1,6 @@
 {% extends "patients/base.html" %}
 {% load static %}
+{% load i18n %}
 
 {% block title %}{{ title }}{% endblock %}
 
@@ -22,6 +23,7 @@
                     <form method="post">
                         {% csrf_token %}
                         
+                        <!-- Основные поля назначения -->
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="{{ form.instrumental_procedure.id_for_label }}" class="form-label">
@@ -73,7 +75,93 @@
                             </div>
                         </div>
                         
-                        <div class="d-flex gap-2">
+                        <!-- Карточка настройки расписания -->
+                        <div class="card mt-4 border-warning">
+                            <div class="card-header bg-warning text-dark">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-calendar-alt me-2"></i>
+                                    {% trans 'Настройка расписания' %}
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.start_date.id_for_label }}" class="form-label">
+                                            {{ form.start_date.label }}
+                                        </label>
+                                        {{ form.start_date }}
+                                        {% if form.start_date.help_text %}
+                                            <small class="form-text text-muted">{{ form.start_date.help_text }}</small>
+                                        {% endif %}
+                                        {% if form.start_date.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.start_date.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.first_time.id_for_label }}" class="form-label">
+                                            {{ form.first_time.label }}
+                                        </label>
+                                        {{ form.first_time }}
+                                        {% if form.first_time.help_text %}
+                                            <small class="form-text text-muted">{{ form.first_time.help_text }}</small>
+                                        {% endif %}
+                                        {% if form.first_time.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.first_time.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.times_per_day.id_for_label }}" class="form-label">
+                                            {{ form.times_per_day.label }}
+                                        </label>
+                                        {{ form.times_per_day }}
+                                        {% if form.times_per_day.help_text %}
+                                            <small class="form-text text-muted">{{ form.times_per_day.help_text }}</small>
+                                        {% endif %}
+                                        {% if form.times_per_day.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.times_per_day.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.duration_days.id_for_label }}" class="form-label">
+                                            {{ form.duration_days.label }}
+                                        </label>
+                                        {{ form.duration_days }}
+                                        {% if form.duration_days.help_text %}
+                                            <small class="form-text text-muted">{{ form.duration_days.help_text }}</small>
+                                        {% endif %}
+                                        {% if form.duration_days.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.duration_days.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <!-- Скрытое поле для включения расписания -->
+                                {{ form.enable_schedule }}
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex gap-2 mt-4">
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-save"></i> 
                                 {% if object %}Сохранить изменения{% else %}Добавить исследование{% endif %}
@@ -89,4 +177,24 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Устанавливаем текущую дату по умолчанию, если поле пустое
+    document.addEventListener('DOMContentLoaded', function() {
+        const startDateField = document.getElementById('{{ form.start_date.id_for_label }}');
+        if (startDateField) {
+            // Если поле пустое, устанавливаем сегодняшнюю дату
+            if (!startDateField.value) {
+                const today = new Date().toISOString().split('T')[0];
+                startDateField.value = today;
+            }
+            
+            // Устанавливаем минимальную дату как сегодня (нельзя выбрать прошедшую дату)
+            const today = new Date().toISOString().split('T')[0];
+            startDateField.setAttribute('min', today);
+        }
+    });
+</script>
 {% endblock %} 

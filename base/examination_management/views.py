@@ -11,13 +11,14 @@ from django.utils import timezone
 from django.views import View
 
 from .models import ExaminationPlan, ExaminationLabTest, ExaminationInstrumental
-from .forms import ExaminationPlanForm, ExaminationLabTestForm, ExaminationInstrumentalForm
+from .forms import ExaminationPlanForm, ExaminationLabTestForm, ExaminationInstrumentalForm, ExaminationLabTestWithScheduleForm, ExaminationInstrumentalWithScheduleForm
 
 # Импортируем сервис для создания планов обследования
 from .services import ExaminationPlanService
 
 # Импортируем миксины для перенаправления на настройку расписания
 from clinical_scheduling.mixins import LabTestScheduleRedirectMixin, ProcedureScheduleRedirectMixin
+from clinical_scheduling.services import ClinicalSchedulingService
 
 # Импортируем Encounter для специальных URL
 try:
@@ -444,12 +445,12 @@ class ExaminationPlanDeleteView(LoginRequiredMixin, DeleteView):
         return None
 
 
-class ExaminationLabTestCreateView(LoginRequiredMixin, LabTestScheduleRedirectMixin, CreateView):
+class ExaminationLabTestCreateView(LoginRequiredMixin, CreateView):
     """
-    Добавление лабораторного исследования в план обследования
+    Добавление лабораторного исследования в план обследования с настройкой расписания
     """
     model = ExaminationLabTest
-    form_class = ExaminationLabTestForm
+    form_class = ExaminationLabTestWithScheduleForm
     template_name = 'examination_management/lab_test_form.html'
     
     def dispatch(self, request, *args, **kwargs):
@@ -479,8 +480,22 @@ class ExaminationLabTestCreateView(LoginRequiredMixin, LabTestScheduleRedirectMi
             # Логируем ошибку, но не прерываем процесс
             print(f"Ошибка при создании LabTestAssignment: {e}")
         
-        # Добавляем сообщение об успехе (миксин обработает перенаправление)
-        messages.success(self.request, _('Лабораторное исследование успешно добавлено в план. Теперь настройте расписание.'))
+        # Создаем расписание, если оно включено
+        if form.cleaned_data.get('enable_schedule'):
+            try:
+                ClinicalSchedulingService.create_schedule_for_assignment(
+                    assignment=form.instance,
+                    user=self.request.user,
+                    start_date=form.cleaned_data['start_date'],
+                    first_time=form.cleaned_data['first_time'],
+                    times_per_day=form.cleaned_data['times_per_day'],
+                    duration_days=form.cleaned_data['duration_days']
+                )
+                messages.success(self.request, _('Лабораторное исследование и расписание успешно созданы.'))
+            except Exception as e:
+                messages.warning(self.request, _('Исследование создано, но возникла ошибка при создании расписания: {}').format(str(e)))
+        else:
+            messages.success(self.request, _('Лабораторное исследование успешно добавлено в план.'))
         
         return response
     
@@ -606,12 +621,12 @@ class ExaminationLabTestDeleteView(LoginRequiredMixin, DeleteView):
                       })
 
 
-class ExaminationInstrumentalCreateView(LoginRequiredMixin, ProcedureScheduleRedirectMixin, CreateView):
+class ExaminationInstrumentalCreateView(LoginRequiredMixin, CreateView):
     """
-    Добавление инструментального исследования в план обследования
+    Добавление инструментального исследования в план обследования с настройкой расписания
     """
     model = ExaminationInstrumental
-    form_class = ExaminationInstrumentalForm
+    form_class = ExaminationInstrumentalWithScheduleForm
     template_name = 'examination_management/instrumental_form.html'
     
     def dispatch(self, request, *args, **kwargs):
@@ -641,8 +656,22 @@ class ExaminationInstrumentalCreateView(LoginRequiredMixin, ProcedureScheduleRed
             # Логируем ошибку, но не прерываем процесс
             print(f"Ошибка при создании InstrumentalProcedureAssignment: {e}")
         
-        # Добавляем сообщение об успехе (миксин обработает перенаправление)
-        messages.success(self.request, _('Инструментальное исследование успешно добавлено в план. Теперь настройте расписание.'))
+        # Создаем расписание, если оно включено
+        if form.cleaned_data.get('enable_schedule'):
+            try:
+                ClinicalSchedulingService.create_schedule_for_assignment(
+                    assignment=form.instance,
+                    user=self.request.user,
+                    start_date=form.cleaned_data['start_date'],
+                    first_time=form.cleaned_data['first_time'],
+                    times_per_day=form.cleaned_data['times_per_day'],
+                    duration_days=form.cleaned_data['duration_days']
+                )
+                messages.success(self.request, _('Инструментальное исследование и расписание успешно созданы.'))
+            except Exception as e:
+                messages.warning(self.request, _('Исследование создано, но возникла ошибка при создании расписания: {}').format(str(e)))
+        else:
+            messages.success(self.request, _('Инструментальное исследование успешно добавлено в план.'))
         
         return response
     
