@@ -1,5 +1,6 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
+from datetime import time, date
 from .models import TreatmentPlan, TreatmentMedication, TreatmentRecommendation
 from pharmacy.widgets import MedicationSelect2Widget
 
@@ -145,6 +146,71 @@ class TreatmentMedicationForm(forms.ModelForm):
             raise forms.ValidationError(
                 _("Нельзя указывать одновременно препарат из справочника и собственный препарат")
             )
+        
+        return cleaned_data
+
+
+class TreatmentMedicationWithScheduleForm(TreatmentMedicationForm):
+    """
+    Интегрированная форма для добавления лекарства в план лечения с настройкой расписания
+    """
+    
+    # Поля для расписания
+    start_date = forms.DateField(
+        label=_('Дата начала'),
+        widget=forms.DateInput(attrs={
+            'type': 'date',
+            'class': 'form-control'
+        }),
+        initial=date.today,
+        help_text=_('С какой даты начинать прием лекарства')
+    )
+    
+    first_time = forms.TimeField(
+        label=_('Время первого приема'),
+        widget=forms.TimeInput(attrs={
+            'type': 'time',
+            'class': 'form-control'
+        }),
+        initial=time(9, 0),
+        help_text=_('Время первого приема в день')
+    )
+    
+    times_per_day = forms.IntegerField(
+        label=_('Количество приемов в день'),
+        min_value=1,
+        max_value=24,
+        initial=2,
+        widget=forms.NumberInput(attrs={'class': 'form-control'}),
+        help_text=_('Сколько раз в день принимать лекарство')
+    )
+    
+    duration_days = forms.IntegerField(
+        label=_('Длительность курса (дней)'),
+        min_value=1,
+        max_value=365,
+        initial=7,
+        widget=forms.NumberInput(attrs={'class': 'form-control'}),
+        help_text=_('На сколько дней планируется курс лечения')
+    )
+    
+    # Скрытое поле для включения расписания
+    enable_schedule = forms.BooleanField(
+        required=False,
+        initial=True,
+        widget=forms.HiddenInput()
+    )
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        times_per_day = cleaned_data.get('times_per_day')
+        duration_days = cleaned_data.get('duration_days')
+        
+        if times_per_day and duration_days:
+            if times_per_day * duration_days > 1000:
+                raise forms.ValidationError(
+                    _('Слишком много записей в расписании. Уменьшите количество приемов в день или длительность курса.')
+                )
         
         return cleaned_data
 

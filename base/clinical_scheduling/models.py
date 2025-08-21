@@ -195,7 +195,8 @@ class ScheduledAppointment(models.Model):
             return {
                 'type': 'unknown', 
                 'name': 'Назначение не найдено', 
-                'patient': self.patient
+                'patient': self.patient,
+                'department': self.created_department
             }
         
         # Проверяем тип назначения и получаем нужную информацию
@@ -203,23 +204,27 @@ class ScheduledAppointment(models.Model):
             return {
                 'type': 'treatment', 
                 'name': assignment.treatment_name, 
-                'patient': self.patient
+                'patient': self.patient,
+                'department': self.created_department
             }
         elif hasattr(assignment, 'lab_test'):
             return {
                 'type': 'lab_test', 
                 'name': assignment.lab_test.name if assignment.lab_test else 'Лабораторное исследование', 
-                'patient': self.patient
+                'patient': self.patient,
+                'department': self.created_department
             }
         elif hasattr(assignment, 'instrumental_procedure'):
             return {
                 'type': 'procedure', 
                 'name': assignment.instrumental_procedure.name if assignment.instrumental_procedure else 'Процедура', 
-                'patient': self.patient
+                'patient': self.patient,
+                'department': self.created_department
             }
         else:
             return {
                 'type': 'unknown', 
                 'name': str(assignment), 
-                'patient': self.patient
+                'patient': self.patient,
+                'department': self.created_department
             }

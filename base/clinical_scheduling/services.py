@@ -18,8 +18,7 @@ class ClinicalSchedulingService:
             times_per_day: Количество приемов в день (по умолчанию - 1)
             duration_days: Длительность курса в днях (по умолчанию - 7)
         """
-        print(f"🔧 ClinicalSchedulingService.create_schedule_for_assignment вызван для {assignment}")
-        print(f"📝 Тип назначения: {type(assignment).__name__}")
+
         
         if not start_date:
             start_date = timezone.now().date()
@@ -29,176 +28,140 @@ class ClinicalSchedulingService:
             times_per_day = 1
         if not duration_days:
             duration_days = 7
-        
-        print(f"📅 Параметры: start_date={start_date}, first_time={first_time}, times_per_day={times_per_day}, duration_days={duration_days}")
+
         
         # Получаем информацию о пациенте, отделении и случае поступления
         patient = ClinicalSchedulingService._get_patient_from_assignment(assignment)
         department = ClinicalSchedulingService._get_department_from_assignment(assignment)
         encounter = ClinicalSchedulingService._get_encounter_from_assignment(assignment)
-        
-        print(f"👤 Пациент: {patient}")
-        print(f"🏥 Отделение: {department}")
-        print(f"📋 Случай поступления: {encounter}")
+
         
         if not patient:
-            print("❌ Не удалось определить пациента для назначения")
             raise ValueError("Не удалось определить пациента для назначения")
         
         if not department:
-            print("⚠️ Не удалось определить отделение для назначения, используем приемное отделение")
             # Если не удалось определить отделение, используем приемное отделение
             try:
                 department = Department.objects.filter(slug='admission').first()
                 if not department:
                     # Если нет приемного отделения, используем первое доступное
                     department = Department.objects.first()
-                if department:
-                    print(f"✅ Использую отделение по умолчанию: {department}")
-                else:
-                    print("❌ Не удалось найти ни одного отделения")
+                if not department:
                     raise ValueError("Не удалось определить отделение для назначения")
             except Exception as e:
-                print(f"❌ Ошибка при поиске отделения по умолчанию: {e}")
                 raise ValueError("Не удалось определить отделение для назначения")
-        
-        print(f"🔍 Проверяю атрибуты назначения: {[attr for attr in dir(assignment) if not attr.startswith('_')]}")
+
         
         if hasattr(assignment, 'medication'):
-            print("💊 Создаю расписание для лекарства")
             return ClinicalSchedulingService._create_medication_schedule(
                 assignment, patient, department, encounter, start_date, first_time, times_per_day, duration_days
             )
         elif hasattr(assignment, 'lab_test'):
-            print("🧪 Создаю расписание для лабораторного теста")
             return ClinicalSchedulingService._create_lab_test_schedule(
                 assignment, patient, department, encounter, start_date, first_time
             )
         elif hasattr(assignment, 'instrumental_procedure'):
-            print("🔬 Создаю расписание для инструментального исследования")
             return ClinicalSchedulingService._create_procedure_schedule(
                 assignment, patient, department, encounter, start_date, first_time
             )
-        else:
-            print("⚠️ Неизвестный тип назначения")
         return []
     
     @staticmethod
     def _get_patient_from_assignment(assignment):
         """Получает пациента из назначения"""
-        print(f"🔍 _get_patient_from_assignment: {assignment}")
-        print(f"📝 Тип: {type(assignment).__name__}")
         
         try:
             # Проверяем прямые атрибуты
             if hasattr(assignment, 'patient'):
-                print(f"✅ Найден прямой атрибут patient: {assignment.patient}")
                 return assignment.patient
             
             # Проверяем через treatment_plan
             if hasattr(assignment, 'treatment_plan'):
-                print(f"🔗 Найден treatment_plan: {assignment.treatment_plan}")
                 
                 # Сначала проверяем patient_department_status
                 if hasattr(assignment.treatment_plan, 'patient_department_status') and assignment.treatment_plan.patient_department_status:
                     try:
                         patient = assignment.treatment_plan.patient_department_status.patient
-                        print(f"✅ Пациент через patient_department_status: {patient}")
                         return patient
-                    except Exception as e:
-                        print(f"⚠️ Ошибка при получении пациента через patient_department_status: {e}")
+                    except Exception:
+                        pass
                 
                 # Затем проверяем encounter
                 if hasattr(assignment.treatment_plan, 'encounter') and assignment.treatment_plan.encounter:
                     try:
                         patient = assignment.treatment_plan.encounter.patient
-                        print(f"✅ Пациент через encounter: {patient}")
                         return patient
-                    except Exception as e:
-                        print(f"⚠️ Ошибка при получении пациента через encounter: {e}")
+                    except Exception:
+                        pass
                 
                 # Проверяем owner (GenericForeignKey)
                 if hasattr(assignment.treatment_plan, 'owner') and assignment.treatment_plan.owner:
                     try:
                         if hasattr(assignment.treatment_plan.owner, 'patient'):
                             patient = assignment.treatment_plan.owner.patient
-                            print(f"✅ Пациент через owner.patient: {patient}")
                             return patient
                         elif hasattr(assignment.treatment_plan.owner, 'get_patient'):
                             patient = assignment.treatment_plan.owner.get_patient()
-                            print(f"✅ Пациент через owner.get_patient(): {patient}")
                             return patient
-                    except Exception as e:
-                        print(f"⚠️ Ошибка при получении пациента через owner: {e}")
+                    except Exception:
+                        pass
             
             # Проверяем через examination_plan
             elif hasattr(assignment, 'examination_plan'):
-                print(f"🔗 Найден examination_plan: {assignment.examination_plan}")
                 
                 # Сначала проверяем patient_department_status
                 if hasattr(assignment.examination_plan, 'patient_department_status') and assignment.examination_plan.patient_department_status:
                     try:
                         patient = assignment.examination_plan.patient_department_status.patient
-                        print(f"✅ Пациент через patient_department_status: {patient}")
                         return patient
-                    except Exception as e:
-                        print(f"⚠️ Ошибка при получении пациента через patient_department_status: {e}")
+                    except Exception:
+                        pass
                 
                 # Затем проверяем encounter
                 if hasattr(assignment.examination_plan, 'encounter') and assignment.examination_plan.encounter:
                     try:
                         patient = assignment.examination_plan.encounter.patient
-                        print(f"✅ Пациент через encounter: {patient}")
                         return patient
-                    except Exception as e:
-                        print(f"⚠️ Ошибка при получении пациента через encounter: {e}")
+                    except Exception:
+                        pass
                 
                 # Проверяем owner (GenericForeignKey)
                 if hasattr(assignment.examination_plan, 'owner') and assignment.examination_plan.owner:
                     try:
                         if hasattr(assignment.examination_plan.owner, 'patient'):
                             patient = assignment.examination_plan.owner.patient
-                            print(f"✅ Пациент через owner.patient: {patient}")
                             return patient
                         elif hasattr(assignment.examination_plan.owner, 'get_patient'):
                             patient = assignment.examination_plan.owner.get_patient()
-                            print(f"✅ Пациент через owner.get_patient(): {patient}")
                             return patient
-                    except Exception as e:
-                        print(f"⚠️ Ошибка при получении пациента через owner: {e}")
-            
-            else:
-                print("❌ Не найдено подходящих атрибутов для получения пациента")
-                print(f"🔍 Доступные атрибуты: {[attr for attr in dir(assignment) if not attr.startswith('_')]}")
+                    except Exception:
+                        pass
+
                 
-        except Exception as e:
-            print(f"❌ Ошибка при получении пациента: {e}")
-            import traceback
-            traceback.print_exc()
+        except Exception:
+            pass
         return None
     
     @staticmethod
     def _get_department_from_assignment(assignment):
         """Получает отделение из назначения"""
-        print(f"🏥 _get_department_from_assignment: {assignment}")
+
         
         try:
             if hasattr(assignment, 'treatment_plan'):
-                print(f"🔗 Найден treatment_plan: {assignment.treatment_plan}")
                 
                 if hasattr(assignment.treatment_plan, 'patient_department_status') and assignment.treatment_plan.patient_department_status:
                     try:
                         department = assignment.treatment_plan.patient_department_status.department
-                        print(f"✅ Отделение через patient_department_status: {department}")
                         return department
-                    except Exception as e:
-                        print(f"⚠️ Ошибка при получении отделения через patient_department_status: {e}")
+                    except Exception:
+                        pass
                 
                 elif hasattr(assignment.treatment_plan, 'encounter') and assignment.treatment_plan.encounter:
                     try:
                         # Пытаемся получить отделение из случая поступления
                         encounter = assignment.treatment_plan.encounter
-                        print(f"🔍 Проверяю encounter: {encounter}")
+
                         
                         # Проверяем через department_transfer_records (PatientDepartmentStatus)
                         if hasattr(encounter, 'department_transfer_records'):
@@ -208,13 +171,11 @@ class ClinicalSchedulingService:
                             
                             if department_records.exists():
                                 department = department_records.first().department
-                                print(f"✅ Отделение через department_transfer_records: {department}")
                                 return department
                         
                         # Проверяем через transfer_to_department
                         if hasattr(encounter, 'transfer_to_department') and encounter.transfer_to_department:
                             department = encounter.transfer_to_department
-                            print(f"✅ Отделение через transfer_to_department: {department}")
                             return department
                         
                         # Проверяем через source_encounter в PatientDepartmentStatus
@@ -227,44 +188,39 @@ class ClinicalSchedulingService:
                             
                             if patient_status:
                                 department = patient_status.department
-                                print(f"✅ Отделение через PatientDepartmentStatus: {department}")
                                 return department
-                        except Exception as e:
-                            print(f"⚠️ Ошибка при получении отделения через PatientDepartmentStatus: {e}")
+                        except Exception:
+                            pass
                             
-                    except Exception as e:
-                        print(f"⚠️ Ошибка при получении отделения через encounter: {e}")
+                    except Exception:
+                        pass
                 
                 # Проверяем owner (GenericForeignKey)
                 if hasattr(assignment.treatment_plan, 'owner') and assignment.treatment_plan.owner:
                     try:
                         if hasattr(assignment.treatment_plan.owner, 'department'):
                             department = assignment.treatment_plan.owner.department
-                            print(f"✅ Отделение через owner.department: {department}")
                             return department
                         elif hasattr(assignment.treatment_plan.owner, 'get_department'):
                             department = assignment.treatment_plan.owner.get_department()
-                            print(f"✅ Отделение через owner.get_department(): {department}")
                             return department
-                    except Exception as e:
-                        print(f"⚠️ Ошибка при получении отделения через owner: {e}")
+                    except Exception:
+                        pass
             
             elif hasattr(assignment, 'examination_plan'):
-                print(f"🔗 Найден examination_plan: {assignment.examination_plan}")
                 
                 if hasattr(assignment.examination_plan, 'patient_department_status') and assignment.examination_plan.patient_department_status:
                     try:
                         department = assignment.examination_plan.patient_department_status.department
-                        print(f"✅ Отделение через patient_department_status: {department}")
                         return department
-                    except Exception as e:
-                        print(f"⚠️ Ошибка при получении отделения через patient_department_status: {e}")
+                    except Exception:
+                        pass
                 
                 elif hasattr(assignment.examination_plan, 'encounter') and assignment.examination_plan.encounter:
                     try:
                         # Пытаемся получить отделение из случая поступления
                         encounter = assignment.examination_plan.encounter
-                        print(f"🔍 Проверяю encounter: {encounter}")
+
                         
                         # Проверяем через department_transfer_records (PatientDepartmentStatus)
                         if hasattr(encounter, 'department_transfer_records'):
@@ -274,13 +230,11 @@ class ClinicalSchedulingService:
                             
                             if department_records.exists():
                                 department = department_records.first().department
-                                print(f"✅ Отделение через department_transfer_records: {department}")
                                 return department
                         
                         # Проверяем через transfer_to_department
                         if hasattr(encounter, 'transfer_to_department') and encounter.transfer_to_department:
                             department = encounter.transfer_to_department
-                            print(f"✅ Отделение через transfer_to_department: {department}")
                             return department
                         
                         # Проверяем через source_encounter в PatientDepartmentStatus
@@ -293,35 +247,29 @@ class ClinicalSchedulingService:
                             
                             if patient_status:
                                 department = patient_status.department
-                                print(f"✅ Отделение через PatientDepartmentStatus: {department}")
                                 return department
-                        except Exception as e:
-                            print(f"⚠️ Ошибка при получении отделения через PatientDepartmentStatus: {e}")
+                        except Exception:
+                            pass
                             
-                    except Exception as e:
-                        print(f"⚠️ Ошибка при получении отделения через encounter: {e}")
+                    except Exception:
+                        pass
                 
                 # Проверяем owner (GenericForeignKey)
                 if hasattr(assignment.examination_plan, 'owner') and assignment.examination_plan.owner:
                     try:
                         if hasattr(assignment.examination_plan.owner, 'department'):
                             department = assignment.examination_plan.owner.department
-                            print(f"✅ Отделение через owner.department: {department}")
                             return department
                         elif hasattr(assignment.examination_plan.owner, 'get_department'):
                             department = assignment.examination_plan.owner.get_department()
-                            print(f"✅ Отделение через owner.get_department(): {department}")
                             return department
-                    except Exception as e:
-                        print(f"⚠️ Ошибка при получении отделения через owner: {e}")
+                    except Exception:
+                        pass
             
-            else:
-                print("❌ Не найдено подходящих атрибутов для получения отделения")
+
                 
-        except Exception as e:
-            print(f"❌ Ошибка при получении отделения: {e}")
-            import traceback
-            traceback.print_exc()
+        except Exception:
+            pass
         return None
     
     @staticmethod
@@ -355,7 +303,7 @@ class ClinicalSchedulingService:
     
     @staticmethod
     def _create_day_schedule(assignment, patient, department, encounter, date, first_time, times_per_day):
-        """Создает расписание на один день"""
+        """Создает расписание на один день с правильным распределением по 24 часам"""
         schedules = []
         content_type = ContentType.objects.get_for_model(assignment)
         
@@ -370,31 +318,33 @@ class ClinicalSchedulingService:
                 scheduled_time=first_time
             ))
         else:
+            # Вычисляем интервал в часах (24 часа / количество приемов)
             interval_hours = 24 // times_per_day
-            current_time = first_time
             
-            # Первое назначение дня
-            schedules.append(ScheduledAppointment.objects.create(
-                content_type=content_type,
-                object_id=assignment.id,
-                patient=patient,
-                created_department=department,
-                encounter=encounter,
-                scheduled_date=date,
-                scheduled_time=current_time
-            ))
-            
-            # Остальные назначения дня
-            for i in range(1, times_per_day):
-                current_time = ClinicalSchedulingService._add_hours_to_time(current_time, interval_hours)
+            # Создаем назначения для всех приемов
+            for i in range(times_per_day):
+                # Вычисляем время для каждого приема
+                total_hours_from_start = i * interval_hours
+                
+                # Вычисляем новое время с учетом переноса на следующий день
+                start_hour = first_time.hour
+                start_minute = first_time.minute
+                
+                new_hour = (start_hour + total_hours_from_start) % 24
+                new_time = time(new_hour, start_minute)
+                
+                # Определяем дату: если время перешло через полночь, добавляем дни
+                days_to_add = (start_hour + total_hours_from_start) // 24
+                appointment_date = date + timedelta(days=days_to_add)
+                
                 schedules.append(ScheduledAppointment.objects.create(
                     content_type=content_type,
                     object_id=assignment.id,
                     patient=patient,
                     created_department=department,
                     encounter=encounter,
-                    scheduled_date=date,
-                    scheduled_time=current_time
+                    scheduled_date=appointment_date,
+                    scheduled_time=new_time
                 ))
         
         return schedules

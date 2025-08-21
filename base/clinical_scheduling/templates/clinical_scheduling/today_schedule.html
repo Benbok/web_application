@@ -1,0 +1,310 @@
+{% extends "patients/base.html" %}
+{% load static %}
+
+{% block title %}Расписание на сегодня{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="card-title mb-0">
+                            <i class="fas fa-calendar-day"></i> Расписание на сегодня
+                            {% if filters.patient_id %}
+                                - Пациент ID: {{ filters.patient_id }}
+                            {% elif filters.department_id %}
+                                - Отделение ID: {{ filters.department_id }}
+                            {% endif %}
+                        </h4>
+                        <div>
+                            {% if filters.patient_id or filters.department_id %}
+                                <a href="{% url 'clinical_scheduling:today_schedule' %}" class="btn btn-outline-secondary btn-sm me-2">
+                                    <i class="fas fa-times me-1"></i> Показать все
+                                </a>
+                            {% endif %}
+                            <a href="{% url 'clinical_scheduling:dashboard' %}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-list me-1"></i> Все назначения
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                                         <!-- Статистика на сегодня -->
+                     <div class="row mb-4">
+                         <div class="col-md-3">
+                             <div class="card bg-info text-white">
+                                 <div class="card-body text-center">
+                                     <h3>{{ schedules|length }}</h3>
+                                     <p class="mb-0">Назначений на сегодня</p>
+                                 </div>
+                             </div>
+                         </div>
+                         <div class="col-md-3">
+                             <div class="card bg-success text-white">
+                                 <div class="card-body text-center">
+                                     <h3>{{ statistics.completed|default:0 }}</h3>
+                                     <p class="mb-0">Выполнено</p>
+                                 </div>
+                             </div>
+                         </div>
+                         <div class="col-md-3">
+                             <div class="card bg-warning text-white">
+                                 <div class="card-body text-center">
+                                     <h3>{{ statistics.pending|default:0 }}</h3>
+                                     <p class="mb-0">Ожидает выполнения</p>
+                                 </div>
+                             </div>
+                         </div>
+                         <div class="col-md-3">
+                             <div class="card bg-secondary text-white">
+                                 <div class="card-body text-center">
+                                     <h3>{{ statistics.skipped|default:0 }}</h3>
+                                     <p class="mb-0">Пропущено</p>
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
+
+                    <!-- Расписание на сегодня -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-clock me-2"></i>
+                                    Расписание на {{ schedules.0.scheduled_date|date:"d.m.Y"|default:"сегодня" }}
+                                </h5>
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="filterByStatus('all')">
+                                        Все
+                                    </button>
+                                    <button type="button" class="btn btn-outline-success btn-sm" onclick="filterByStatus('completed')">
+                                        Выполнено
+                                    </button>
+                                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="filterByStatus('scheduled')">
+                                        Ожидает
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="filterByStatus('skipped')">
+                                        Пропущено
+                                    </button>
+                                </div>
+                            </div>
+
+                            {% if schedules %}
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover" id="today-schedule-table">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Время</th>
+                                                <th>Пациент</th>
+                                                <th>Назначение</th>
+                                                <th>Отделение</th>
+                                                <th>Статус</th>
+                                                <th>Действия</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for appointment in schedules %}
+                                            <tr class="appointment-row" data-status="{{ appointment.execution_status }}">
+                                                <td>
+                                                    <strong>{{ appointment.scheduled_time|time:"H:i" }}</strong>
+                                                </td>
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="fas fa-user-circle me-2 text-primary"></i>
+                                                        <div>
+                                                            <div class="fw-bold">{{ appointment.patient.get_full_name_with_age }}</div>
+                                                            <small class="text-muted">{{ appointment.patient.date_of_birth|date:"d.m.Y" }}</small>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="fas fa-stethoscope me-2 text-info"></i>
+                                                        <div>
+                                                            <a href="{% url 'clinical_scheduling:appointment_detail' appointment.pk %}" class="text-decoration-none">
+                                                                {{ appointment.get_assignment_info.name|default:"Назначение" }}
+                                                            </a>
+                                                            {% if appointment.notes %}
+                                                                <br><small class="text-muted">{{ appointment.notes }}</small>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-light text-dark">
+                                                        {{ appointment.created_department.name|default:"Не указано" }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge 
+                                                        {% if appointment.execution_status == 'completed' %}bg-success
+                                                        {% elif appointment.execution_status == 'rejected' %}bg-danger
+                                                        {% elif appointment.execution_status == 'skipped' %}bg-secondary
+                                                        {% elif appointment.execution_status == 'partial' %}bg-info
+                                                        {% elif appointment.execution_status == 'canceled' %}bg-dark
+                                                        {% else %}bg-warning{% endif %}">
+                                                        {{ appointment.get_execution_status_display }}
+                                                    </span>
+                                                    {% if appointment.executed_at %}
+                                                        <br><small class="text-muted">{{ appointment.executed_at|time:"H:i" }}</small>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group" role="group">
+                                                        <a href="{% url 'clinical_scheduling:appointment_detail' appointment.pk %}" 
+                                                           class="btn btn-sm btn-outline-primary" title="Просмотр">
+                                                            <i class="fas fa-eye"></i>
+                                                        </a>
+                                                        
+                                                        {% if appointment.can_be_edited_by_user %}
+                                                            {% if appointment.execution_status == 'scheduled' %}
+                                                                <a href="{% url 'clinical_scheduling:mark_completed' appointment.pk %}" 
+                                                                   class="btn btn-sm btn-outline-success" title="Отметить как выполненное">
+                                                                    <i class="fas fa-check"></i>
+                                                                </a>
+                                                                <a href="{% url 'clinical_scheduling:mark_skipped' appointment.pk %}" 
+                                                                   class="btn btn-sm btn-outline-secondary" title="Отметить как пропущенное">
+                                                                    <i class="fas fa-times"></i>
+                                                                </a>
+                                                                <a href="{% url 'clinical_scheduling:mark_partial' appointment.pk %}" 
+                                                                   class="btn btn-sm btn-outline-info" title="Частично выполнено">
+                                                                    <i class="fas fa-minus"></i>
+                                                                </a>
+                                                            {% elif appointment.execution_status == 'completed' %}
+                                                                <a href="{% url 'clinical_scheduling:mark_rejected' appointment.pk %}" 
+                                                                   class="btn btn-sm btn-outline-danger" title="Отметить как отклоненное">
+                                                                    <i class="fas fa-ban"></i>
+                                                                </a>
+                                                            {% endif %}
+                                                        {% endif %}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="alert alert-info text-center">
+                                    <i class="fas fa-info-circle fa-3x mb-3"></i>
+                                    <h5>Нет назначений на сегодня</h5>
+                                    <p class="mb-0">Все назначения выполнены или не запланированы на сегодняшний день.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Навигация -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'clinical_scheduling:dashboard' %}" class="btn btn-primary">
+                                    <i class="fas fa-list me-1"></i> Все назначения
+                                </a>
+                                <a href="{% url 'clinical_scheduling:today_schedule' %}" class="btn btn-info active">
+                                    <i class="fas fa-calendar-day me-1"></i> Расписание на сегодня
+                                </a>
+                                {% if filters.patient_id %}
+                                    <a href="{% url 'clinical_scheduling:patient_schedule' filters.patient_id %}" class="btn btn-outline-primary">
+                                        <i class="fas fa-user me-1"></i> Расписание пациента
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Фильтрация по статусу
+function filterByStatus(status) {
+    const rows = document.querySelectorAll('.appointment-row');
+    const buttons = document.querySelectorAll('.btn-group .btn');
+    
+    // Убираем активный класс со всех кнопок
+    buttons.forEach(btn => btn.classList.remove('active'));
+    
+    // Добавляем активный класс к нажатой кнопке
+    event.target.classList.add('active');
+    
+    rows.forEach(row => {
+        if (status === 'all' || row.dataset.status === status) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+// Автообновление каждые 5 минут
+setInterval(function() {
+    location.reload();
+}, 5 * 60 * 1000);
+
+// Подсветка текущего времени
+function highlightCurrentTime() {
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    
+    const rows = document.querySelectorAll('.appointment-row');
+    rows.forEach(row => {
+        const timeCell = row.querySelector('td:first-child strong');
+        if (timeCell) {
+            const timeText = timeCell.textContent;
+            const [hours, minutes] = timeText.split(':').map(Number);
+            const appointmentTime = hours * 60 + minutes;
+            
+            // Подсвечиваем текущее время и ближайшие 30 минут
+            if (Math.abs(appointmentTime - currentTime) <= 30) {
+                row.classList.add('table-warning');
+            }
+        }
+    });
+}
+
+// Запускаем подсветку при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    highlightCurrentTime();
+});
+</script>
+
+<style>
+.appointment-row:hover {
+    background-color: rgba(0, 123, 255, 0.1) !important;
+}
+
+.table-warning {
+    background-color: rgba(255, 193, 7, 0.2) !important;
+}
+
+.btn-group .btn.active {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+}
+
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.table-dark {
+    background-color: #343a40;
+    color: white;
+}
+
+.badge {
+    font-size: 0.875em;
+}
+</style>
+{% endblock %} 

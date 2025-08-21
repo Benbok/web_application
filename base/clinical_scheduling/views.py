@@ -274,17 +274,47 @@ def today_schedule(request):
     patient_id = request.GET.get('patient_id')
     department_id = request.GET.get('department_id')
     
+    # Получаем объекты для фильтрации
+    patient = None
+    department = None
+    
+    if patient_id:
+        try:
+            from patients.models import Patient
+            patient = Patient.objects.get(id=patient_id)
+        except Patient.DoesNotExist:
+            pass
+    
+    if department_id:
+        try:
+            from departments.models import Department
+            department = Department.objects.get(id=department_id)
+        except Department.DoesNotExist:
+            pass
+    
     schedules = ClinicalSchedulingService.get_today_schedule(
-        patient_id=patient_id,
-        department_id=department_id,
+        patient=patient,
+        department=department,
         user=request.user
     )
+    
+    # Подсчитываем статистику
+    total_count = schedules.count()
+    completed_count = schedules.filter(execution_status='completed').count()
+    pending_count = schedules.filter(execution_status='scheduled').count()
+    skipped_count = schedules.filter(execution_status='skipped').count()
     
     context = {
         'schedules': schedules,
         'filters': {
             'patient_id': patient_id,
             'department_id': department_id,
+        },
+        'statistics': {
+            'total': total_count,
+            'completed': completed_count,
+            'pending': pending_count,
+            'skipped': skipped_count,
         }
     }
     

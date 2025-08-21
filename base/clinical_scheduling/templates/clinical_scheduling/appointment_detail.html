@@ -1,0 +1,117 @@
+{% extends "patients/base.html" %}
+{% load static %}
+
+{% block title %}Детали назначения{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="card-title mb-0">
+                            <i class="fas fa-calendar-check"></i> Детали назначения
+                        </h4>
+                        <div>
+                            <a href="{% url 'clinical_scheduling:dashboard' %}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-list me-1"></i> Все назначения
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if appointment %}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Информация о назначении</h5>
+                                <table class="table table-borderless">
+                                    <tr>
+                                        <td><strong>Пациент:</strong></td>
+                                        <td>{{ appointment.patient.get_full_name_with_age }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Дата:</strong></td>
+                                        <td>{{ appointment.scheduled_date|date:"d.m.Y" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Время:</strong></td>
+                                        <td>{{ appointment.scheduled_time|time:"H:i" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Статус:</strong></td>
+                                        <td>
+                                            <span class="badge 
+                                                {% if appointment.execution_status == 'completed' %}bg-success
+                                                {% elif appointment.execution_status == 'rejected' %}bg-danger
+                                                {% elif appointment.execution_status == 'skipped' %}bg-secondary
+                                                {% elif appointment.execution_status == 'partial' %}bg-info
+                                                {% elif appointment.execution_status == 'canceled' %}bg-dark
+                                                {% else %}bg-warning{% endif %}">
+                                                {{ appointment.get_execution_status_display }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Отделение:</strong></td>
+                                        <td>{{ appointment.created_department.name }}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Детали назначения</h5>
+                                <div class="alert alert-info">
+                                    <strong>Тип:</strong> {{ appointment.get_assignment_info.name|default:"Назначение" }}
+                                    {% if appointment.notes %}
+                                        <br><strong>Примечания:</strong> {{ appointment.notes }}
+                                    {% endif %}
+                                </div>
+                                
+                                {% if appointment.executed_at %}
+                                    <div class="alert alert-success">
+                                        <strong>Выполнено:</strong> {{ appointment.executed_at|date:"d.m.Y H:i" }}
+                                        {% if appointment.executed_by %}
+                                            <br><strong>Выполнил:</strong> {{ appointment.executed_by.get_full_name }}
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Действия -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <h5>Действия</h5>
+                                <div class="btn-group" role="group">
+                                    {% if appointment.can_be_edited_by_user %}
+                                        {% if appointment.execution_status == 'scheduled' %}
+                                            <a href="#" class="btn btn-success">
+                                                <i class="fas fa-check me-1"></i> Отметить как выполненное
+                                            </a>
+                                            <a href="#" class="btn btn-secondary">
+                                                <i class="fas fa-times me-1"></i> Отметить как пропущенное
+                                            </a>
+                                            <a href="#" class="btn btn-info">
+                                                <i class="fas fa-minus me-1"></i> Частично выполнено
+                                            </a>
+                                        {% elif appointment.execution_status == 'completed' %}
+                                            <a href="#" class="btn btn-danger">
+                                                <i class="fas fa-ban me-1"></i> Отметить как отклоненное
+                                            </a>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Назначение не найдено
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

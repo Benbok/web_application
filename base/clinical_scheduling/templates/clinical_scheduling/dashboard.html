@@ -11,7 +11,7 @@
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
                         <h4 class="card-title mb-0">
-                            <i class="fas fa-calendar-alt"></i> Лист назначений
+                            <i class="fas fa-calendar-alt me-2"></i> Лист назначений
                             {% if filters.patient_id %}
                                 - Пациент ID: {{ filters.patient_id }}
                             {% elif filters.department_id %}
@@ -20,92 +20,187 @@
                                 - Случай ID: {{ filters.encounter_id }}
                             {% endif %}
                         </h4>
-                        <div>
-                            {% if filters.patient_id or filters.department_id or filters.encounter_id %}
-                                <a href="{% url 'clinical_scheduling:dashboard' %}" class="btn btn-outline-secondary btn-sm me-2">
-                                    <i class="fas fa-times me-1"></i> Показать все
-                                </a>
-                            {% endif %}
-                            {% if show_all %}
-                                <a href="{% url 'clinical_scheduling:dashboard' %}{% if filters.patient_id or filters.department_id or filters.encounter_id %}?{% if filters.patient_id %}patient_id={{ filters.patient_id }}{% endif %}{% if filters.department_id %}{% if filters.patient_id %}&{% endif %}department_id={{ filters.department_id }}{% endif %}{% if filters.encounter_id %}{% if filters.patient_id or filters.department_id %}&{% else %}{% endif %}encounter_id={{ filters.encounter_id }}{% endif %}{% endif %}" class="btn btn-outline-secondary btn-sm">
-                                    <i class="fas fa-list me-1"></i> Сокращенный список
-                                </a>
-                            {% else %}
-                                <a href="{% url 'clinical_scheduling:dashboard' %}{% if filters.patient_id or filters.department_id or filters.encounter_id %}?{% if filters.patient_id %}patient_id={{ filters.patient_id }}{% endif %}{% if filters.department_id %}{% if filters.patient_id %}&{% endif %}department_id={{ filters.department_id }}{% endif %}{% if filters.encounter_id %}{% if filters.patient_id or filters.department_id %}&{% else %}{% endif %}encounter_id={{ filters.encounter_id }}{% endif %}&show_all=true{% else %}?show_all=true{% endif %}" class="btn btn-outline-primary btn-sm">
-                                    <i class="fas fa-list me-1"></i> Полный список
-                                </a>
-                            {% endif %}
-                        </div>
                     </div>
                 </div>
                 <div class="card-body">
                     <!-- Статистика -->
                     <div class="row mb-4">
-                        <div class="col-md-3">
-                            <div class="card bg-info text-white">
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-info text-white filter-card" data-filter="all" style="cursor: pointer;">
                                 <div class="card-body text-center">
-                                    <h3>{{ total_appointments }}</h3>
+                                    <div class="d-flex align-items-center justify-content-center mb-2">
+                                        <i class="fas fa-calendar-alt fa-2x me-2"></i>
+                                        <h3 class="mb-0">{{ total_appointments }}</h3>
+                                    </div>
                                     <p class="mb-0">Всего назначений</p>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card bg-danger text-white">
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-danger text-white filter-card" data-filter="overdue" style="cursor: pointer;">
                                 <div class="card-body text-center">
-                                    <h3>{{ overdue_appointments }}</h3>
+                                    <div class="d-flex align-items-center justify-content-center mb-2">
+                                        <i class="fas fa-exclamation-triangle fa-2x me-2"></i>
+                                        <h3 class="mb-0">{{ overdue_appointments }}</h3>
+                                    </div>
                                     <p class="mb-0">Просрочено</p>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card bg-warning text-white">
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-warning text-white filter-card" data-filter="pending" style="cursor: pointer;">
                                 <div class="card-body text-center">
-                                    <h3>{{ pending_appointments }}</h3>
+                                    <div class="d-flex align-items-center justify-content-center mb-2">
+                                        <i class="fas fa-clock fa-2x me-2"></i>
+                                        <h3 class="mb-0">{{ pending_appointments }}</h3>
+                                    </div>
                                     <p class="mb-0">Ожидает выполнения</p>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card bg-success text-white">
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-success text-white filter-card" data-filter="completed" style="cursor: pointer;">
                                 <div class="card-body text-center">
-                                    <h3>{{ completed_appointments }}</h3>
+                                    <div class="d-flex align-items-center justify-content-center mb-2">
+                                        <i class="fas fa-check-circle fa-2x me-2"></i>
+                                        <h3 class="mb-0">{{ completed_appointments }}</h3>
+                                    </div>
                                     <p class="mb-0">Выполнено</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-
-
                     <!-- Расписание на сегодня -->
                     <div class="row">
-                        <div class="col-md-8">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h5 class="mb-0">
+                                    <i class="fas fa-calendar-day me-2"></i>
                                     {% if show_all %}
                                         Все назначения
                                     {% else %}
                                         Расписание на сегодня (показано {{ appointments|length }} из {{ total_appointments }})
                                     {% endif %}
                                 </h5>
+                                <div class="d-flex gap-2 align-items-center">
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-outline-primary btn-sm active" onclick="filterByStatus('all')">
+                                            <i class="fas fa-list me-1"></i> Все
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="filterByStatus('overdue')">
+                                            <i class="fas fa-exclamation-triangle me-1"></i> Просрочено
+                                        </button>
+                                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="filterByStatus('pending')">
+                                            <i class="fas fa-clock me-1"></i> Ожидает
+                                        </button>
+                                        <button type="button" class="btn btn-outline-success btn-sm" onclick="filterByStatus('completed')">
+                                            <i class="fas fa-check me-1"></i> Выполнено
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Фильтры по дате -->
+                            <div class="row mb-3">
+                                <div class="col-md-8">
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm active" onclick="filterByDate('all')">
+                                                <i class="fas fa-calendar me-1"></i> Все даты
+                                            </button>
+                                            <button type="button" class="btn btn-outline-info btn-sm" onclick="filterByDate('today')">
+                                                <i class="fas fa-calendar-day me-1"></i> Сегодня
+                                            </button>
+                                            <button type="button" class="btn btn-outline-info btn-sm" onclick="filterByDate('tomorrow')">
+                                                <i class="fas fa-calendar-plus me-1"></i> Завтра
+                                            </button>
+                                            <button type="button" class="btn btn-outline-info btn-sm" onclick="filterByDate('week')">
+                                                <i class="fas fa-calendar-week me-1"></i> Эта неделя
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <label for="dateFrom" class="form-label mb-0 text-nowrap">От:</label>
+                                        <input type="date" class="form-control form-control-sm" id="dateFrom" onchange="filterByCustomDate()">
+                                        <label for="dateTo" class="form-label mb-0 text-nowrap">До:</label>
+                                        <input type="date" class="form-control form-control-sm" id="dateTo" onchange="filterByCustomDate()">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearDateFilter()" title="Очистить">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                             {% if appointments %}
-                                <div class="table-responsive">
-                                    <table class="table table-striped">
-                                        <thead>
+                                <div class="table-container">
+                                    <div class="table-responsive">
+                                    <table class="table table-hover table-striped">
+                                        <thead class="table-light">
                                             <tr>
-                                                <th>Время</th>
-                                                <th>Назначение</th>
-                                                <th>Статус</th>
-                                                <th>Действия</th>
+                                                <th scope="col" class="text-nowrap">
+                                                    <i class="fas fa-calendar me-1"></i> Дата
+                                                </th>
+                                                <th scope="col" class="text-nowrap">
+                                                    <i class="fas fa-clock me-1"></i> Время
+                                                </th>
+                                                <th scope="col" class="text-nowrap">
+                                                    <i class="fas fa-user me-1"></i> Пациент
+                                                </th>
+                                                <th scope="col" class="text-nowrap">
+                                                    <i class="fas fa-building me-1"></i> Отделение
+                                                </th>
+                                                <th scope="col" class="text-nowrap">
+                                                    <i class="fas fa-pills me-1"></i> Назначение
+                                                </th>
+                                                <th scope="col" class="text-nowrap">
+                                                    <i class="fas fa-info-circle me-1"></i> Статус
+                                                </th>
+                                                <th scope="col" class="text-nowrap">
+                                                    <i class="fas fa-cogs me-1"></i> Действия
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {% for appointment in appointments %}
-                                            <tr>
-                                                <td>{{ appointment.scheduled_time|time:"H:i" }}</td>
+                                            <tr class="appointment-row" 
+                                                data-status="{% if appointment.execution_status == 'completed' %}completed{% elif appointment.execution_status == 'rejected' %}rejected{% elif appointment.execution_status == 'skipped' %}skipped{% elif appointment.execution_status == 'partial' %}partial{% elif appointment.is_overdue %}overdue{% else %}pending{% endif %}"
+                                                data-date="{{ appointment.scheduled_date|date:'Y-m-d' }}"
+                                                data-datetime="{{ appointment.scheduled_date|date:'Y-m-d' }} {{ appointment.scheduled_time|time:'H:i' }}">
+                                                <td class="text-nowrap">
+                                                    <span class="badge bg-secondary text-white">
+                                                        <i class="fas fa-calendar me-1"></i>
+                                                        {{ appointment.scheduled_date|date:"d.m.Y" }}
+                                                    </span>
+                                                </td>
+                                                <td class="text-nowrap">
+                                                    <span class="badge bg-light text-dark">
+                                                        <i class="fas fa-clock me-1"></i>
+                                                        {{ appointment.scheduled_time|time:"H:i" }}
+                                                    </span>
+                                                </td>
+                                                <td class="text-nowrap">
+                                                    {% if appointment.patient %}
+                                                        <span class="fw-semibold text-primary">
+                                                            {{ appointment.patient.full_name|default:"Не указан" }}
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="text-muted">Не указан</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="text-nowrap">
+                                                    {% if appointment.created_department %}
+                                                        <span class="badge bg-outline-secondary">
+                                                            {{ appointment.created_department.name|default:"Не указано" }}
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="text-muted">Не указано</span>
+                                                    {% endif %}
+                                                </td>
                                                 <td>
-                                                    <a href="{% url 'clinical_scheduling:appointment_detail' appointment.pk %}">
+                                                    <a href="{% url 'clinical_scheduling:appointment_detail' appointment.pk %}" 
+                                                       class="text-decoration-none fw-semibold">
                                                         {{ appointment.get_assignment_info.name }}
                                                     </a>
                                                 </td>
@@ -116,48 +211,49 @@
                                                         {% elif appointment.execution_status == 'skipped' %}bg-warning
                                                         {% elif appointment.execution_status == 'partial' %}bg-info
                                                         {% else %}bg-secondary{% endif %}">
+                                                        {% if appointment.execution_status == 'completed' %}
+                                                            <i class="fas fa-check-circle me-1"></i>
+                                                        {% elif appointment.execution_status == 'rejected' %}
+                                                            <i class="fas fa-times-circle me-1"></i>
+                                                        {% elif appointment.execution_status == 'skipped' %}
+                                                            <i class="fas fa-forward me-1"></i>
+                                                        {% elif appointment.execution_status == 'partial' %}
+                                                            <i class="fas fa-minus-circle me-1"></i>
+                                                        {% else %}
+                                                            <i class="fas fa-question-circle me-1"></i>
+                                                        {% endif %}
                                                         {{ appointment.get_execution_status_display }}
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <a href="{% url 'clinical_scheduling:appointment_detail' appointment.pk %}" 
-                                                       class="btn btn-sm btn-outline-primary">
-                                                        <i class="fas fa-eye"></i>
-                                                    </a>
+                                                    <div class="btn-group" role="group">
+                                                        <a href="{% url 'clinical_scheduling:appointment_detail' appointment.pk %}" 
+                                                           class="btn btn-sm btn-outline-primary" 
+                                                           title="Просмотреть детали">
+                                                            <i class="fas fa-eye"></i>
+                                                        </a>
+                                                        <button type="button" 
+                                                                class="btn btn-sm btn-outline-success" 
+                                                                title="Отметить как выполненное">
+                                                            <i class="fas fa-check"></i>
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                             {% endfor %}
                                         </tbody>
                                     </table>
-                                </div>
-                            {% else %}
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle"></i> Нет запланированных назначений
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="col-md-4">
-                            <h5>Просроченные назначения</h5>
-                            {% if overdue_appointments %}
-                                <div class="list-group">
-                                    {% for appointment in overdue_appointments %}
-                                    <div class="list-group-item list-group-item-danger">
-                                        <div class="d-flex w-100 justify-content-between">
-                                            <h6 class="mb-1">{{ appointment.get_assignment_info.name }}</h6>
-                                            <small>{{ appointment.scheduled_date|date:"d.m.Y" }}</small>
-                                        </div>
-                                        <p class="mb-1">Просрочено на {{ appointment.scheduled_date|timesince }}</p>
-                                        <a href="{% url 'clinical_scheduling:appointment_detail' appointment.pk %}" 
-                                           class="btn btn-sm btn-outline-danger">
-                                            Обработать
-                                        </a>
                                     </div>
-                                    {% endfor %}
                                 </div>
                             {% else %}
-                                <div class="alert alert-success">
-                                    <i class="fas fa-check-circle"></i> Нет просроченных назначений
+                                <div class="alert alert-info border-0 shadow-sm">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-info-circle fa-2x me-3 text-info"></i>
+                                        <div>
+                                            <h6 class="alert-heading mb-1">Нет запланированных назначений</h6>
+                                            <p class="mb-0 text-muted">На данный момент нет активных назначений для отображения.</p>
+                                        </div>
+                                    </div>
                                 </div>
                             {% endif %}
                         </div>
@@ -167,11 +263,11 @@
                     <div class="row mt-4">
                         <div class="col-12">
                             <div class="d-flex gap-2">
-                                                            <a href="{% url 'clinical_scheduling:dashboard' %}" class="btn btn-primary">
-                                <i class="fas fa-list"></i> Все назначения
-                            </a>
+                                <a href="{% url 'clinical_scheduling:dashboard' %}" class="btn btn-primary">
+                                    <i class="fas fa-list me-1"></i> Все назначения
+                                </a>
                                 <a href="{% url 'clinical_scheduling:today_schedule' %}" class="btn btn-info">
-                                    <i class="fas fa-calendar-day"></i> Расписание на сегодня
+                                    <i class="fas fa-calendar-day me-1"></i> Расписание на сегодня
                                 </a>
                             </div>
                         </div>
@@ -181,4 +277,417 @@
         </div>
     </div>
 </div>
+
+<script>
+// Текущие фильтры
+let currentStatusFilter = 'all';
+let currentDateFilter = 'all';
+
+// Фильтрация по статусу
+function filterByStatus(status) {
+    currentStatusFilter = status;
+    
+    const buttons = document.querySelectorAll('.btn-group .btn');
+    const filterCards = document.querySelectorAll('.filter-card');
+    
+    // Убираем активный класс со всех кнопок статуса
+    document.querySelectorAll('[onclick^="filterByStatus"]').forEach(btn => btn.classList.remove('active'));
+    
+    // Добавляем активный класс к нажатой кнопке
+    if (event && event.target) {
+        event.target.classList.add('active');
+    }
+    
+    // Убираем активный класс со всех карточек
+    filterCards.forEach(card => card.classList.remove('active-filter'));
+    
+    // Добавляем активный класс к соответствующей карточке
+    const activeCard = document.querySelector(`[data-filter="${status}"]`);
+    if (activeCard) {
+        activeCard.classList.add('active-filter');
+    }
+    
+    applyFilters();
+}
+
+// Фильтрация по дате
+function filterByDate(dateFilter) {
+    currentDateFilter = dateFilter;
+    
+    // Убираем активный класс со всех кнопок даты
+    document.querySelectorAll('[onclick^="filterByDate"]').forEach(btn => btn.classList.remove('active'));
+    
+    // Добавляем активный класс к нажатой кнопке
+    if (event && event.target) {
+        event.target.classList.add('active');
+    }
+    
+    // Очищаем пользовательские даты при выборе предустановленного фильтра
+    if (dateFilter !== 'custom') {
+        document.getElementById('dateFrom').value = '';
+        document.getElementById('dateTo').value = '';
+    }
+    
+    applyFilters();
+}
+
+// Фильтрация по пользовательским датам
+function filterByCustomDate() {
+    const dateFrom = document.getElementById('dateFrom').value;
+    const dateTo = document.getElementById('dateTo').value;
+    
+    if (dateFrom || dateTo) {
+        currentDateFilter = 'custom';
+        
+        // Убираем активный класс со всех кнопок даты
+        document.querySelectorAll('[onclick^="filterByDate"]').forEach(btn => btn.classList.remove('active'));
+    }
+    
+    applyFilters();
+}
+
+// Очистка фильтра по дате
+function clearDateFilter() {
+    document.getElementById('dateFrom').value = '';
+    document.getElementById('dateTo').value = '';
+    currentDateFilter = 'all';
+    
+    // Активируем кнопку "Все даты"
+    document.querySelectorAll('[onclick^="filterByDate"]').forEach(btn => btn.classList.remove('active'));
+    document.querySelector('[onclick="filterByDate(\'all\')"]').classList.add('active');
+    
+    applyFilters();
+}
+
+// Применение всех фильтров
+function applyFilters() {
+    const rows = document.querySelectorAll('.appointment-row');
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay());
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    
+    const dateFrom = document.getElementById('dateFrom').value;
+    const dateTo = document.getElementById('dateTo').value;
+    
+    rows.forEach(row => {
+        let showRow = true;
+        
+        // Фильтр по статусу
+        if (currentStatusFilter !== 'all') {
+            const appointmentStatus = row.dataset.status;
+            if (appointmentStatus !== currentStatusFilter) {
+                showRow = false;
+            }
+        }
+        
+        // Фильтр по дате
+        if (showRow && currentDateFilter !== 'all') {
+            const appointmentDate = new Date(row.dataset.date);
+            
+            switch (currentDateFilter) {
+                case 'today':
+                    if (appointmentDate.toDateString() !== today.toDateString()) {
+                        showRow = false;
+                    }
+                    break;
+                case 'tomorrow':
+                    if (appointmentDate.toDateString() !== tomorrow.toDateString()) {
+                        showRow = false;
+                    }
+                    break;
+                case 'week':
+                    if (appointmentDate < weekStart || appointmentDate > weekEnd) {
+                        showRow = false;
+                    }
+                    break;
+                case 'custom':
+                    if (dateFrom && appointmentDate < new Date(dateFrom)) {
+                        showRow = false;
+                    }
+                    if (dateTo && appointmentDate > new Date(dateTo)) {
+                        showRow = false;
+                    }
+                    break;
+            }
+        }
+        
+        row.style.display = showRow ? '' : 'none';
+    });
+    
+    updateCounter();
+}
+
+// Обновление счетчика показанных записей
+function updateCounter() {
+    const allRows = document.querySelectorAll('.appointment-row');
+    const visibleRows = document.querySelectorAll('.appointment-row[style=""], .appointment-row:not([style])');
+    const totalCount = allRows.length;
+    const visibleCount = Array.from(allRows).filter(row => row.style.display !== 'none').length;
+    
+    const title = document.querySelector('h5');
+    if (title) {
+        const titleText = title.textContent.replace(/\(показано.*?\)/, '').trim();
+        if (visibleCount < totalCount) {
+            title.innerHTML = `<i class="fas fa-calendar-day me-2"></i>${titleText} (показано ${visibleCount} из ${totalCount})`;
+        } else {
+            title.innerHTML = `<i class="fas fa-calendar-day me-2"></i>${titleText}`;
+        }
+    }
+}
+
+// Фильтрация по клику на карточки
+document.addEventListener('DOMContentLoaded', function() {
+    const filterCards = document.querySelectorAll('.filter-card');
+    
+    filterCards.forEach(card => {
+        card.addEventListener('click', function() {
+            const filter = this.dataset.filter;
+            currentStatusFilter = filter;
+            
+            // Убираем активный класс со всех карточек
+            filterCards.forEach(c => c.classList.remove('active-filter'));
+            
+            // Добавляем активный класс к выбранной карточке
+            this.classList.add('active-filter');
+            
+            // Обновляем активную кнопку статуса
+            document.querySelectorAll('[onclick^="filterByStatus"]').forEach(btn => btn.classList.remove('active'));
+            
+            const activeButton = document.querySelector(`[onclick="filterByStatus('${filter}')"]`);
+            if (activeButton) {
+                activeButton.classList.add('active');
+            }
+            
+            // Применяем фильтры
+            applyFilters();
+        });
+    });
+    
+    // Инициализация счетчика
+    updateCounter();
+    
+    // Подсветка текущего времени
+    highlightCurrentTime();
+    
+    // Установка сегодняшней даты по умолчанию для полей ввода
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('dateFrom').setAttribute('max', new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0]);
+    document.getElementById('dateTo').setAttribute('max', new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0]);
+});
+
+// Подсветка текущего времени
+function highlightCurrentTime() {
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    
+    const rows = document.querySelectorAll('.appointment-row');
+    rows.forEach(row => {
+        const timeCell = row.querySelector('td:first-child strong, td:first-child .badge');
+        if (timeCell) {
+            const timeText = timeCell.textContent;
+            const [hours, minutes] = timeText.split(':').map(Number);
+            const appointmentTime = hours * 60 + minutes;
+            
+            // Подсвечиваем текущее время и ближайшие 30 минут
+            if (Math.abs(appointmentTime - currentTime) <= 30) {
+                row.classList.add('table-warning');
+            }
+        }
+    });
+}
+
+// Автообновление каждые 5 минут
+setInterval(function() {
+    location.reload();
+}, 5 * 60 * 1000);
+</script>
+
+<style>
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.table-light {
+    background-color: #f8f9fa;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.badge {
+    font-size: 0.875em;
+    font-weight: 500;
+    padding: 0.5em 0.75em;
+    border-radius: 0.375rem;
+}
+
+.badge.bg-light {
+    background-color: #e9ecef !important;
+    color: #495057 !important;
+    border: 1px solid #dee2e6;
+}
+
+.badge.bg-secondary {
+    background-color: #6c757d !important;
+    color: white !important;
+}
+
+.badge.bg-outline-secondary {
+    background-color: transparent !important;
+    color: #6c757d !important;
+    border: 1px solid #6c757d;
+}
+
+.table th {
+    font-weight: 600;
+    color: #495057;
+    border-top: none;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.table {
+    background-color: white;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) > td {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.table-hover > tbody > tr:hover > td {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+.btn-group .btn {
+    border-radius: 0.375rem !important;
+}
+
+.list-group-item {
+    transition: background-color 0.2s ease-in-out;
+}
+
+.list-group-item:hover {
+    background-color: #f8f9fa;
+}
+
+.appointment-row:hover {
+    background-color: rgba(0, 123, 255, 0.05) !important;
+}
+
+.appointment-row td {
+    border-color: #f1f3f4;
+    padding: 0.75rem 0.5rem;
+}
+
+.appointment-row:nth-child(even) {
+    background-color: #fafbfc;
+}
+
+.filter-card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.filter-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+}
+
+.filter-card.active-filter {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25) !important;
+    border: 2px solid rgba(255,255,255,0.5);
+}
+
+.btn-group .btn.active {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+}
+
+.btn-group .btn {
+    border-color: #dee2e6;
+    color: #6c757d;
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-group .btn:hover {
+    background-color: #f8f9fa;
+    border-color: #adb5bd;
+    color: #495057;
+}
+
+.table-warning {
+    background-color: rgba(255, 193, 7, 0.2) !important;
+}
+
+.form-control-sm {
+    max-width: 140px;
+    border-color: #dee2e6;
+    border-radius: 0.375rem;
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.form-control-sm:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.form-label {
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.btn-group .btn {
+    white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+    .d-flex.gap-2 {
+        flex-wrap: wrap;
+    }
+    
+    .btn-group {
+        flex-wrap: wrap;
+    }
+    
+    .form-control-sm {
+        max-width: 100px;
+    }
+}
+
+.filter-section {
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.table-responsive {
+    background-color: white;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid #e9ecef;
+}
+
+.table-container {
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+</style>
 {% endblock %} 

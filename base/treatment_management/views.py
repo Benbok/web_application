@@ -12,7 +12,7 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.decorators import method_decorator
 
 from .models import TreatmentPlan, TreatmentMedication, TreatmentRecommendation
-from .forms import TreatmentPlanForm, TreatmentMedicationForm, QuickAddMedicationForm, TreatmentRecommendationForm
+from .forms import TreatmentPlanForm, TreatmentMedicationForm, TreatmentMedicationWithScheduleForm, QuickAddMedicationForm, TreatmentRecommendationForm
 from .services import (
     TreatmentPlanService, TreatmentMedicationService, TreatmentRecommendationService
 )
@@ -285,12 +285,12 @@ class TreatmentPlanDeleteView(LoginRequiredMixin, OwnerContextMixin, DeleteView)
             raise
 
 
-class TreatmentMedicationCreateView(LoginRequiredMixin, OwnerContextMixin, MedicationScheduleRedirectMixin, CreateView):
+class TreatmentMedicationCreateView(LoginRequiredMixin, OwnerContextMixin, CreateView):
     """
-    Добавление лекарства в план лечения
+    Добавление лекарства в план лечения с настройкой расписания
     """
     model = TreatmentMedication
-    form_class = TreatmentMedicationForm
+    form_class = TreatmentMedicationWithScheduleForm
     template_name = 'treatment_management/medication_form.html'
     
     def dispatch(self, request, *args, **kwargs):
@@ -299,7 +299,27 @@ class TreatmentMedicationCreateView(LoginRequiredMixin, OwnerContextMixin, Medic
     
     def form_valid(self, form):
         form.instance.treatment_plan = self.treatment_plan
-        return super().form_valid(form)
+        response = super().form_valid(form)  # Сохраняем TreatmentMedication
+        
+        # Создаем расписание, если оно включено
+        if form.cleaned_data.get('enable_schedule'):
+            try:
+                from clinical_scheduling.services import ClinicalSchedulingService
+                ClinicalSchedulingService.create_schedule_for_assignment(
+                    assignment=form.instance,
+                    user=self.request.user,
+                    start_date=form.cleaned_data['start_date'],
+                    first_time=form.cleaned_data['first_time'],
+                    times_per_day=form.cleaned_data['times_per_day'],
+                    duration_days=form.cleaned_data['duration_days']
+                )
+                messages.success(self.request, _('Лекарство и расписание успешно созданы.'))
+            except Exception as e:
+                messages.warning(self.request, _('Лекарство создано, но возникла ошибка при создании расписания: {}').format(str(e)))
+        else:
+            messages.success(self.request, _('Лекарство успешно добавлено в план лечения.'))
+        
+        return response
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -324,7 +344,7 @@ class TreatmentMedicationCreateView(LoginRequiredMixin, OwnerContextMixin, Medic
                        })
 
 
-class TreatmentMedicationUpdateView(LoginRequiredMixin, OwnerContextMixin, UpdateView):
+class TreatmentMedicationUpdateView(LoginRequiredMixin, UpdateView):
     """
     Редактирование лекарства в плане лечения
     """
@@ -332,21 +352,37 @@ class TreatmentMedicationUpdateView(LoginRequiredMixin, OwnerContextMixin, Updat
     form_class = TreatmentMedicationForm
     template_name = 'treatment_management/medication_form.html'
     
+    def get_owner_from_plan(self, plan):
+        """Получает владельца плана лечения"""
+        if getattr(plan, 'patient_department_status_id', None):
+            return plan.patient_department_status
+        if getattr(plan, 'encounter_id', None):
+            return plan.encounter
+        return getattr(plan, 'owner', None)
+    
+    def get_patient_from_owner(self, owner):
+        """Получает пациента из владельца"""
+        if hasattr(owner, 'patient'):
+            return owner.patient
+        elif hasattr(owner, 'get_patient'):
+            return owner.get_patient()
+        return None
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['treatment_plan'] = self.object.treatment_plan
-        owner = self.resolve_owner_from_plan(self.object.treatment_plan)
+        owner = self.get_owner_from_plan(self.object.treatment_plan)
         context['owner'] = owner
         context['owner_model'] = owner._meta.model_name if owner is not None else 'unknown'
         context['title'] = _('Редактировать лекарство')
         
-        # Получаем пациента через миксин
+        # Получаем пациента
         context['patient'] = self.get_patient_from_owner(owner) if owner is not None else None
         
         return context
     
     def get_success_url(self):
-        owner = self.resolve_owner_from_plan(self.object.treatment_plan)
+        owner = self.get_owner_from_plan(self.object.treatment_plan)
         return reverse('treatment_management:plan_detail',
                        kwargs={
                            'owner_model': owner._meta.model_name if owner is not None else 'unknown',
@@ -362,20 +398,30 @@ class TreatmentMedicationDeleteView(LoginRequiredMixin, DeleteView):
     model = TreatmentMedication
     template_name = 'treatment_management/medication_confirm_delete.html'
     
+    def get_owner_from_plan(self, plan):
+        """Получает владельца плана лечения"""
+        if getattr(plan, 'patient_department_status_id', None):
+            return plan.patient_department_status
+        if getattr(plan, 'encounter_id', None):
+            return plan.encounter
+        return getattr(plan, 'owner', None)
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['treatment_plan'] = self.object.treatment_plan
-        owner = self.resolve_owner_from_plan(self.object.treatment_plan)
+        # Получаем владельца через план лечения
+        owner = self.get_owner_from_plan(self.object.treatment_plan)
         context['owner'] = owner
         context['owner_model'] = owner._meta.model_name if owner is not None else 'unknown'
         context['title'] = _('Удалить лекарство')
         return context
     
     def get_success_url(self):
+        owner = self.get_owner_from_plan(self.object.treatment_plan)
         return reverse('treatment_management:plan_detail',
                       kwargs={
-                          'owner_model': self.object.treatment_plan.owner._meta.model_name,
-                          'owner_id': self.object.treatment_plan.owner.id,
+                          'owner_model': owner._meta.model_name if owner is not None else 'unknown',
+                          'owner_id': owner.id if owner is not None else 0,
                           'pk': self.object.treatment_plan.pk
                       })
 
@@ -414,21 +460,23 @@ class QuickAddMedicationView(LoginRequiredMixin, OwnerContextMixin, CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['treatment_plan'] = self.treatment_plan
-        context['owner'] = self.treatment_plan.owner
-        context['owner_model'] = self.treatment_plan.owner._meta.model_name
+        owner = self.resolve_owner_from_plan(self.treatment_plan)
+        context['owner'] = owner
+        context['owner_model'] = owner._meta.model_name if owner is not None else 'unknown'
         context['recommended_medication'] = self.recommended_medication
         context['title'] = _('Быстрое добавление лекарства')
         
         # Получаем пациента через миксин
-        context['patient'] = self.get_patient_from_owner(self.treatment_plan.owner)
+        context['patient'] = self.get_patient_from_owner(owner) if owner is not None else None
         
         return context
     
     def get_success_url(self):
+        owner = self.resolve_owner_from_plan(self.treatment_plan)
         return reverse('treatment_management:plan_detail',
                       kwargs={
-                          'owner_model': self.treatment_plan.owner._meta.model_name,
-                          'owner_id': self.treatment_plan.owner.id,
+                          'owner_model': owner._meta.model_name if owner is not None else 'unknown',
+                          'owner_id': owner.id if owner is not None else 0,
                           'pk': self.treatment_plan.pk
                       })
 
@@ -714,6 +762,14 @@ class TreatmentRecommendationCreateView(LoginRequiredMixin, CreateView):
     form_class = TreatmentRecommendationForm
     template_name = 'treatment_management/recommendation_form.html'
     
+    def resolve_owner_from_plan(self, plan):
+        """Получает владельца плана лечения"""
+        if getattr(plan, 'patient_department_status_id', None):
+            return plan.patient_department_status
+        if getattr(plan, 'encounter_id', None):
+            return plan.encounter
+        return getattr(plan, 'owner', None)
+    
     def dispatch(self, request, *args, **kwargs):
         # Получаем план лечения из URL параметров
         self.treatment_plan = get_object_or_404(TreatmentPlan, pk=self.kwargs['plan_pk'])
@@ -732,10 +788,11 @@ class TreatmentRecommendationCreateView(LoginRequiredMixin, CreateView):
         return context
     
     def get_success_url(self):
+        owner = self.resolve_owner_from_plan(self.treatment_plan)
         return reverse('treatment_management:plan_detail',
                       kwargs={
-                          'owner_model': self.treatment_plan.owner._meta.model_name,
-                          'owner_id': self.treatment_plan.owner.id,
+                          'owner_model': owner._meta.model_name if owner is not None else 'unknown',
+                          'owner_id': owner.id if owner is not None else 0,
                           'pk': self.treatment_plan.pk
                       })
 
@@ -748,6 +805,14 @@ class TreatmentRecommendationUpdateView(LoginRequiredMixin, UpdateView):
     form_class = TreatmentRecommendationForm
     template_name = 'treatment_management/recommendation_form.html'
     
+    def resolve_owner_from_plan(self, plan):
+        """Получает владельца плана лечения"""
+        if getattr(plan, 'patient_department_status_id', None):
+            return plan.patient_department_status
+        if getattr(plan, 'encounter_id', None):
+            return plan.encounter
+        return getattr(plan, 'owner', None)
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['treatment_plan'] = self.object.treatment_plan
@@ -755,10 +820,11 @@ class TreatmentRecommendationUpdateView(LoginRequiredMixin, UpdateView):
         return context
     
     def get_success_url(self):
+        owner = self.resolve_owner_from_plan(self.object.treatment_plan)
         return reverse('treatment_management:plan_detail',
                       kwargs={
-                          'owner_model': self.object.treatment_plan.owner._meta.model_name,
-                          'owner_id': self.object.treatment_plan.owner.id,
+                          'owner_model': owner._meta.model_name if owner is not None else 'unknown',
+                          'owner_id': owner.id if owner is not None else 0,
                           'pk': self.object.treatment_plan.pk
                       })
 
@@ -770,6 +836,14 @@ class TreatmentRecommendationDeleteView(LoginRequiredMixin, DeleteView):
     model = TreatmentRecommendation
     template_name = 'treatment_management/recommendation_confirm_delete.html'
     
+    def resolve_owner_from_plan(self, plan):
+        """Получает владельца плана лечения"""
+        if getattr(plan, 'patient_department_status_id', None):
+            return plan.patient_department_status
+        if getattr(plan, 'encounter_id', None):
+            return plan.encounter
+        return getattr(plan, 'owner', None)
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['treatment_plan'] = self.object.treatment_plan
@@ -777,10 +851,11 @@ class TreatmentRecommendationDeleteView(LoginRequiredMixin, DeleteView):
         return context
     
     def get_success_url(self):
+        owner = self.resolve_owner_from_plan(self.object.treatment_plan)
         return reverse('treatment_management:plan_detail',
                       kwargs={
-                          'owner_model': self.object.treatment_plan.owner._meta.model_name,
-                          'owner_id': self.object.treatment_plan.owner.id,
+                          'owner_model': owner._meta.model_name if owner is not None else 'unknown',
+                          'owner_id': owner.id if owner is not None else 0,
                           'pk': self.object.treatment_plan.pk
                       })
 
