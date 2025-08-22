@@ -26,8 +26,7 @@ try:
 except ImportError:
     Encounter = None
 
-# Импортируем модели назначений для автоматического создания
-from treatment_assignments.models import LabTestAssignment, InstrumentalProcedureAssignment
+# Импорты treatment_assignments удалены - больше не нужны
 
 
 class OwnerContextMixin:

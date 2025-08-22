@@ -10,18 +10,18 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('instrumental_procedures', '0001_initial'),
-        ('treatment_assignments', '0001_initial'),
+        # ('treatment_assignments', '0001_initial'),  # УДАЛЕНО
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='instrumentalprocedureresult',
-            name='instrumental_procedure_assignment',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='results', to='treatment_assignments.instrumentalprocedureassignment', verbose_name='Назначение инструментального исследования'),
-        ),
-        migrations.AddField(
-            model_name='instrumentalprocedureresult',
-            name='procedure_definition',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='results', to='instrumental_procedures.instrumentalproceduredefinition', verbose_name='Тип исследования'),
-        ),
+        # migrations.AddField(  # УДАЛЕНО - ссылается на несуществующую модель
+        #     model_name='instrumentalprocedureresult',
+        #     name='instrumental_procedure_assignment',
+        #     field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='results', to='treatment_assignments.instrumentalprocedureassignment', verbose_name='Назначение инструментального исследования'),
+        # ),
+        # migrations.AddField(  # УДАЛЕНО - поле уже существует
+        #     model_name='instrumentalprocedureresult',
+        #     name='procedure_definition',
+        #     field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='results', to='instrumental_procedures.instrumentalproceduredefinition', verbose_name='Тип исследования'),
+        # ),
     ]

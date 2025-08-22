@@ -16,10 +16,7 @@ from pharmacy.models import Medication, DosingRule
 from lab_tests.models import LabTestDefinition, LabTestResult
 from instrumental_procedures.models import InstrumentalProcedureDefinition, InstrumentalProcedureResult
 from documents.models import DocumentType, ClinicalDocument, DocumentTemplate
-from treatment_assignments.models import (
-    MedicationAssignment, GeneralTreatmentAssignment, 
-    LabTestAssignment, InstrumentalProcedureAssignment
-)
+# Импорты treatment_assignments удалены - больше не нужны
 from newborns.models import NewbornProfile
 
 
@@ -57,7 +54,7 @@ class Command(BaseCommand):
         document_types = self.create_document_types(departments)
         
         # Создаем назначения
-        self.create_treatment_assignments(patients, users, medications, lab_tests, instrumental_procedures, encounters)
+        # self.create_treatment_assignments(patients, users, medications, lab_tests, instrumental_procedures, encounters)  # УДАЛЕНО
         
         # Создаем документы
         self.create_documents(patients, users, document_types, encounters)
@@ -461,112 +458,112 @@ class Command(BaseCommand):
         self.stdout.write(f'Создано {len(document_types)} типов документов')
         return document_types
 
-    def create_treatment_assignments(self, patients, users, medications, lab_tests, instrumental_procedures, encounters):
-        """Создает назначения лечения"""
-        encounter_content_type = ContentType.objects.get_for_model(Encounter)
-        # Создаем назначения препаратов
-        for _ in range(15):
-            patient = random.choice(patients)
-            medication = random.choice(medications)
-            doctor = random.choice(users)
-            encounter = random.choice(encounters) if encounters else None
-            assignment = MedicationAssignment.objects.create(
-                content_type=encounter_content_type if encounter else None,
-                object_id=encounter.id if encounter else None,
-                patient=patient,
-                assigning_doctor=doctor,
-                medication=medication,
-                start_date=timezone.now() - timedelta(days=random.randint(1, 10)),
-                end_date=timezone.now() + timedelta(days=random.randint(1, 14)) if random.choice([True, False]) else None,
-                status=random.choice(['active', 'completed', 'canceled']),
-                duration_days=random.randint(3, 14),
-                patient_weight=Decimal(str(random.randint(50, 100)))
-            )
-        
-        # Создаем общие назначения
-        general_treatments = [
-            'Постельный режим', 'Диета №5', 'Физиотерапия', 'ЛФК', 'Массаж',
-            'Ингаляции', 'Компрессы', 'Прогулки на свежем воздухе'
-        ]
-        
-        for _ in range(10):
-            patient = random.choice(patients)
-            doctor = random.choice(users)
-            encounter = random.choice(encounters) if encounters else None
-            
-            GeneralTreatmentAssignment.objects.create(
-                content_type=encounter_content_type if encounter else None,
-                object_id=encounter.id if encounter else None,
-                patient=patient,
-                assigning_doctor=doctor,
-                general_treatment=random.choice(general_treatments),
-                start_date=timezone.now() - timedelta(days=random.randint(1, 10)),
-                status=random.choice(['active', 'completed'])
-            )
-        
-        # Создаем назначения лабораторных исследований
-        for _ in range(12):
-            patient = random.choice(patients)
-            lab_test = random.choice(lab_tests)
-            doctor = random.choice(users)
-            encounter = random.choice(encounters) if encounters else None
-            
-            assignment = LabTestAssignment.objects.create(
-                content_type=encounter_content_type if encounter else None,
-                object_id=encounter.id if encounter else None,
-                patient=patient,
-                assigning_doctor=doctor,
-                lab_test=lab_test,
-                start_date=timezone.now() - timedelta(days=random.randint(1, 10)),
-                status=random.choice(['active', 'completed'])
-            )
-            
-            # Создаем результаты для некоторых назначений
-            if random.choice([True, False]):
-                LabTestResult.objects.create(
-                    lab_test_assignment=assignment,
-                    procedure_definition=lab_test,
-                    author=doctor,
-                    datetime_result=timezone.now() - timedelta(days=random.randint(1, 5)),
-                    data={
-                        'result': f'Результат {random.randint(1, 100)}',
-                        'normal_range': '10-50',
-                        'unit': 'мг/л'
-                    }
-                )
-        
-        # Создаем назначения инструментальных исследований
-        for _ in range(8):
-            patient = random.choice(patients)
-            procedure = random.choice(instrumental_procedures)
-            doctor = random.choice(users)
-            encounter = random.choice(encounters) if encounters else None
-            
-            assignment = InstrumentalProcedureAssignment.objects.create(
-                content_type=encounter_content_type if encounter else None,
-                object_id=encounter.id if encounter else None,
-                patient=patient,
-                assigning_doctor=doctor,
-                instrumental_procedure=procedure,
-                start_date=timezone.now() - timedelta(days=random.randint(1, 10)),
-                status=random.choice(['active', 'completed'])
-            )
-            
-            # Создаем результаты для некоторых назначений
-            if random.choice([True, False]):
-                InstrumentalProcedureResult.objects.create(
-                    instrumental_procedure_assignment=assignment,
-                    procedure_definition=procedure,
-                    author=doctor,
-                    datetime_result=timezone.now() - timedelta(days=random.randint(1, 5)),
-                    data={
-                        'conclusion': 'Патологии не выявлено',
-                        'recommendations': 'Повторить через 6 месяцев',
-                        'images_count': random.randint(1, 5)
-                    }
-                )
-        
-        self.stdout.write('Созданы назначения лечения')
+    # def create_treatment_assignments(self, patients, users, medications, lab_tests, instrumental_procedures, encounters):  # УДАЛЕНО
+    #     """Создает назначения лечения"""
+    #     encounter_content_type = ContentType.objects.get_for_model(Encounter)
+    #     # Создаем назначения препаратов
+    #     for _ in range(15):
+    #         patient = random.choice(patients)
+    #         medication = random.choice(medications)
+    #         doctor = random.choice(users)
+    #         encounter = random.choice(encounters) if encounters else None
+    #         assignment = MedicationAssignment.objects.create(
+    #             content_type=encounter_content_type if encounter else None,
+    #             object_id=encounter.id if encounter else None,
+    #             patient=patient,
+    #             assigning_doctor=doctor,
+    #             medication=medication,
+    #             start_date=timezone.now() - timedelta(days=random.randint(1, 10)),
+    #             end_date=timezone.now() + timedelta(days=random.randint(1, 14)) if random.choice([True, False]) else None,
+    #             status=random.choice(['active', 'completed', 'canceled']),
+    #             duration_days=random.randint(3, 14),
+    #             patient_weight=Decimal(str(random.randint(50, 100)))
+    #         )
+    #     
+    #     # Создаем общие назначения
+    #     general_treatments = [
+    #         'Постельный режим', 'Диета №5', 'Физиотерапия', 'ЛФК', 'Массаж',
+    #         'Ингаляции', 'Компрессы', 'Прогулки на свежем воздухе'
+    #     ]
+    #     
+    #     for _ in range(10):
+    #         patient = random.choice(patients)
+    #         doctor = random.choice(users)
+    #         encounter = random.choice(encounters) if encounters else None
+    #         
+    #         GeneralTreatmentAssignment.objects.create(
+    #             content_type=encounter_content_type if encounter else None,
+    #             object_id=encounter.id if encounter else None,
+    #             patient=patient,
+    #             assigning_doctor=doctor,
+    #             general_treatment=random.choice(general_treatments),
+    #             start_date=timezone.now() - timedelta(days=random.randint(1, 10)),
+    #             status=random.choice(['active', 'completed'])
+    #         )
+    #     
+    #     # Создаем назначения лабораторных исследований
+    #     for _ in range(12):
+    #         patient = random.choice(patients)
+    #         lab_test = random.choice(lab_tests)
+    #         doctor = random.choice(users)
+    #         encounter = random.choice(encounters) if encounters else None
+    #         
+    #         assignment = LabTestAssignment.objects.create(
+    #             content_type=encounter_content_type if encounter else None,
+    #             object_id=encounter.id if encounter else None,
+    #             patient=patient,
+    #             assigning_doctor=doctor,
+    #             lab_test=lab_test,
+    #             start_date=timezone.now() - timedelta(days=random.randint(1, 10)),
+    #             status=random.choice(['active', 'completed'])
+    #         )
+    #         
+    #         # Создаем результаты для некоторых назначений
+    #         if random.choice([True, False]):
+    #             LabTestResult.objects.create(
+    #                 lab_test_assignment=assignment,
+    #                 procedure_definition=lab_test,
+    #                 author=doctor,
+    #                 datetime_result=timezone.now() - timedelta(days=random.randint(1, 5)),
+    #                 data={
+    #                         'result': f'Результат {random.randint(1, 100)}',
+    #                         'normal_range': '10-50',
+    #                         'unit': 'мг/л'
+    #                     }
+    #                 )
+    #     
+    #     # Создаем назначения инструментальных исследований
+    #     for _ in range(8):
+    #         patient = random.choice(patients)
+    #         name=random.choice(instrumental_procedures)
+    #         doctor = random.choice(users)
+    #         encounter = random.choice(encounters) if encounters else None
+    #         
+    #         assignment = InstrumentalProcedureAssignment.objects.create(
+    #             content_type=encounter_content_type if encounter else None,
+    #             object_id=encounter.id if encounter else None,
+    #             patient=patient,
+    #             assigning_doctor=doctor,
+    #             instrumental_procedure=procedure,
+    #             start_date=timezone.now() - timedelta(days=random.randint(1, 10)),
+    #             status=random.choice(['active', 'completed'])
+    #         )
+    #         
+    #         # Создаем результаты для некоторых назначений
+    #         if random.choice([True, False]):
+    #             InstrumentalProcedureResult.objects.create(
+    #                 instrumental_procedure_assignment=assignment,
+    #                 procedure_definition=procedure,
+    #                 author=doctor,
+    #                 datetime_result=timezone.now() - timedelta(days=random.randint(1, 5)),
+    #                 data={
+    #                         'conclusion': 'Патологии не выявлено',
+    #                         'recommendations': 'Повторить через 6 месяцев',
+    #                         'images_count': random.randint(1, 5)
+    #                     }
+    #                 )
+    #     
+    #     self.stdout.write('Созданы назначения лечения')
 
     def create_documents(self, patients, users, document_types, encounters):
         """Создает клинические документы"""

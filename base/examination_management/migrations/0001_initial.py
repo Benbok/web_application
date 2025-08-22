@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('encounters', '0009_remove_examinationlabtest_examination_plan_and_more'),
         ('instrumental_procedures', '0002_initial'),
-        ('treatment_assignments', '0002_remove_medicationassignment_dosing_rule'),
+        # ('treatment_assignments', '0002_remove_medicationassignment_dosing_rule'),  # УДАЛЕНО
     ]
 
     operations = [
@@ -33,23 +33,23 @@ class Migration(migrations.Migration):
                 'ordering': ['-created_at'],
             },
         ),
-        migrations.CreateModel(
-            name='ExaminationLabTest',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('is_active', models.BooleanField(default=True, verbose_name='Активно')),
-                ('instructions', models.TextField(blank=True, verbose_name='Особые указания')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Создано')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Обновлено')),
-                ('lab_test_assignment', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='examination_lab_tests', to='treatment_assignments.labtestassignment', verbose_name='Назначение лабораторного исследования')),
-                ('examination_plan', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='lab_tests', to='examination_management.examinationplan', verbose_name='План обследования')),
-            ],
-            options={
-                'verbose_name': 'Лабораторное исследование в плане',
-                'verbose_name_plural': 'Лабораторные исследования в плане',
-                'ordering': ['-created_at'],
-            },
-        ),
+        # migrations.CreateModel(  # УДАЛЕНО - ссылается на несуществующую модель
+        #     name='ExaminationLabTest',
+        #     fields=[
+        #         ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+        #         ('is_active', models.BooleanField(default=True, verbose_name='Активно')),
+        #         ('instructions', models.TextField(blank=True, verbose_name='Особые указания')),
+        #         ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Создано')),
+        #         ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Обновлено')),
+        #         ('lab_test_assignment', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='examination_lab_tests', to='treatment_assignments.labtestassignment', verbose_name='Назначение лабораторного исследования')),
+        #         ('examination_plan', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='lab_tests', to='examination_management.examinationplan', verbose_name='План обследования')),
+        #     ],
+        #     options={
+        #         'verbose_name': 'Лабораторное исследование в плане',
+        #         'verbose_name_plural': 'Лабораторные исследования в плане',
+        #         'ordering': ['-created_at'],
+        #     },
+        # ),
         migrations.CreateModel(
             name='ExaminationInstrumental',
             fields=[

@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('encounters', '0007_examinationplan_examinationlabtest_and_more'),
-        ('treatment_assignments', '0002_remove_medicationassignment_dosing_rule'),
+        # ('treatment_assignments', '0002_remove_medicationassignment_dosing_rule'),  # УДАЛЕНО
     ]
 
     operations = [
@@ -20,10 +20,10 @@ class Migration(migrations.Migration):
             model_name='examinationlabtest',
             name='lab_test',
         ),
-        migrations.AddField(
-            model_name='examinationlabtest',
-            name='lab_test_assignment',
-            field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.CASCADE, related_name='examination_plans', to='treatment_assignments.labtestassignment', verbose_name='Назначение лабораторного исследования'),
-            preserve_default=False,
-        ),
+        # migrations.AddField(  # УДАЛЕНО - ссылается на несуществующую модель
+        #     model_name='examinationlabtest',
+        #     name='lab_test_assignment',
+        #     field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.CASCADE, related_name='examination_plans', to='treatment_assignments.labtestassignment', verbose_name='Назначение лабораторного исследования'),
+        #     preserve_default=False,
+        # ),
     ]

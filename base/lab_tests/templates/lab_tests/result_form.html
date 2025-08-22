@@ -42,7 +42,7 @@
                 {% endfor %}
 
                 <button type="submit" class="btn btn-primary">Сохранить результат</button>
-                <a href="{% if result %}{% url 'lab_tests:result_detail' result.pk %}{% else %}{% url 'lab_tests:assignment_list' %}{% endif %}" class="btn btn-secondary">Отмена</a>
+                <a href="{% if result %}{% url 'lab_tests:result_detail' result.pk %}{% else %}{% url 'lab_tests:result_list' %}{% endif %}" class="btn btn-secondary">Отмена</a>
             </form>
         </div>
     </div>

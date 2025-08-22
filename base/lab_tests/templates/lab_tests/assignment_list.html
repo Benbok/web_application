@@ -16,7 +16,7 @@
             {% endcomment %}
             <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
                 <div class="btn-group mb-2 mb-md-0" role="group" aria-label="Фильтр по статусу">
-                    <a href="{% url 'lab_tests:assignment_list' %}" class="btn {% if not request.GET.status %}btn-primary{% else %}btn-outline-secondary{% endif %}">Все</a>
+                    <a href="{% url 'lab_tests:result_list' %}" class="btn {% if not request.GET.status %}btn-primary{% else %}btn-outline-secondary{% endif %}">Все</a>
                     <a href="?status=active" class="btn {% if request.GET.status == 'active' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Активные</a>
                     <a href="?status=completed" class="btn {% if request.GET.status == 'completed' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Выполненные</a>
                     <a href="?status=rejected" class="btn {% if request.GET.status == 'rejected' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Забракованные</a>

@@ -6,20 +6,19 @@ from django.http import JsonResponse
 from django.db.models import Q
 from django.contrib import messages
 
-from treatment_assignments.models import InstrumentalProcedureAssignment
+# Импорт treatment_assignments удален - больше не нужен
 from .models import InstrumentalProcedureResult
 from .forms import build_instrumental_procedure_result_form
 
-class InstrumentalProcedureAssignmentListView(LoginRequiredMixin, ListView):
-    model = InstrumentalProcedureAssignment
-    template_name = 'instrumental_procedures/assignment_list.html'
-    context_object_name = 'assignments'
+class InstrumentalProcedureResultListView(LoginRequiredMixin, ListView):
+    model = InstrumentalProcedureResult
+    template_name = 'instrumental_procedures/result_list.html'
+    context_object_name = 'results'
     paginate_by = 10
 
     def get_queryset(self):
         queryset = super().get_queryset()
         query = self.request.GET.get('q')
-        status = self.request.GET.get('status')
         
         if query:
             # Нормализуем поисковый запрос
@@ -28,38 +27,44 @@ class InstrumentalProcedureAssignmentListView(LoginRequiredMixin, ListView):
                 Q(patient__first_name__icontains=query) |
                 Q(patient__last_name__icontains=query) |
                 Q(patient__middle_name__icontains=query) |
-                Q(instrumental_procedure__name__icontains=query) |
+                Q(procedure_definition__name__icontains=query) |
                 # Дополнительный поиск в верхнем регистре
                 Q(patient__first_name__icontains=query.capitalize()) |
                 Q(patient__last_name__icontains=query.capitalize()) |
                 Q(patient__middle_name__icontains=query.capitalize())
             )
         
-        if status:
-            queryset = queryset.filter(status=status)
-        
         return queryset
 
 class InstrumentalProcedureResultCreateView(LoginRequiredMixin, View):
-    def get(self, request, pk):
-        assignment = get_object_or_404(InstrumentalProcedureAssignment, pk=pk)
-        procedure_definition = assignment.instrumental_procedure
-        form = build_instrumental_procedure_result_form(procedure_definition.schema, user=request.user)
-        return render(request, 'instrumental_procedures/result_form.html', {
-            'form': form,
-            'assignment': assignment,
-            'procedure_definition': procedure_definition
+    def get(self, request):
+        # Получаем список доступных процедур для создания результата
+        from .models import InstrumentalProcedureDefinition
+        procedures = InstrumentalProcedureDefinition.objects.all()
+        return render(request, 'instrumental_procedures/result_create.html', {
+            'procedures': procedures
         })
 
-    def post(self, request, pk):
-        assignment = get_object_or_404(InstrumentalProcedureAssignment, pk=pk)
-        procedure_definition = assignment.instrumental_procedure
+    def post(self, request):
+        procedure_id = request.POST.get('procedure_definition')
+        patient_id = request.POST.get('patient')
+        
+        if not procedure_id or not patient_id:
+            messages.error(request, 'Необходимо выбрать процедуру и пациента')
+            return redirect('instrumental_procedures:result_create')
+        
+        from .models import InstrumentalProcedureDefinition
+        from patients.models import Patient
+        
+        procedure_definition = get_object_or_404(InstrumentalProcedureDefinition, pk=procedure_id)
+        patient = get_object_or_404(Patient, pk=patient_id)
+        
         DynamicFormClass = build_instrumental_procedure_result_form(procedure_definition.schema, user=request.user)
         form = DynamicFormClass(request.POST)
         
         if form.is_valid():
             result = InstrumentalProcedureResult(
-                instrumental_procedure_assignment=assignment,
+                patient=patient,
                 procedure_definition=procedure_definition,
                 author=request.user,
                 datetime_result=form.cleaned_data['datetime_result'],
@@ -67,17 +72,13 @@ class InstrumentalProcedureResultCreateView(LoginRequiredMixin, View):
             )
             result.save()
 
-            # Обновляем статус назначения
-            assignment.status = 'completed'
-            assignment.end_date = form.cleaned_data['datetime_result'] # Устанавливаем дату завершения
-            assignment.save()
-
-            return redirect(reverse_lazy('instrumental_procedures:assignment_list'))
+            messages.success(request, 'Результат успешно создан')
+            return redirect(reverse_lazy('instrumental_procedures:result_list'))
         
         return render(request, 'instrumental_procedures/result_form.html', {
             'form': form,
-            'assignment': assignment,
-            'procedure_definition': procedure_definition
+            'procedure_definition': procedure_definition,
+            'patient': patient
         })
 
 class InstrumentalProcedureResultDetailView(LoginRequiredMixin, DetailView):
@@ -99,7 +100,6 @@ class InstrumentalProcedureResultUpdateView(LoginRequiredMixin, View):
         form = build_instrumental_procedure_result_form(result.procedure_definition.schema, user=request.user, initial=initial_data)
         return render(request, self.template_name, {
             'form': form,
-            'assignment': result.instrumental_procedure_assignment,
             'procedure_definition': result.procedure_definition,
             'result': result
         })
@@ -114,11 +114,11 @@ class InstrumentalProcedureResultUpdateView(LoginRequiredMixin, View):
             result.data = {k: v for k, v in form.cleaned_data.items() if k != 'datetime_result'}
             result.author = request.user
             result.save()
+            messages.success(request, 'Результат успешно обновлен')
             return redirect(reverse_lazy('instrumental_procedures:result_detail', kwargs={'pk': result.pk}))
 
         return render(request, self.template_name, {
             'form': form,
-            'assignment': result.instrumental_procedure_assignment,
             'procedure_definition': result.procedure_definition,
             'result': result
         })

@@ -18,12 +18,31 @@ class InstrumentalProcedureDefinition(models.Model):
         return self.name
 
 class InstrumentalProcedureResult(models.Model):
-    instrumental_procedure_assignment = models.ForeignKey(
-        'treatment_assignments.InstrumentalProcedureAssignment',
+    # Убираем зависимость от treatment_assignments
+    # instrumental_procedure_assignment = models.ForeignKey(
+    #     'treatment_assignments.InstrumentalProcedureAssignment',
+    #     on_delete=models.CASCADE,
+    #     related_name='results',
+    #     verbose_name="Назначение инструментального исследования"
+    # )
+    
+    # Добавляем прямые связи
+    patient = models.ForeignKey(
+        'patients.Patient',
         on_delete=models.CASCADE,
-        related_name='results',
-        verbose_name="Назначение инструментального исследования"
+        verbose_name="Пациент",
+        related_name='instrumental_procedure_results'
     )
+    
+    examination_plan = models.ForeignKey(
+        'examination_management.ExaminationPlan',
+        on_delete=models.CASCADE,
+        verbose_name="План обследования",
+        related_name='instrumental_procedure_results',
+        null=True,
+        blank=True
+    )
+    
     procedure_definition = models.ForeignKey(
         InstrumentalProcedureDefinition,
         on_delete=models.PROTECT,
@@ -42,4 +61,4 @@ class InstrumentalProcedureResult(models.Model):
         ordering = ["-datetime_result"]
 
     def __str__(self):
-        return f"Результат {self.procedure_definition.name} для {self.instrumental_procedure_assignment.patient} от {self.datetime_result.strftime('%d.%m.%Y')}"
+        return f"Результат {self.procedure_definition.name} для {self.patient} от {self.datetime_result.strftime('%d.%m.%Y')}"

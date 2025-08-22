@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('diagnosis', '0001_initial'),
         ('pharmacy', '0001_initial'),
-        ('treatment_assignments', '0002_remove_medicationassignment_dosing_rule'),
+        # ('treatment_assignments', '0002_remove_medicationassignment_dosing_rule'),  # УДАЛЕНО
     ]
 
     operations = [

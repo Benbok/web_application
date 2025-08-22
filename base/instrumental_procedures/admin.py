@@ -8,7 +8,7 @@ class InstrumentalProcedureDefinitionAdmin(admin.ModelAdmin):
 
 @admin.register(InstrumentalProcedureResult)
 class InstrumentalProcedureResultAdmin(admin.ModelAdmin):
-    list_display = ('instrumental_procedure_assignment', 'procedure_definition', 'author', 'datetime_result')
+    list_display = ('patient', 'procedure_definition', 'author', 'datetime_result')
     list_filter = ('procedure_definition', 'author', 'datetime_result')
-    search_fields = ('instrumental_procedure_assignment__instrumental_procedure__name', 'author__username', 'data')
-    raw_id_fields = ('instrumental_procedure_assignment', 'author')
+    search_fields = ('patient__first_name', 'patient__last_name', 'procedure_definition__name', 'author__username', 'data')
+    raw_id_fields = ('patient', 'author')

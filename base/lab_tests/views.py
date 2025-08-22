@@ -6,20 +6,19 @@ from django.http import JsonResponse
 from django.db.models import Q
 from django.contrib import messages
 
-from treatment_assignments.models import LabTestAssignment
+# Импорт treatment_assignments удален - больше не нужен
 from .models import LabTestResult
 from .forms import build_lab_test_result_form
 
-class LabTestAssignmentListView(LoginRequiredMixin, ListView):
-    model = LabTestAssignment
-    template_name = 'lab_tests/assignment_list.html'
-    context_object_name = 'assignments'
+class LabTestResultListView(LoginRequiredMixin, ListView):
+    model = LabTestResult
+    template_name = 'lab_tests/result_list.html'
+    context_object_name = 'results'
     paginate_by = 10
 
     def get_queryset(self):
         queryset = super().get_queryset()
         query = self.request.GET.get('q')
-        status = self.request.GET.get('status')
         
         if query:
             # Нормализуем поисковый запрос
@@ -28,38 +27,44 @@ class LabTestAssignmentListView(LoginRequiredMixin, ListView):
                 Q(patient__first_name__icontains=query) |
                 Q(patient__last_name__icontains=query) |
                 Q(patient__middle_name__icontains=query) |
-                Q(lab_test__name__icontains=query) |
+                Q(procedure_definition__name__icontains=query) |
                 # Дополнительный поиск в верхнем регистре
                 Q(patient__first_name__icontains=query.capitalize()) |
                 Q(patient__last_name__icontains=query.capitalize()) |
                 Q(patient__middle_name__icontains=query.capitalize())
             )
         
-        if status:
-            queryset = queryset.filter(status=status)
-        
         return queryset
 
 class LabTestResultCreateView(LoginRequiredMixin, View):
-    def get(self, request, pk):
-        assignment = get_object_or_404(LabTestAssignment, pk=pk)
-        procedure_definition = assignment.lab_test
-        form = build_lab_test_result_form(procedure_definition.schema, user=request.user)
-        return render(request, 'lab_tests/result_form.html', {
-            'form': form,
-            'assignment': assignment,
-            'procedure_definition': procedure_definition
+    def get(self, request):
+        # Получаем список доступных тестов для создания результата
+        from .models import LabTestDefinition
+        tests = LabTestDefinition.objects.all()
+        return render(request, 'lab_tests/result_create.html', {
+            'tests': tests
         })
 
-    def post(self, request, pk):
-        assignment = get_object_or_404(LabTestAssignment, pk=pk)
-        procedure_definition = assignment.lab_test
+    def post(self, request):
+        test_id = request.POST.get('procedure_definition')
+        patient_id = request.POST.get('patient')
+        
+        if not test_id or not patient_id:
+            messages.error(request, 'Необходимо выбрать тест и пациента')
+            return redirect('lab_tests:result_create')
+        
+        from .models import LabTestDefinition
+        from patients.models import Patient
+        
+        procedure_definition = get_object_or_404(LabTestDefinition, pk=test_id)
+        patient = get_object_or_404(Patient, pk=patient_id)
+        
         DynamicFormClass = build_lab_test_result_form(procedure_definition.schema, user=request.user)
         form = DynamicFormClass(request.POST)
         
         if form.is_valid():
             result = LabTestResult(
-                lab_test_assignment=assignment,
+                patient=patient,
                 procedure_definition=procedure_definition,
                 author=request.user,
                 datetime_result=form.cleaned_data['datetime_result'],
@@ -67,17 +72,13 @@ class LabTestResultCreateView(LoginRequiredMixin, View):
             )
             result.save()
 
-            # Обновляем статус назначения
-            assignment.status = 'completed'
-            assignment.end_date = form.cleaned_data['datetime_result'] # Устанавливаем дату завершения
-            assignment.save()
-
-            return redirect(reverse_lazy('lab_tests:assignment_list'))
+            messages.success(request, 'Результат успешно создан')
+            return redirect(reverse_lazy('lab_tests:result_list'))
         
         return render(request, 'lab_tests/result_form.html', {
             'form': form,
-            'assignment': assignment,
-            'procedure_definition': procedure_definition
+            'procedure_definition': procedure_definition,
+            'patient': patient
         })
 
 class LabTestResultDetailView(LoginRequiredMixin, DetailView):
@@ -99,7 +100,6 @@ class LabTestResultUpdateView(LoginRequiredMixin, View):
         form = build_lab_test_result_form(result.procedure_definition.schema, user=request.user, initial=initial_data)
         return render(request, self.template_name, {
             'form': form,
-            'assignment': result.lab_test_assignment,
             'procedure_definition': result.procedure_definition,
             'result': result
         })
@@ -114,11 +114,11 @@ class LabTestResultUpdateView(LoginRequiredMixin, View):
             result.data = {k: v for k, v in form.cleaned_data.items() if k != 'datetime_result'}
             result.author = request.user
             result.save()
+            messages.success(request, 'Результат успешно обновлен')
             return redirect(reverse_lazy('lab_tests:result_detail', kwargs={'pk': result.pk}))
 
         return render(request, self.template_name, {
             'form': form,
-            'assignment': result.lab_test_assignment,
             'procedure_definition': result.procedure_definition,
             'result': result
         })
@@ -132,58 +132,9 @@ class LabTestResultDeleteView(LoginRequiredMixin, View):
 
     def post(self, request, pk):
         result = get_object_or_404(LabTestResult, pk=pk)
-        assignment = result.lab_test_assignment
         try:
             result.delete()
-            # Возвращаем назначение в активное состояние
-            assignment.status = 'active'
-            assignment.end_date = None
-            assignment.save()
-            messages.success(request, 'Результат удалён. Назначение снова активно.')
+            messages.success(request, 'Результат успешно удален.')
         except Exception as e:
             messages.error(request, f'Не удалось удалить результат: {e}')
-        return redirect('lab_tests:assignment_list')
-
-class LabTestAssignmentRejectView(LoginRequiredMixin, View):
-    """
-    Представление для браковки лабораторного исследования
-    """
-    template_name = 'lab_tests/assignment_reject.html'
-    
-    def get(self, request, pk):
-        assignment = get_object_or_404(LabTestAssignment, pk=pk)
-        
-        # Проверяем, можно ли забраковать назначение
-        if not assignment.can_be_rejected():
-            messages.error(request, 'Это назначение нельзя забраковать.')
-            return redirect('lab_tests:assignment_list')
-        
-        return render(request, self.template_name, {
-            'assignment': assignment,
-            'title': 'Забраковать лабораторное исследование'
-        })
-    
-    def post(self, request, pk):
-        assignment = get_object_or_404(LabTestAssignment, pk=pk)
-        rejection_reason = request.POST.get('rejection_reason', '').strip()
-        
-        if not rejection_reason:
-            messages.error(request, 'Необходимо указать причину брака.')
-            return render(request, self.template_name, {
-                'assignment': assignment,
-                'title': 'Забраковать лабораторное исследование'
-            })
-        
-        # Проверяем, можно ли забраковать назначение
-        if not assignment.can_be_rejected():
-            messages.error(request, 'Это назначение нельзя забраковать.')
-            return redirect('lab_tests:assignment_list')
-        
-        try:
-            # Бракуем назначение
-            assignment.reject(rejection_reason, request.user)
-            messages.success(request, 'Лабораторное исследование успешно забраковано.')
-        except Exception as e:
-            messages.error(request, f'Ошибка при браковке: {str(e)}')
-        
-        return redirect('lab_tests:assignment_list')
+        return redirect('lab_tests:result_list')

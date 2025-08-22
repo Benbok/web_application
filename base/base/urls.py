@@ -26,7 +26,7 @@ urlpatterns = [
     path('encounters/', include('encounters.urls')),
     path('documents/', include('documents.urls')),
     path('departments/', include('departments.urls')),
-    path('treatment_assignments/', include('treatment_assignments.urls')),
+    # path('treatment_assignments/', include('treatment_assignments.urls')),  # УДАЛЕНО
     path('pharmacy/', include('pharmacy.urls')),
     path('instrumental_procedures/', include('instrumental_procedures.urls')),
     path('lab_tests/', include('lab_tests.urls')),

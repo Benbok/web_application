@@ -57,7 +57,7 @@ LOCAL_APPS = [
     'encounters',
     'documents',
     'departments',
-    'treatment_assignments',
+    # 'treatment_assignments',  # УДАЛЕНО
     'treatment_management',
     'pharmacy',
     'lab_tests',

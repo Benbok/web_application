@@ -16,12 +16,31 @@ class LabTestDefinition(models.Model):
         return self.name
 
 class LabTestResult(models.Model):
-    lab_test_assignment = models.ForeignKey(
-        'treatment_assignments.LabTestAssignment',
+    # Убираем зависимость от treatment_assignments
+    # lab_test_assignment = models.ForeignKey(
+    #     'treatment_assignments.LabTestAssignment',
+    #     on_delete=models.CASCADE,
+    #     related_name='results',
+    #     verbose_name="Назначение лабораторного исследования"
+    # )
+    
+    # Добавляем прямые связи
+    patient = models.ForeignKey(
+        'patients.Patient',
         on_delete=models.CASCADE,
-        related_name='results',
-        verbose_name="Назначение лабораторного исследования"
+        verbose_name="Пациент",
+        related_name='lab_test_results'
     )
+    
+    examination_plan = models.ForeignKey(
+        'examination_management.ExaminationPlan',
+        on_delete=models.CASCADE,
+        verbose_name="План обследования",
+        related_name='lab_test_results',
+        null=True,
+        blank=True
+    )
+    
     procedure_definition = models.ForeignKey(
         LabTestDefinition,
         on_delete=models.PROTECT,
@@ -40,4 +59,4 @@ class LabTestResult(models.Model):
         ordering = ["-datetime_result"]
 
     def __str__(self):
-        return f"Результат {self.procedure_definition.name} для {self.lab_test_assignment.patient} от {self.datetime_result.strftime('%d.%m.%Y')}"
+        return f"Результат {self.procedure_definition.name} для {self.patient} от {self.datetime_result.strftime('%d.%m.%Y')}"

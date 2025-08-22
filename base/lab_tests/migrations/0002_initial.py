@@ -10,18 +10,18 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('lab_tests', '0001_initial'),
-        ('treatment_assignments', '0001_initial'),
+        # ('treatment_assignments', '0001_initial'),  # УДАЛЕНО
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='labtestresult',
-            name='lab_test_assignment',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='results', to='treatment_assignments.labtestassignment', verbose_name='Назначение лабораторного исследования'),
-        ),
-        migrations.AddField(
-            model_name='labtestresult',
-            name='procedure_definition',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='results', to='lab_tests.labtestdefinition', verbose_name='Тип исследования'),
-        ),
+        # migrations.AddField(  # УДАЛЕНО - ссылается на несуществующую модель
+        #     model_name='labtestresult',
+        #     name='lab_test_assignment',
+        #     field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='results', to='treatment_assignments.labtestassignment', verbose_name='Назначение лабораторного исследования'),
+        # ),
+        # migrations.AddField(  # УДАЛЕНО - поле уже существует
+        #     model_name='labtestresult',
+        #     name='procedure_definition',
+        #     field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='results', to='lab_tests.labtestdefinition', verbose_name='Тип исследования'),
+        # ),
     ]

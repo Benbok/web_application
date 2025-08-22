@@ -135,38 +135,6 @@ class BaseTreatmentPlan(models.Model):
         return plan, created
 
 
-class TreatmentPlan(BaseTreatmentPlan):
-    """План лечения с поддержкой двух типов связей"""
-    
-    class Meta:
-        verbose_name = _("План лечения")
-        verbose_name_plural = _("Планы лечения")
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['patient_department_status', 'created_at']),
-            models.Index(fields=['encounter', 'created_at']),
-            models.Index(fields=['content_type', 'object_id', 'created_at']),
-        ]
-    
-    def __str__(self):
-        owner_info = self.get_owner_display()
-        return f"{self.name} ({owner_info})"
-    
-    def clean(self):
-        """Проверка, что owner существует"""
-        super().clean()
-        if not self.patient_department_status and not self.encounter and not self.owner:
-            raise ValidationError(_("Владелец плана лечения должен быть указан"))
-    
-    def get_owner_display(self):
-        """Возвращает читаемое представление владельца"""
-        return super().get_owner_display()
-    
-    def get_owner_model_name(self):
-        """Возвращает имя модели владельца для использования в шаблонах"""
-        return super().get_owner_model_name()
-
-
 from .mixins import SoftDeleteMixin
 
 class TreatmentPlan(BaseTreatmentPlan, SoftDeleteMixin):

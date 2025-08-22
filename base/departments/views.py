@@ -11,12 +11,7 @@ from django.core.paginator import Paginator
 from .models import Department, PatientDepartmentStatus
 from documents.models import ClinicalDocument
 from .forms import DocumentAndAssignmentFilterForm, PatientAcceptanceForm
-from treatment_assignments.models import (
-    MedicationAssignment,
-    GeneralTreatmentAssignment,
-    LabTestAssignment,
-    InstrumentalProcedureAssignment,
-)
+# Импорты treatment_assignments удалены - больше не нужны
 from treatment_management.models import TreatmentPlan, TreatmentMedication
 from examination_management.models import ExaminationPlan
 
@@ -98,12 +93,8 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
         )
         examination_plans = patient_status.examination_plans.all()
         
-        # Получаем назначения через GenericForeignKey (пока не мигрировали)
-        content_type = ContentType.objects.get_for_model(PatientDepartmentStatus)
-        general_treatment_assignments = GeneralTreatmentAssignment.objects.filter(
-            content_type=content_type,
-            object_id=patient_status.pk
-        ).select_related('assigning_doctor__doctor_profile', 'completed_by__doctor_profile')
+        # Назначения treatment_assignments удалены - больше не нужны
+        general_treatment_assignments = []
 
         # Получаем препараты из планов лечения
         treatment_medications = []
@@ -126,19 +117,19 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
 
             if start_date:
                 documents = documents.filter(created_at__date__gte=start_date)
-                general_treatment_assignments = general_treatment_assignments.filter(created_at__date__gte=start_date)
+                # general_treatment_assignments = general_treatment_assignments.filter(created_at__date__gte=start_date)  # УДАЛЕНО
                 treatment_plans = treatment_plans.filter(created_at__date__gte=start_date)
                 examination_plans = examination_plans.filter(created_at__date__gte=start_date)
 
             if end_date:
                 documents = documents.filter(created_at__date__lte=end_date)
-                general_treatment_assignments = general_treatment_assignments.filter(created_at__date__lte=end_date)
+                # general_treatment_assignments = general_treatment_assignments.filter(created_at__date__lte=end_date)  # УДАЛЕНО
                 treatment_plans = treatment_plans.filter(created_at__date__lte=end_date)
                 examination_plans = examination_plans.filter(created_at__date__lte=end_date)
 
             if author:
                 documents = documents.filter(author__username__icontains=author)
-                general_treatment_assignments = general_treatment_assignments.filter(assigning_doctor__username__icontains=author)
+                # general_treatment_assignments = general_treatment_assignments.filter(assigning_doctor__username__icontains=author)  # УДАЛЕНО
                 treatment_plans = treatment_plans.filter(created_by__username__icontains=author)
                 examination_plans = examination_plans.filter(created_by__username__icontains=author)
 
@@ -150,10 +141,10 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
                     Q(data__icontains=search_query) |
                     Q(document_type__name__icontains=search_query)
                 )
-                general_treatment_assignments = general_treatment_assignments.filter(
-                    Q(general_treatment__icontains=search_query) |
-                    Q(notes__icontains=search_query)
-                )
+                # general_treatment_assignments = general_treatment_assignments.filter(  # УДАЛЕНО
+                #     Q(general_treatment__icontains=search_query) |
+                #     Q(notes__icontains=search_query)
+                # )
                 treatment_plans = treatment_plans.filter(
                     Q(name__icontains=search_query) |
                     Q(description__icontains=search_query)
@@ -189,10 +180,10 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
             filtered_data['documents'].order_by('-created_at'), 
             'documents_page'
         )
-        general_treatment_assignments_page_obj = self.paginate_queryset(
-            filtered_data['general_treatment_assignments'].order_by('-created_at'), 
-            'general_treatment_assignments_page'
-        )
+        # general_treatment_assignments_page_obj = self.paginate_queryset(  # УДАЛЕНО
+        #     filtered_data['general_treatment_assignments'].order_by('-created_at'), 
+        #     'general_treatment_assignments_page'
+        # )
         treatment_plans_page_obj = self.paginate_queryset(
             filtered_data['treatment_plans'].order_by('-created_at'), 
             'treatment_plans_page'
@@ -213,7 +204,7 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
             'department': patient_status.department,
             'filter_form': filter_form,
             'documents_page_obj': documents_page_obj,
-            'general_treatment_assignments_page_obj': general_treatment_assignments_page_obj,
+            # 'general_treatment_assignments_page_obj': general_treatment_assignments_page_obj,  # УДАЛЕНО
             'treatment_plans_page_obj': treatment_plans_page_obj,
             'treatment_medications_page_obj': treatment_medications_page_obj,
             'examination_plans_page_obj': examination_plans_page_obj,

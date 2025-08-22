@@ -11,6 +11,7 @@ from django.db.models import Q
 from encounters.models import Encounter
 from lab_tests.models import LabTestDefinition
 from instrumental_procedures.models import InstrumentalProcedureDefinition
+from treatment_management.mixins import SoftDeleteMixin
 
 
 class BaseExaminationPlan(models.Model):
@@ -54,7 +55,6 @@ class BaseExaminationPlan(models.Model):
         ], 
         default='normal'
     )
-    is_active = models.BooleanField(_('Активен'), default=True)
     created_at = models.DateTimeField(_('Создан'), auto_now_add=True)
     updated_at = models.DateTimeField(_('Обновлен'), auto_now=True)
     created_by = models.ForeignKey(
@@ -152,8 +152,8 @@ class BaseExaminationPlan(models.Model):
         return plan, created
 
 
-class ExaminationPlan(BaseExaminationPlan):
-    """План обследования с поддержкой двух типов связей"""
+class ExaminationPlan(BaseExaminationPlan, SoftDeleteMixin):
+    """План обследования с поддержкой двух типов связей и мягкого удаления"""
     
     class Meta:
         verbose_name = _('План обследования')
@@ -184,41 +184,37 @@ class ExaminationPlan(BaseExaminationPlan):
     
     def get_lab_test_status(self, examination_lab_test):
         """
-        Получить статус лабораторного исследования из связанного назначения
+        Получить статус лабораторного исследования
         """
         try:
-            from treatment_assignments.models import LabTestAssignment
-            from django.contrib.contenttypes.models import ContentType
+            # Проверяем наличие результатов напрямую
+            from lab_tests.models import LabTestResult
+            has_results = LabTestResult.objects.filter(
+                patient=examination_lab_test.examination_plan.get_patient(),
+                procedure_definition=examination_lab_test.lab_test,
+                examination_plan=examination_lab_test.examination_plan
+            ).exists()
             
-            content_type = ContentType.objects.get_for_model(ExaminationLabTest)
-            assignment = LabTestAssignment.objects.filter(
-                content_type=content_type,
-                object_id=examination_lab_test.pk
-            ).first()
-            
-            if assignment:
-                # Проверяем наличие результатов
-                from lab_tests.models import LabTestResult
-                has_results = LabTestResult.objects.filter(lab_test_assignment=assignment).exists()
-                
+            if has_results:
                 return {
-                    'status': assignment.status,
-                    'status_display': assignment.get_status_display(),
-                    'completed_by': assignment.completed_by,
-                    'end_date': assignment.end_date,
-                    'rejection_reason': assignment.rejection_reason,
-                    'assignment_id': assignment.pk,
-                    'has_results': has_results
+                    'status': 'completed',
+                    'status_display': 'Выполнено',
+                    'completed_by': None,  # Можно добавить, если нужно
+                    'end_date': None,      # Можно добавить, если нужно
+                    'rejection_reason': None,
+                    'assignment_id': None,
+                    'has_results': True
                 }
-            return {
-                'status': 'not_assigned',
-                'status_display': 'Не назначено',
-                'completed_by': None,
-                'end_date': None,
-                'rejection_reason': None,
-                'assignment_id': None,
-                'has_results': False
-            }
+            else:
+                return {
+                    'status': 'active',
+                    'status_display': 'Активно',
+                    'completed_by': None,
+                    'end_date': None,
+                    'rejection_reason': None,
+                    'assignment_id': None,
+                    'has_results': False
+                }
         except Exception as e:
             print(f"Ошибка при получении статуса лабораторного исследования: {e}")
             return {
@@ -233,43 +229,48 @@ class ExaminationPlan(BaseExaminationPlan):
     
     def get_instrumental_procedure_status(self, examination_instrumental):
         """
-        Получить статус инструментального исследования из связанного назначения
+        Получить статус инструментального исследования
         """
         try:
-            from treatment_assignments.models import InstrumentalProcedureAssignment
-            from django.contrib.contenttypes.models import ContentType
+            # Проверяем наличие результатов напрямую
+            from instrumental_procedures.models import InstrumentalProcedureResult
+            has_results = InstrumentalProcedureResult.objects.filter(
+                patient=examination_instrumental.examination_plan.get_patient(),
+                procedure_definition=examination_instrumental.instrumental_procedure,
+                examination_plan=examination_instrumental.examination_plan
+            ).exists()
             
-            content_type = ContentType.objects.get_for_model(ExaminationInstrumental)
-            assignment = InstrumentalProcedureAssignment.objects.filter(
-                content_type=content_type,
-                object_id=examination_instrumental.pk
-            ).first()
-            
-            if assignment:
-                # Проверяем наличие результатов
-                has_results = assignment.results.exists()
-                
+            if has_results:
                 return {
-                    'status': assignment.status,
-                    'status_display': assignment.get_status_display(),
-                    'completed_by': assignment.completed_by,
-                    'end_date': assignment.end_date,
-                    'rejection_reason': assignment.rejection_reason,
-                    'assignment_id': assignment.pk,
-                    'has_results': has_results
+                    'status': 'completed',
+                    'status_display': 'Выполнено',
+                    'completed_by': None,  # Можно добавить, если нужно
+                    'end_date': None,      # Можно добавить, если нужно
+                    'rejection_reason': None,
+                    'assignment_id': None,
+                    'has_results': True
+                }
+            else:
+                return {
+                    'status': 'active',
+                    'status_display': 'Активно',
+                    'completed_by': None,
+                    'end_date': None,
+                    'rejection_reason': None,
+                    'assignment_id': None,
+                    'has_results': False
                 }
         except Exception as e:
             print(f"Ошибка при получении статуса инструментального исследования: {e}")
-        
-        return {
-            'status': 'unknown',
-            'status_display': 'Неизвестно',
-            'completed_by': None,
-            'end_date': None,
-            'rejection_reason': None,
-            'assignment_id': None,
-            'has_results': False
-        }
+            return {
+                'status': 'unknown',
+                'status_display': 'Неизвестно',
+                'completed_by': None,
+                'end_date': None,
+                'rejection_reason': None,
+                'assignment_id': None,
+                'has_results': False
+            }
     
     def get_overall_progress(self):
         """
@@ -427,119 +428,5 @@ class ExaminationInstrumental(SoftDeleteMixin):
         return self.instrumental_procedure.name
 
 # ============================================================================
-# СИГНАЛЫ ДЛЯ АВТОМАТИЧЕСКОГО УДАЛЕНИЯ НАЗНАЧЕНИЙ
+# СИГНАЛЫ УДАЛЕНЫ - больше не нужны, так как treatment_assignments удалено
 # ============================================================================
-
-@receiver(post_delete, sender=ExaminationLabTest)
-def delete_lab_test_assignment(sender, instance, **kwargs):
-    """
-    Автоматически удаляет связанное назначение лабораторного исследования
-    при удалении записи из плана обследования
-    """
-    try:
-        from treatment_assignments.models import LabTestAssignment
-        from django.contrib.contenttypes.models import ContentType
-        
-        print(f"Сигнал post_delete для ExaminationLabTest {instance.pk} - {instance.lab_test.name}")
-        
-        # Получаем ContentType для ExaminationLabTest
-        content_type = ContentType.objects.get_for_model(ExaminationLabTest)
-        print(f"ContentType для ExaminationLabTest: {content_type}")
-        
-        # Ищем и удаляем связанное назначение
-        assignment = LabTestAssignment.objects.filter(
-            content_type=content_type,
-            object_id=instance.pk
-        ).first()
-        
-        if assignment:
-            print(f"Найдено назначение {assignment.pk} для пациента {assignment.patient.full_name}")
-            assignment.delete()
-            print(f"✓ Автоматически удалено назначение лабораторного исследования {assignment.pk} для {instance.lab_test.name}")
-        else:
-            print(f"⚠ Связанное назначение для лабораторного исследования {instance.pk} не найдено")
-            
-    except Exception as e:
-        print(f"❌ Ошибка при автоматическом удалении назначения лабораторного исследования: {e}")
-
-
-@receiver(post_delete, sender=ExaminationInstrumental)
-def delete_instrumental_procedure_assignment(sender, instance, **kwargs):
-    """
-    Автоматически удаляет связанное назначение инструментального исследования
-    при удалении записи из плана обследования
-    """
-    try:
-        from treatment_assignments.models import InstrumentalProcedureAssignment
-        from django.contrib.contenttypes.models import ContentType
-        
-        print(f"Сигнал post_delete для ExaminationInstrumental {instance.pk} - {instance.instrumental_procedure.name}")
-        
-        # Получаем ContentType для ExaminationInstrumental
-        content_type = ContentType.objects.get_for_model(ExaminationInstrumental)
-        print(f"ContentType для ExaminationInstrumental: {content_type}")
-        
-        # Ищем и удаляем связанное назначение
-        assignment = InstrumentalProcedureAssignment.objects.filter(
-            content_type=content_type,
-            object_id=instance.pk
-        ).first()
-        
-        if assignment:
-            print(f"Найдено назначение {assignment.pk} для пациента {assignment.patient.full_name}")
-            assignment.delete()
-            print(f"✓ Автоматически удалено назначение инструментального исследования {assignment.pk} для {instance.instrumental_procedure.name}")
-        else:
-            print(f"⚠ Связанное назначение для инструментального исследования {instance.pk} не найдено")
-            
-    except Exception as e:
-        print(f"❌ Ошибка при автоматическом удалении назначения инструментального исследования: {e}")
-
-
-@receiver(post_delete, sender=ExaminationPlan)
-def delete_plan_assignments(sender, instance, **kwargs):
-    """
-    Автоматически удаляет все связанные назначения при удалении плана обследования
-    """
-    try:
-        from treatment_assignments.models import LabTestAssignment, InstrumentalProcedureAssignment
-        from django.contrib.contenttypes.models import ContentType
-        
-        print(f"Сигнал post_delete для ExaminationPlan {instance.pk} - {instance.name}")
-        
-        # Получаем ContentType для ExaminationLabTest и ExaminationInstrumental
-        lab_test_content_type = ContentType.objects.get_for_model(ExaminationLabTest)
-        instrumental_content_type = ContentType.objects.get_for_model(ExaminationInstrumental)
-        
-        print(f"ContentType для ExaminationLabTest: {lab_test_content_type}")
-        print(f"ContentType для ExaminationInstrumental: {instrumental_content_type}")
-        
-        # Удаляем все назначения лабораторных исследований из этого плана
-        lab_assignments = LabTestAssignment.objects.filter(
-            content_type=lab_test_content_type,
-            object_id__in=instance.lab_tests.values_list('pk', flat=True)
-        )
-        lab_count = lab_assignments.count()
-        if lab_count > 0:
-            print(f"Найдено {lab_count} назначений лабораторных исследований для удаления")
-            lab_assignments.delete()
-            print(f"✓ Удалено {lab_count} назначений лабораторных исследований")
-        
-        # Удаляем все назначения инструментальных исследований из этого плана
-        instrumental_assignments = InstrumentalProcedureAssignment.objects.filter(
-            content_type=instrumental_content_type,
-            object_id__in=instance.instrumental_procedures.values_list('pk', flat=True)
-        )
-        instrumental_count = instrumental_assignments.count()
-        if instrumental_count > 0:
-            print(f"Найдено {instrumental_count} назначений инструментальных исследований для удаления")
-            instrumental_assignments.delete()
-            print(f"✓ Удалено {instrumental_count} назначений инструментальных исследований")
-        
-        if lab_count > 0 or instrumental_count > 0:
-            print(f"✓ Автоматически удалено {lab_count} лабораторных и {instrumental_count} инструментальных назначений при удалении плана {instance.pk}")
-        else:
-            print(f"ℹ Нет назначений для удаления при удалении плана {instance.pk}")
-            
-    except Exception as e:
-        print(f"❌ Ошибка при автоматическом удалении назначений плана: {e}")

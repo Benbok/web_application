@@ -822,60 +822,51 @@ class TreatmentRecommendationCreateView(LoginRequiredMixin, CreateView):
     
     def create_scheduled_appointments(self, cleaned_data):
         """Создает запланированные события для рекомендации"""
-        from clinical_scheduling.models import ScheduledAppointment
         from clinical_scheduling.services import ClinicalSchedulingService
         from departments.models import Department
         
-        # Получаем данные расписания
-        start_date = cleaned_data['start_date']
-        first_time = cleaned_data['first_time']
-        times_per_day = cleaned_data['times_per_day']
-        duration_days = cleaned_data['duration_days']
-        
-        # Получаем пациента и отделение
-        owner = self.resolve_owner_from_plan(self.treatment_plan)
-        if not owner:
-            raise ValueError("Не удалось определить владельца плана лечения")
-        
-        patient = None
-        department = None
-        
-        if hasattr(owner, 'patient'):
-            patient = owner.patient
-        elif hasattr(owner, 'get_patient'):
-            patient = owner.get_patient()
-        
-        if hasattr(owner, 'department'):
-            department = owner.department
-        elif hasattr(owner, 'get_department'):
-            department = owner.get_department()
-        
-        # Если не удалось определить отделение, используем отделение по умолчанию
-        if not department:
-            try:
-                # Сначала пытаемся найти отделение с slug 'admission'
+        # Получаем пациента и отделение из плана лечения
+        if self.treatment_plan.patient_department_status:
+            # Если план связан с отделением
+            patient = self.treatment_plan.patient_department_status.patient
+            department = self.treatment_plan.patient_department_status.department
+        elif self.treatment_plan.encounter:
+            # Если план связан с encounter
+            encounter = self.treatment_plan.encounter
+            patient = encounter.patient
+            
+            # Ищем активный статус пациента в отделении
+            from departments.models import PatientDepartmentStatus
+            active_status = PatientDepartmentStatus.objects.filter(
+                patient=patient,
+                status='accepted'
+            ).first()
+            
+            if active_status:
+                department = active_status.department
+            else:
+                # Используем отделение по умолчанию
                 department = Department.objects.filter(slug='admission').first()
-                if not department:
-                    # Если нет отделения 'admission', используем первое доступное
-                    department = Department.objects.first()
-                if not department:
-                    raise ValueError("Не удалось найти ни одного отделения в системе")
-            except Exception as e:
-                raise ValueError(f"Не удалось определить отделение по умолчанию: {str(e)}")
+        else:
+            raise ValueError("План лечения должен быть связан с отделением или encounter")
         
-        if not patient:
-            raise ValueError("Не удалось определить пациента")
+        if not patient or not department:
+            raise ValueError("Не удалось определить пациента или отделение")
         
-        # Создаем расписание через сервис
+        # Передаем encounter только если он доступен
+        encounter_param = None
+        if self.treatment_plan.encounter:
+            encounter_param = self.treatment_plan.encounter
+        
         ClinicalSchedulingService.create_schedule_for_recommendation(
             recommendation=self.object,
             patient=patient,
             department=department,
-            start_date=start_date,
-            first_time=first_time,
-            times_per_day=times_per_day,
-            duration_days=duration_days,
-            encounter=getattr(self.treatment_plan, 'encounter', None)
+            start_date=cleaned_data['start_date'],
+            first_time=cleaned_data['first_time'],
+            times_per_day=cleaned_data['times_per_day'],
+            duration_days=cleaned_data['duration_days'],
+            encounter=encounter_param
         )
     
     def get_context_data(self, **kwargs):
@@ -1025,63 +1016,55 @@ class TreatmentRecommendationUpdateView(LoginRequiredMixin, UpdateView):
     
     def update_scheduled_appointments(self, cleaned_data):
         """Обновляет или создает запланированные события для рекомендации"""
-        from clinical_scheduling.models import ScheduledAppointment
         from clinical_scheduling.services import ClinicalSchedulingService
         from departments.models import Department
         
         # Сначала удаляем существующие записи
         self.remove_scheduled_appointments()
         
-        # Создаем новые записи
-        start_date = cleaned_data['start_date']
-        first_time = cleaned_data['first_time']
-        times_per_day = cleaned_data['times_per_day']
-        duration_days = cleaned_data['duration_days']
-        
-        # Получаем пациента и отделение
-        owner = self.resolve_owner_from_plan(self.object.treatment_plan)
-        if not owner:
-            raise ValueError("Не удалось определить владельца плана лечения")
-        
-        patient = None
-        department = None
-        
-        if hasattr(owner, 'patient'):
-            patient = owner.patient
-        elif hasattr(owner, 'get_patient'):
-            patient = owner.get_patient()
-        
-        if hasattr(owner, 'department'):
-            department = owner.department
-        elif hasattr(owner, 'get_department'):
-            department = owner.get_department()
-        
-        # Если не удалось определить отделение, используем отделение по умолчанию
-        if not department:
-            try:
-                # Сначала пытаемся найти отделение с slug 'admission'
+        # Получаем пациента и отделение из плана лечения
+        if self.object.treatment_plan.patient_department_status:
+            # Если план связан с отделением
+            patient = self.object.treatment_plan.patient_department_status.patient
+            department = self.object.treatment_plan.patient_department_status.department
+        elif self.object.treatment_plan.encounter:
+            # Если план связан с encounter
+            encounter = self.object.treatment_plan.encounter
+            patient = encounter.patient
+            
+            # Ищем активный статус пациента в отделении
+            from departments.models import PatientDepartmentStatus
+            active_status = PatientDepartmentStatus.objects.filter(
+                patient=patient,
+                status='accepted'
+            ).first()
+            
+            if active_status:
+                department = active_status.department
+            else:
+                # Используем отделение по умолчанию
                 department = Department.objects.filter(slug='admission').first()
-                if not department:
-                    # Если нет отделения 'admission', используем первое доступное
-                    department = Department.objects.first()
-                if not department:
-                    raise ValueError("Не удалось найти ни одного отделения в системе")
-            except Exception as e:
-                raise ValueError(f"Не удалось определить отделение по умолчанию: {str(e)}")
+        else:
+            raise ValueError("План лечения должен быть связан с отделением или encounter")
         
-        if not patient:
-            raise ValueError("Не удалось определить пациента")
+        if not patient or not department:
+            raise ValueError("Не удалось определить пациента или отделение")
         
         # Создаем новое расписание
+        # Передаем encounter только если он доступен
+        encounter_param = None
+        if self.object.treatment_plan.encounter:
+            encounter_param = self.object.treatment_plan.encounter
+        
         ClinicalSchedulingService.create_schedule_for_recommendation(
             recommendation=self.object,
             patient=patient,
             department=department,
-            start_date=start_date,
-            first_time=first_time,
-            times_per_day=times_per_day,
-            duration_days=duration_days,
-            encounter=getattr(self.object.treatment_plan, 'encounter', None)
+            start_date=cleaned_data['start_date'],
+            first_time=cleaned_data['first_time'],
+            times_per_day=cleaned_data['times_per_day'],
+            duration_days=cleaned_data['duration_days'],
+            encounter=encounter_param
         )
     
     def remove_scheduled_appointments(self):
