@@ -184,139 +184,17 @@ class ExaminationPlan(BaseExaminationPlan, SoftDeleteMixin):
     
     def get_lab_test_status(self, examination_lab_test):
         """
-        Получить статус лабораторного исследования
+        Получить статус лабораторного исследования через сервис
         """
-        try:
-            # Сначала проверяем наличие результатов напрямую
-            from lab_tests.models import LabTestResult
-            has_results = LabTestResult.objects.filter(
-                patient=examination_lab_test.examination_plan.get_patient(),
-                procedure_definition=examination_lab_test.lab_test,
-                examination_plan=examination_lab_test.examination_plan
-            ).exists()
-            
-            if has_results:
-                return {
-                    'status': 'completed',
-                    'status_display': 'Выполнено',
-                    'completed_by': None,  # Можно добавить, если нужно
-                    'end_date': None,      # Можно добавить, если нужно
-                    'rejection_reason': None,
-                    'assignment_id': None,
-                    'has_results': True
-                }
-            
-            # Проверяем статус в clinical_scheduling
-            from clinical_scheduling.models import ScheduledAppointment
-            from django.contrib.contenttypes.models import ContentType
-            
-            content_type = ContentType.objects.get_for_model(examination_lab_test.__class__)
-            scheduled_appointment = ScheduledAppointment.objects.filter(
-                content_type=content_type,
-                object_id=examination_lab_test.pk
-            ).first()
-            
-            if scheduled_appointment:
-                return {
-                    'status': scheduled_appointment.execution_status,
-                    'status_display': scheduled_appointment.get_execution_status_display(),
-                    'completed_by': scheduled_appointment.executed_by,
-                    'end_date': scheduled_appointment.executed_at,
-                    'rejection_reason': scheduled_appointment.rejection_reason,
-                    'assignment_id': scheduled_appointment.pk,
-                    'has_results': False
-                }
-            
-            # Если ничего не найдено, возвращаем активный статус
-            return {
-                'status': 'active',
-                'status_display': 'Активно',
-                'completed_by': None,
-                'end_date': None,
-                'rejection_reason': None,
-                'assignment_id': None,
-                'has_results': False
-            }
-            
-        except Exception as e:
-            print(f"Ошибка при получении статуса лабораторного исследования: {e}")
-            return {
-                'status': 'unknown',
-                'status_display': 'Неизвестно',
-                'completed_by': None,
-                'end_date': None,
-                'rejection_reason': None,
-                'assignment_id': None,
-                'has_results': False
-            }
+        from .services import ExaminationStatusService
+        return ExaminationStatusService.get_assignment_status(examination_lab_test)
     
     def get_instrumental_procedure_status(self, examination_instrumental):
         """
-        Получить статус инструментального исследования
+        Получить статус инструментального исследования через сервис
         """
-        try:
-            # Проверяем наличие результатов напрямую
-            from instrumental_procedures.models import InstrumentalProcedureResult
-            has_results = InstrumentalProcedureResult.objects.filter(
-                patient=examination_instrumental.examination_plan.get_patient(),
-                procedure_definition=examination_instrumental.instrumental_procedure,
-                examination_plan=examination_instrumental.examination_plan
-            ).exists()
-            
-            if has_results:
-                return {
-                    'status': 'completed',
-                    'status_display': 'Выполнено',
-                    'completed_by': None,  # Можно добавить, если нужно
-                    'end_date': None,      # Можно добавить, если нужно
-                    'rejection_reason': None,
-                    'assignment_id': None,
-                    'has_results': True
-                }
-            
-            # Проверяем статус в clinical_scheduling
-            from clinical_scheduling.models import ScheduledAppointment
-            from django.contrib.contenttypes.models import ContentType
-            
-            content_type = ContentType.objects.get_for_model(examination_instrumental.__class__)
-            scheduled_appointment = ScheduledAppointment.objects.filter(
-                content_type=content_type,
-                object_id=examination_instrumental.pk
-            ).first()
-            
-            if scheduled_appointment:
-                return {
-                    'status': scheduled_appointment.execution_status,
-                    'status_display': scheduled_appointment.get_execution_status_display(),
-                    'completed_by': scheduled_appointment.executed_by,
-                    'end_date': scheduled_appointment.executed_at,
-                    'rejection_reason': scheduled_appointment.rejection_reason,
-                    'assignment_id': scheduled_appointment.pk,
-                    'has_results': False
-                }
-            
-            # Если ничего не найдено, возвращаем активный статус
-            return {
-                'status': 'active',
-                'status_display': 'Активно',
-                'completed_by': None,
-                'end_date': None,
-                'rejection_reason': None,
-                'assignment_id': None,
-                'has_results': False
-            }
-            
-        except Exception as e:
-            print(f"Ошибка при получении статуса инструментального исследования: {e}")
-            return {
-                'status': 'unknown',
-                'status_display': 'Неизвестно',
-                'completed_by': None,
-                'end_date': None,
-                'rejection_reason': None,
-                'assignment_id': None,
-                'has_results': False
-            }
+        from .services import ExaminationStatusService
+        return ExaminationStatusService.get_assignment_status(examination_instrumental)
     
     def get_overall_progress(self):
         """

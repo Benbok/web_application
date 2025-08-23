@@ -3,7 +3,8 @@ from .views import (
     InstrumentalProcedureResultListView, 
     InstrumentalProcedureResultCreateView, 
     InstrumentalProcedureResultDetailView,
-    InstrumentalProcedureResultUpdateView
+    InstrumentalProcedureResultUpdateView,
+    InstrumentalProcedureResultSignView
 )
 
 app_name = 'instrumental_procedures'
@@ -13,4 +14,7 @@ urlpatterns = [
     path('results/create/', InstrumentalProcedureResultCreateView.as_view(), name='result_create'),
     path('results/<int:pk>/', InstrumentalProcedureResultDetailView.as_view(), name='result_detail'),
     path('results/<int:pk>/update/', InstrumentalProcedureResultUpdateView.as_view(), name='result_update'),
+    path('results/<int:pk>/sign/', 
+         InstrumentalProcedureResultSignView.as_view(), 
+         name='result_sign'),
 ]

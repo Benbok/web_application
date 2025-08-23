@@ -1,0 +1,227 @@
+{% extends 'patients/base.html' %}
+
+{% block title %}Подписи документов{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Подписи документов</h1>
+
+    <div class="row">
+        <!-- Ожидающие подписи -->
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        Ожидают подписи ({{ total_pending }})
+                    </h6>
+                    <a href="{% url 'document_signatures:dashboard' %}" class="btn btn-info btn-sm">
+                        <i class="fas fa-chart-bar me-1"></i>Дашборд
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if signatures %}
+                        <!-- Фильтры -->
+                        <div class="mb-3">
+                            <form method="get" class="row g-3">
+                                <div class="col-md-4">
+                                    <input type="text" name="q" class="form-control" 
+                                           placeholder="Поиск по документу..." 
+                                           value="{{ request.GET.q|default_if_none:'' }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <select name="type" class="form-control">
+                                        <option value="">Все типы</option>
+                                        <option value="doctor" {% if request.GET.type == 'doctor' %}selected{% endif %}>Врач</option>
+                                        <option value="head_of_department" {% if request.GET.type == 'head_of_department' %}selected{% endif %}>Заведующий</option>
+                                        <option value="chief_physician" {% if request.GET.type == 'chief_physician' %}selected{% endif %}>Главный врач</option>
+                                        <option value="patient" {% if request.GET.type == 'patient' %}selected{% endif %}>Пациент</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-search me-1"></i>Поиск
+                                    </button>
+                                    <a href="{% url 'document_signatures:signature_list' %}" class="btn btn-secondary">
+                                        <i class="fas fa-times me-1"></i>Сброс
+                                    </a>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Список подписей -->
+                        <div class="list-group">
+                            {% for signature in signatures %}
+                            <div class="list-group-item list-group-item-action p-3">
+                                <div class="row align-items-center">
+                                    <div class="col-md-4 mb-2 mb-md-0">
+                                        <strong class="d-block">
+                                            {% if signature.content_object %}
+                                                {{ signature.content_object }}
+                                            {% else %}
+                                                Документ не найден
+                                            {% endif %}
+                                        </strong>
+                                        <small class="text-muted">{{ signature.get_signature_type_display }}</small>
+                                        <br>
+                                        <small class="text-muted">{{ signature.workflow.name }}</small>
+                                    </div>
+                                    <div class="col-md-3 mb-2 mb-md-0">
+                                        <small class="text-muted d-block">
+                                            Требуется к: {{ signature.required_by|date:"d.m.Y H:i"|default:"Не указано" }}
+                                        </small>
+                                        <small class="text-muted d-block">
+                                            Создано: {{ signature.created_at|date:"d.m.Y H:i" }}
+                                        </small>
+                                    </div>
+                                    <div class="col-md-3 mb-2 mb-md-0">
+                                        <span class="badge bg-warning">Ожидает подписи</span>
+                                        {% if signature.required_by %}
+                                            {% if signature.is_expired %}
+                                                <br><span class="badge bg-danger">Истекло</span>
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-2 text-md-end">
+                                        <a href="{% url 'document_signatures:signature_detail' signature.pk %}" 
+                                           class="btn btn-primary btn-sm">
+                                            <i class="fas fa-signature me-1"></i>Подписать
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Пагинация -->
+                        {% if is_paginated %}
+                        <nav aria-label="Page navigation" class="mt-4">
+                            <ul class="pagination justify-content-center">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode }}">
+                                        <i class="fas fa-chevron-left"></i> Предыдущая
+                                    </a>
+                                </li>
+                                {% endif %}
+                                
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+                                </li>
+                                
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode }}">
+                                        Следующая <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center p-5">
+                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                            <h5 class="text-success">Все документы подписаны!</h5>
+                            <p>У вас нет документов, ожидающих подписи.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Боковая панель -->
+        <div class="col-lg-4">
+            <!-- Статистика пользователя -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-info">
+                        <i class="fas fa-user me-2"></i>Моя статистика
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="border-right">
+                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                    Ожидают подписи
+                                </div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_pending }}</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Подписано
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_signed }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Недавно подписанные -->
+            {% if recent_signatures %}
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-success">
+                        <i class="fas fa-history me-2"></i>Недавно подписаны
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for signature in recent_signatures %}
+                        <div class="list-group-item px-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong class="d-block">
+                                        {% if signature.content_object %}
+                                            {{ signature.content_object|truncatechars:30 }}
+                                        {% else %}
+                                            Документ не найден
+                                        {% endif %}
+                                    </strong>
+                                    <small class="text-muted">{{ signature.get_signature_type_display }}</small>
+                                </div>
+                                <small class="text-success">{{ signature.signed_at|date:"d.m.Y" }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Истекшие подписи -->
+            {% if expired_signatures %}
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Истекшие подписи
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for signature in expired_signatures %}
+                        <div class="list-group-item px-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong class="d-block">
+                                        {% if signature.content_object %}
+                                            {{ signature.content_object|truncatechars:30 }}
+                                        {% else %}
+                                            Документ не найден
+                                        {% endif %}
+                                    </strong>
+                                    <small class="text-muted">{{ signature.get_signature_type_display }}</small>
+                                </div>
+                                <small class="text-danger">{{ signature.created_at|date:"d.m.Y" }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -212,14 +212,14 @@ def create_instrumental_procedure_result_on_save(sender, instance, created, **kw
 
 # Сигналы для синхронизации статусов при заполнении данных
 @receiver(post_save, sender='instrumental_procedures.InstrumentalProcedureResult')
-def sync_instrumental_result_completion(sender, instance, **kwargs):
+def sync_instrumental_result_completion(sender, instance, created, **kwargs):
     """
     Синхронизирует статус выполнения инструментального исследования
     когда данные результата заполнены
     """
     try:
-        # Проверяем, есть ли связанное назначение в examination_management
-        if instance.examination_plan:
+        # Обновляем статус только при изменении, а не при создании
+        if not created and instance.examination_plan:
             # Ищем ExaminationInstrumental для этого плана и типа процедуры
             from .models import ExaminationInstrumental
             examination = ExaminationInstrumental.objects.filter(
@@ -235,6 +235,7 @@ def sync_instrumental_result_completion(sender, instance, **kwargs):
                 examination.save()
                 
                 # Обновляем статус в clinical_scheduling
+                from .services import ExaminationStatusService
                 ExaminationStatusService.update_assignment_status(
                     examination, 'completed', instance.author, 'Данные результата заполнены'
                 )
@@ -244,14 +245,14 @@ def sync_instrumental_result_completion(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender='lab_tests.LabTestResult')
-def sync_lab_test_result_completion(sender, instance, **kwargs):
+def sync_lab_test_result_completion(sender, instance, created, **kwargs):
     """
     Синхронизирует статус выполнения лабораторного исследования
     когда данные результата заполнены
     """
     try:
-        # Проверяем, есть ли связанное назначение в examination_management
-        if instance.examination_plan:
+        # Обновляем статус только при изменении, а не при создании
+        if not created and instance.examination_plan:
             # Ищем ExaminationLabTest для этого плана и типа исследования
             from .models import ExaminationLabTest
             examination = ExaminationLabTest.objects.filter(
@@ -267,6 +268,7 @@ def sync_lab_test_result_completion(sender, instance, **kwargs):
                 examination.save()
                 
                 # Обновляем статус в clinical_scheduling
+                from .services import ExaminationStatusService
                 ExaminationStatusService.update_assignment_status(
                     examination, 'completed', instance.author, 'Данные результата заполнены'
                 )

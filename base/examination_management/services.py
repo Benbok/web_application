@@ -99,29 +99,64 @@ class ExaminationPlanService:
 
 class ExaminationStatusService:
     """
-    Сервис для управления статусами назначений через clinical_scheduling
+    Сервис для управления статусами назначений
     """
     
     @staticmethod
-    def get_assignment_status(examination_item):
+    def get_assignment_status(assignment):
         """
-        Получает статус назначения из clinical_scheduling
+        Получает корректный статус назначения на основе всех условий
         
         Args:
-            examination_item: ExaminationLabTest или ExaminationInstrumental
+            assignment: ExaminationLabTest или ExaminationInstrumental
             
         Returns:
-            dict: Информация о статусе назначения
+            dict: Информация о статусе
         """
         try:
-            from clinical_scheduling.models import ScheduledAppointment
-            from django.contrib.contenttypes.models import ContentType
+            # 1. Проверяем, есть ли результат
+            result = ExaminationStatusService._get_result(assignment)
             
-            content_type = ContentType.objects.get_for_model(examination_item.__class__)
-            scheduled_appointment = ScheduledAppointment.objects.filter(
-                content_type=content_type,
-                object_id=examination_item.pk
-            ).first()
+            if result:
+                # 2. Если результат есть, проверяем его заполненность
+                if result.is_completed:
+                    # 3. Проверяем подписи (если приложение установлено)
+                    if ExaminationStatusService._is_document_signed(result):
+                        return {
+                            'status': 'completed',
+                            'status_display': 'Выполнено',
+                            'completed_by': result.author,
+                            'end_date': result.updated_at,
+                            'rejection_reason': None,
+                            'assignment_id': None,
+                            'has_results': True,
+                            'reason': 'Результат заполнен и подписан'
+                        }
+                    else:
+                        return {
+                            'status': 'active',
+                            'status_display': 'Ожидает подписи',
+                            'completed_by': None,
+                            'end_date': None,
+                            'rejection_reason': None,
+                            'assignment_id': None,
+                            'has_results': True,
+                            'reason': 'Результат заполнен, ожидает подписи'
+                        }
+                else:
+                    return {
+                        'status': 'active',
+                        'status_display': 'Ожидает заполнения',
+                        'completed_by': None,
+                        'end_date': None,
+                        'rejection_reason': None,
+                        'assignment_id': None,
+                        'has_results': True,
+                        'reason': 'Результат создан, но не заполнен'
+                    }
+            
+            # 4. Если результата нет, проверяем clinical_scheduling
+            scheduled_appointment = ExaminationStatusService._get_scheduled_appointment(assignment)
             
             if scheduled_appointment:
                 return {
@@ -131,14 +166,85 @@ class ExaminationStatusService:
                     'end_date': scheduled_appointment.executed_at,
                     'rejection_reason': scheduled_appointment.rejection_reason,
                     'assignment_id': scheduled_appointment.pk,
-                    'has_results': False
+                    'has_results': False,
+                    'reason': 'Статус из clinical_scheduling'
                 }
             
-            return None
+            # 5. По умолчанию - запланировано
+            return {
+                'status': 'scheduled',
+                'status_display': 'Запланировано',
+                'completed_by': None,
+                'end_date': None,
+                'rejection_reason': None,
+                'assignment_id': None,
+                'has_results': False,
+                'reason': 'Назначение создано, ожидает планирования'
+            }
             
         except Exception as e:
             print(f"Ошибка при получении статуса назначения: {e}")
-            return None
+            return {
+                'status': 'unknown',
+                'status_display': 'Неизвестно',
+                'completed_by': None,
+                'end_date': None,
+                'rejection_reason': None,
+                'assignment_id': None,
+                'has_results': False,
+                'reason': f'Ошибка: {str(e)}'
+            }
+    
+    @staticmethod
+    def _get_result(assignment):
+        """Получает результат назначения"""
+        try:
+            if hasattr(assignment, 'lab_test'):
+                # Это ExaminationLabTest
+                from lab_tests.models import LabTestResult
+                return LabTestResult.objects.filter(
+                    examination_plan=assignment.examination_plan,
+                    procedure_definition=assignment.lab_test
+                ).first()
+            elif hasattr(assignment, 'instrumental_procedure'):
+                # Это ExaminationInstrumental
+                from instrumental_procedures.models import InstrumentalProcedureResult
+                return InstrumentalProcedureResult.objects.filter(
+                    examination_plan=assignment.examination_plan,
+                    procedure_definition=assignment.instrumental_procedure
+                ).first()
+        except Exception:
+            pass
+        return None
+    
+    @staticmethod
+    def _get_scheduled_appointment(assignment):
+        """Получает запланированное событие из clinical_scheduling"""
+        try:
+            from clinical_scheduling.models import ScheduledAppointment
+            from django.contrib.contenttypes.models import ContentType
+            
+            content_type = ContentType.objects.get_for_model(assignment.__class__)
+            return ScheduledAppointment.objects.filter(
+                content_type=content_type,
+                object_id=assignment.pk
+            ).first()
+        except Exception:
+            pass
+        return None
+    
+    @staticmethod
+    def _is_document_signed(result):
+        """Проверяет, подписан ли документ"""
+        try:
+            from document_signatures.models import DocumentSignature
+            signatures = DocumentSignature.objects.filter(
+                content_type__model=result._meta.model_name.lower(),
+                object_id=result.pk
+            )
+            return signatures.exists() and signatures.filter(status='signed').exists()
+        except Exception:
+            return False
     
     @staticmethod
     def update_assignment_status(examination_item, new_status, user=None, notes=''):

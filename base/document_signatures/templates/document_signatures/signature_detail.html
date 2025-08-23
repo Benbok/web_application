@@ -1,0 +1,305 @@
+{% extends 'patients/base.html' %}
+
+{% block title %}Подпись документа{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Подпись документа</h1>
+
+    <div class="row">
+        <!-- Информация о документе -->
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Информация о документе</h6>
+                </div>
+                <div class="card-body">
+                    {% if document %}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Тип документа:</strong> 
+                                    {% if document %}
+                                        {{ document }}
+                                    {% else %}
+                                        <span class="text-danger">Документ не найден</span>
+                                    {% endif %}
+                                </p>
+                                <p><strong>Тип подписи:</strong> {{ signature.get_signature_type_display }}</p>
+                                <p><strong>Рабочий процесс:</strong> {{ signature.workflow.name }}</p>
+                                <p><strong>Статус:</strong> 
+                                    {% if signature.status == 'pending' %}
+                                        <span class="badge bg-warning">Ожидает подписи</span>
+                                    {% elif signature.status == 'signed' %}
+                                        <span class="badge bg-success">Подписано</span>
+                                    {% elif signature.status == 'rejected' %}
+                                        <span class="badge bg-danger">Отклонено</span>
+                                    {% elif signature.status == 'expired' %}
+                                        <span class="badge bg-secondary">Истекло</span>
+                                    {% elif signature.status == 'cancelled' %}
+                                        <span class="badge bg-dark">Отменено</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Требуется к:</strong> {{ signature.required_by|date:"d.m.Y H:i"|default:"Не указано" }}</p>
+                                <p><strong>Создано:</strong> {{ signature.created_at|date:"d.m.Y H:i" }}</p>
+                                {% if signature.signed_at %}
+                                    <p><strong>Подписано:</strong> {{ signature.signed_at|date:"d.m.Y H:i" }}</p>
+                                {% endif %}
+                                {% if signature.actual_signer %}
+                                    <p><strong>Подписал:</strong> {{ signature.actual_signer.get_full_name|default:signature.actual_signer.username }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {% if signature.status == 'pending' and signature.can_sign %}
+                            <hr>
+                            <h6><i class="fas fa-signature me-2"></i>Подписать документ</h6>
+                            <form method="post" action="{% url 'document_signatures:signature_sign' signature.pk %}">
+                                {% csrf_token %}
+                                <div class="mb-3">
+                                    <label for="notes" class="form-label">Комментарии к подписи (необязательно)</label>
+                                    <textarea name="notes" id="notes" class="form-control" rows="3" 
+                                              placeholder="Добавьте комментарии к подписи..."></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-signature me-1"></i>Подписать документ
+                                </button>
+                            </form>
+                        {% elif signature.status == 'signed' %}
+                            <hr>
+                            <div class="alert alert-success">
+                                <h6><i class="fas fa-check-circle me-2"></i>Документ подписан</h6>
+                                <p class="mb-0">
+                                    <strong>Подписал:</strong> {{ signature.actual_signer.get_full_name|default:signature.actual_signer.username }}<br>
+                                    <strong>Время:</strong> {{ signature.signed_at|date:"d.m.Y H:i" }}
+                                    {% if signature.signature_notes %}
+                                        <br><strong>Комментарии:</strong> {{ signature.signature_notes }}
+                                    {% endif %}
+                                </p>
+                            </div>
+                        {% elif signature.status == 'rejected' %}
+                            <hr>
+                            <div class="alert alert-danger">
+                                <h6><i class="fas fa-times-circle me-2"></i>Подпись отклонена</h6>
+                                <p class="mb-0">
+                                    <strong>Отклонил:</strong> {{ signature.actual_signer.get_full_name|default:signature.actual_signer.username }}<br>
+                                    <strong>Время:</strong> {{ signature.signed_at|date:"d.m.Y H:i" }}<br>
+                                    <strong>Причина:</strong> {{ signature.rejection_reason }}
+                                </p>
+                            </div>
+                        {% elif signature.status == 'cancelled' %}
+                            <hr>
+                            <div class="alert alert-warning">
+                                <h6><i class="fas fa-ban me-2"></i>Подпись отменена</h6>
+                                <p class="mb-0">
+                                    <strong>Отменил:</strong> {{ signature.actual_signer.get_full_name|default:signature.actual_signer.username }}<br>
+                                    <strong>Время:</strong> {{ signature.signed_at|date:"d.m.Y H:i" }}<br>
+                                    <strong>Причина:</strong> {{ signature.cancellation_reason }}
+                                </p>
+                            </div>
+                        {% elif signature.status == 'expired' %}
+                            <hr>
+                            <div class="alert alert-secondary">
+                                <h6><i class="fas fa-clock me-2"></i>Срок подписи истек</h6>
+                                <p class="mb-0">
+                                    <strong>Требовалось к:</strong> {{ signature.required_by|date:"d.m.Y H:i" }}<br>
+                                    <strong>Создано:</strong> {{ signature.created_at|date:"d.m.Y H:i" }}
+                                </p>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            {% if error %}
+                                Ошибка при загрузке документа: {{ error }}
+                            {% else %}
+                                Документ не найден или недоступен
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Статус подписей -->
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-info">Статус подписей</h6>
+                </div>
+                <div class="card-body">
+                    {% if all_signatures %}
+                        {% for sig in all_signatures %}
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>{{ sig.get_signature_type_display }}</span>
+                                {% if sig.status == 'pending' %}
+                                    <span class="badge bg-warning">Ожидает</span>
+                                {% elif sig.status == 'signed' %}
+                                    <span class="badge bg-success">Подписано</span>
+                                {% elif sig.status == 'rejected' %}
+                                    <span class="badge bg-danger">Отклонено</span>
+                                {% elif sig.status == 'expired' %}
+                                    <span class="badge bg-secondary">Истекло</span>
+                                {% elif sig.status == 'cancelled' %}
+                                    <span class="badge bg-dark">Отменено</span>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted d-block">
+                                {% if sig.status == 'signed' %}
+                                    {{ sig.actual_signer.get_full_name|default:sig.actual_signer.username }}
+                                    ({{ sig.signed_at|date:"d.m.Y H:i" }})
+                                {% else %}
+                                    {{ sig.required_signer.get_full_name|default:sig.required_signer.username }}
+                                {% endif %}
+                            </small>
+                        </div>
+                        {% endfor %}
+                        
+                        <!-- Прогресс подписей -->
+                        {% if signature_status %}
+                        <hr>
+                        <div class="text-center">
+                            <h6>Прогресс подписей</h6>
+                            <div class="progress mb-2">
+                                <div class="progress-bar bg-{{ signature_status.color }}" 
+                                     role="progressbar" 
+                                     style="width: {{ signature_status.progress }}%"
+                                     aria-valuenow="{{ signature_status.progress }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                    {{ signature_status.progress }}%
+                                </div>
+                            </div>
+                            <small class="text-muted">{{ signature_status.text }}</small>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-muted text-center">Нет информации о подписях</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Действия -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Действия</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'document_signatures:signature_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>Назад к списку
+                        </a>
+                        
+                        {% if signature.status == 'pending' %}
+                            {% if signature.can_sign %}
+                                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#signModal">
+                                    <i class="fas fa-signature me-1"></i>Подписать
+                                </button>
+                            {% endif %}
+                            
+                            {% if perms.document_signatures.can_reject_signature %}
+                                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#rejectModal">
+                                    <i class="fas fa-times me-1"></i>Отклонить
+                                </button>
+                            {% endif %}
+                            
+                            {% if perms.document_signatures.can_cancel_signature %}
+                                <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                                    <i class="fas fa-ban me-1"></i>Отменить
+                                </button>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальные окна для действий -->
+{% if signature.status == 'pending' and signature.can_sign %}
+<!-- Модальное окно подписи -->
+<div class="modal fade" id="signModal" tabindex="-1" aria-labelledby="signModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="signModalLabel">Подписать документ</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'document_signatures:signature_sign' signature.pk %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="modal_notes" class="form-label">Комментарии к подписи (необязательно)</label>
+                        <textarea name="notes" id="modal_notes" class="form-control" rows="3" 
+                                  placeholder="Добавьте комментарии к подписи..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Подписать</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if signature.status == 'pending' and perms.document_signatures.can_reject_signature %}
+<!-- Модальное окно отклонения -->
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="rejectModalLabel">Отклонить подпись</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'document_signatures:signature_reject' signature.pk %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="rejection_reason" class="form-label">Причина отклонения *</label>
+                        <textarea name="reason" id="rejection_reason" class="form-control" rows="4" 
+                                  placeholder="Укажите причину отклонения подписи..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-danger">Отклонить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if signature.status == 'pending' and perms.document_signatures.can_cancel_signature %}
+<!-- Модальное окно отмены -->
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cancelModalLabel">Отменить подпись</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'document_signatures:signature_cancel' signature.pk %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="cancellation_reason" class="form-label">Причина отмены *</label>
+                        <textarea name="reason" id="cancellation_reason" class="form-control" rows="4" 
+                                  placeholder="Укажите причину отмены подписи..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-warning">Отменить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %} 

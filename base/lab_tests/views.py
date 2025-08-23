@@ -9,6 +9,13 @@ from django.contrib import messages
 # Импорт treatment_assignments удален - больше не нужен
 from .models import LabTestResult
 from .forms import build_lab_test_result_form
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views import View
+from django.shortcuts import redirect, get_object_or_404
+from django.contrib import messages
+from django.urls import reverse
+from document_signatures.services import SignatureService
+
 
 class LabTestResultListView(LoginRequiredMixin, ListView):
     model = LabTestResult
@@ -147,3 +154,52 @@ class LabTestResultDeleteView(LoginRequiredMixin, View):
         except Exception as e:
             messages.error(request, f'Не удалось удалить результат: {e}')
         return redirect('lab_tests:result_list')
+
+
+class LabTestResultSignView(LoginRequiredMixin, View):
+    """
+    View для подписания результата лабораторного исследования
+    """
+    
+    def post(self, request, pk):
+        result = get_object_or_404(LabTestResult, pk=pk)
+        
+        try:
+            # Проверяем, что результат заполнен
+            if not result.is_completed:
+                messages.error(request, 'Нельзя подписать незаполненный результат')
+                return redirect('lab_tests:result_detail', pk=pk)
+            
+            # Проверяем, что подписи еще не созданы
+            from document_signatures.models import DocumentSignature
+            existing_signatures = DocumentSignature.objects.filter(
+                content_type__model='labtestresult',
+                object_id=result.pk
+            )
+            
+            if not existing_signatures.exists():
+                # Создаем подписи для документа
+                SignatureService.create_signatures_for_document(result, 'simple')
+                messages.success(request, 'Подписи созданы для документа')
+                # Обновляем поиск подписей после создания
+                existing_signatures = DocumentSignature.objects.filter(
+                    content_type__model='labtestresult',
+                    object_id=result.pk
+                )
+            
+            # Подписываем документ текущим пользователем
+            signature = existing_signatures.filter(
+                signature_type='doctor',
+                status='pending'
+            ).first()
+            
+            if signature:
+                SignatureService.sign_document(signature.id, request.user)
+                messages.success(request, 'Документ успешно подписан!')
+            else:
+                messages.warning(request, 'Нет доступных подписей для подписания')
+            
+        except Exception as e:
+            messages.error(request, f'Ошибка при подписании: {str(e)}')
+        
+        return redirect('lab_tests:result_detail', pk=pk)

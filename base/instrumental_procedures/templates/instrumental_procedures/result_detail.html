@@ -19,6 +19,21 @@
                     <span class="badge bg-warning">Ожидает заполнения</span>
                 {% endif %}
             </p>
+            
+            <!-- Статус подписи -->
+            <p><strong>Статус подписи:</strong> 
+                {% load signature_tags %}
+                {% get_signature_status result as signature_status %}
+                {% if signature_status.status == 'all_signed' %}
+                    <span class="badge bg-success">Подписано</span>
+                {% elif signature_status.status == 'partially_signed' %}
+                    <span class="badge bg-warning">Частично подписано</span>
+                {% elif signature_status.status == 'no_signatures' %}
+                    <span class="badge bg-secondary">Не подписано</span>
+                {% else %}
+                    <span class="badge bg-info">{{ signature_status.text }}</span>
+                {% endif %}
+            </p>
             {% if result.examination_plan %}
                 <p><strong>План обследования:</strong> {{ result.examination_plan.name }}</p>
             {% endif %}
@@ -31,6 +46,25 @@
 
             <a href="{% url 'instrumental_procedures:result_list' %}" class="btn btn-secondary">Назад к списку</a>
             <a href="{% url 'instrumental_procedures:result_update' result.pk %}" class="btn btn-primary">Редактировать</a>
+            
+            <!-- Кнопка подписания -->
+            {% if result.is_completed %}
+                {% load signature_tags %}
+                {% get_signature_status result as signature_status %}
+                {% if signature_status.status != 'all_signed' %}
+                    <form method="post" action="{% url 'instrumental_procedures:result_sign' result.pk %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-signature"></i> Подписать документ
+                        </button>
+                    </form>
+                {% else %}
+                    <span class="btn btn-success disabled">
+                        <i class="fas fa-check"></i> Документ подписан
+                    </span>
+                {% endif %}
+            {% endif %}
+            
             {% comment %} <a href="{% url 'instrumental_procedures:result_delete' result.pk %}" class="btn btn-danger">Удалить</a> {% endcomment %}
         </div>
     </div>
