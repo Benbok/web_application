@@ -12,9 +12,10 @@ from django.views import View
 
 from .models import ExaminationPlan, ExaminationLabTest, ExaminationInstrumental
 from .forms import ExaminationPlanForm, ExaminationLabTestForm, ExaminationInstrumentalForm, ExaminationLabTestWithScheduleForm, ExaminationInstrumentalWithScheduleForm
+from .status_forms import RejectionForm, PauseForm, CompletionForm
 
 # Импортируем сервис для создания планов обследования
-from .services import ExaminationPlanService
+from .services import ExaminationPlanService, ExaminationStatusService
 
 # Импортируем миксины для перенаправления на настройку расписания
 from clinical_scheduling.mixins import LabTestScheduleRedirectMixin, ProcedureScheduleRedirectMixin
@@ -493,37 +494,33 @@ class ExaminationLabTestCreateView(LoginRequiredMixin, CreateView):
         # Сохраняем объект
         response = super().form_valid(form)
         
-        # Создаем LabTestAssignment для отображения в списке назначений
+        # Создаем запись результата в lab_tests для заполнения врачом/лаборантом
         try:
-            LabTestAssignment.objects.create(
-                lab_test=form.instance.lab_test,
-                patient=form.instance.examination_plan.owner.patient if hasattr(form.instance.examination_plan.owner, 'patient') else form.instance.examination_plan.encounter.patient,
-                content_type=ContentType.objects.get_for_model(form.instance.__class__),
-                object_id=form.instance.id,
-                start_date=timezone.now(),
-                assigning_doctor=self.request.user,
-                status='active'
+            from .services import ExaminationIntegrationService
+            result = ExaminationIntegrationService.create_lab_test_result(
+                form.instance, self.request.user
             )
+            if result:
+                messages.success(self.request, _('Лабораторное исследование добавлено в план. Запись для заполнения результата создана.'))
+            else:
+                messages.warning(self.request, _('Исследование добавлено в план, но возникла ошибка при создании записи для результата.'))
         except Exception as e:
-            # Логируем ошибку, но не прерываем процесс
-            print(f"Ошибка при создании LabTestAssignment: {e}")
+            messages.warning(self.request, _('Исследование добавлено в план, но возникла ошибка при создании записи для результата: {}').format(str(e)))
         
         # Создаем расписание, если оно включено
         if form.cleaned_data.get('enable_schedule'):
             try:
-                ClinicalSchedulingService.create_schedule_for_assignment(
-                    assignment=form.instance,
+                ExaminationStatusService.create_schedule_for_assignment(
+                    examination_item=form.instance,
                     user=self.request.user,
                     start_date=form.cleaned_data['start_date'],
                     first_time=form.cleaned_data['first_time'],
                     times_per_day=form.cleaned_data['times_per_day'],
                     duration_days=form.cleaned_data['duration_days']
                 )
-                messages.success(self.request, _('Лабораторное исследование и расписание успешно созданы.'))
+                messages.success(self.request, _('Расписание успешно создано.'))
             except Exception as e:
-                messages.warning(self.request, _('Исследование создано, но возникла ошибка при создании расписания: {}').format(str(e)))
-        else:
-            messages.success(self.request, _('Лабораторное исследование успешно добавлено в план.'))
+                messages.warning(self.request, _('Возникла ошибка при создании расписания: {}').format(str(e)))
         
         return response
     
@@ -648,37 +645,33 @@ class ExaminationInstrumentalCreateView(LoginRequiredMixin, CreateView):
         # Сохраняем объект
         response = super().form_valid(form)
         
-        # Создаем InstrumentalProcedureAssignment для отображения в списке назначений
+        # Создаем запись результата в instrumental_procedures для заполнения врачом/лаборантом
         try:
-            InstrumentalProcedureAssignment.objects.create(
-                instrumental_procedure=form.instance.instrumental_procedure,
-                patient=form.instance.examination_plan.owner.patient if hasattr(form.instance.examination_plan.owner, 'patient') else form.instance.examination_plan.encounter.patient,
-                content_type=ContentType.objects.get_for_model(form.instance.__class__),
-                object_id=form.instance.id,
-                start_date=timezone.now(),
-                assigning_doctor=self.request.user,
-                status='active'
+            from .services import ExaminationIntegrationService
+            result = ExaminationIntegrationService.create_instrumental_procedure_result(
+                form.instance, self.request.user
             )
+            if result:
+                messages.success(self.request, _('Инструментальное исследование добавлено в план. Запись для заполнения результата создана.'))
+            else:
+                messages.warning(self.request, _('Исследование добавлено в план, но возникла ошибка при создании записи для результата.'))
         except Exception as e:
-            # Логируем ошибку, но не прерываем процесс
-            print(f"Ошибка при создании InstrumentalProcedureAssignment: {e}")
+            messages.warning(self.request, _('Исследование добавлено в план, но возникла ошибка при создании записи для результата: {}').format(str(e)))
         
         # Создаем расписание, если оно включено
         if form.cleaned_data.get('enable_schedule'):
             try:
-                ClinicalSchedulingService.create_schedule_for_assignment(
-                    assignment=form.instance,
+                ExaminationStatusService.create_schedule_for_assignment(
+                    examination_item=form.instance,
                     user=self.request.user,
                     start_date=form.cleaned_data['start_date'],
                     first_time=form.cleaned_data['first_time'],
                     times_per_day=form.cleaned_data['times_per_day'],
                     duration_days=form.cleaned_data['duration_days']
                 )
-                messages.success(self.request, _('Инструментальное исследование и расписание успешно созданы.'))
+                messages.success(self.request, _('Расписание успешно создано.'))
             except Exception as e:
-                messages.warning(self.request, _('Исследование создано, но возникла ошибка при создании расписания: {}').format(str(e)))
-        else:
-            messages.success(self.request, _('Инструментальное исследование успешно добавлено в план.'))
+                messages.warning(self.request, _('Возникла ошибка при создании расписания: {}').format(str(e)))
         
         return response
     
@@ -769,3 +762,268 @@ class ExaminationInstrumentalDeleteView(LoginRequiredMixin, DeleteView):
                           'owner_id': self.object.examination_plan.encounter.id,
                           'pk': self.object.examination_plan.pk
                       })
+
+
+# ============================================================================
+# ПРЕДСТАВЛЕНИЯ ДЛЯ УПРАВЛЕНИЯ СТАТУСАМИ НАЗНАЧЕНИЙ
+# ============================================================================
+
+class ExaminationLabTestCompleteView(LoginRequiredMixin, View):
+    """Отметить лабораторное исследование как выполненное"""
+    
+    def post(self, request, *args, **kwargs):
+        lab_test = get_object_or_404(ExaminationLabTest, pk=self.kwargs['pk'])
+        
+        try:
+            # Обновляем статус в examination_management
+            lab_test.status = 'completed'
+            lab_test.completed_at = timezone.now()
+            lab_test.completed_by = request.user
+            lab_test.save()
+            
+            # Обновляем статус в clinical_scheduling
+            ExaminationStatusService.update_assignment_status(
+                lab_test, 'completed', request.user, 'Отмечено как выполненное'
+            )
+            
+            messages.success(request, _('Лабораторное исследование отмечено как выполненное.'))
+        except Exception as e:
+            messages.error(request, _('Ошибка при обновлении статуса: {}').format(str(e)))
+        
+        # Перенаправляем обратно на детальную страницу плана
+        return redirect('examination_management:plan_detail',
+                       owner_model=lab_test.examination_plan.get_owner_model_name(),
+                       owner_id=lab_test.examination_plan.get_owner_id(),
+                       pk=lab_test.examination_plan.pk)
+
+
+class ExaminationLabTestRejectView(LoginRequiredMixin, View):
+    """Отклонить лабораторное исследование"""
+    
+    def get(self, request, *args, **kwargs):
+        lab_test = get_object_or_404(ExaminationLabTest, pk=self.kwargs['pk'])
+        form = RejectionForm()
+        return render(request, 'examination_management/status_forms/reject_form.html', {
+            'form': form,
+            'examination_item': lab_test,
+            'item_type': 'lab_test',
+            'title': _('Отклонить лабораторное исследование')
+        })
+    
+    def post(self, request, *args, **kwargs):
+        lab_test = get_object_or_404(ExaminationLabTest, pk=self.kwargs['pk'])
+        form = RejectionForm(request.POST)
+        
+        if form.is_valid():
+            rejection_reason = form.cleaned_data['rejection_reason']
+            
+            try:
+                # Обновляем статус в examination_management
+                lab_test.status = 'rejected'
+                lab_test.cancelled_at = timezone.now()
+                lab_test.cancelled_by = request.user
+                lab_test.cancellation_reason = rejection_reason
+                lab_test.save()
+                
+                # Обновляем статус в clinical_scheduling
+                ExaminationStatusService.update_assignment_status(
+                    lab_test, 'rejected', request.user, rejection_reason
+                )
+                
+                messages.success(request, _('Лабораторное исследование отклонено.'))
+                return redirect('examination_management:plan_detail',
+                               owner_model=lab_test.examination_plan.get_owner_model_name(),
+                               owner_id=lab_test.examination_plan.get_owner_id(),
+                               pk=lab_test.examination_plan.pk)
+            except Exception as e:
+                messages.error(request, _('Ошибка при отклонении: {}').format(str(e)))
+        else:
+            messages.error(request, _('Пожалуйста, исправьте ошибки в форме.'))
+        
+        return render(request, 'examination_management/status_forms/reject_form.html', {
+            'form': form,
+            'examination_item': lab_test,
+            'item_type': 'lab_test',
+            'title': _('Отклонить лабораторное исследование')
+        })
+
+
+class ExaminationLabTestPauseView(LoginRequiredMixin, View):
+    """Приостановить лабораторное исследование"""
+    
+    def get(self, request, *args, **kwargs):
+        lab_test = get_object_or_404(ExaminationLabTest, pk=self.kwargs['pk'])
+        form = PauseForm()
+        return render(request, 'examination_management/status_forms/pause_form.html', {
+            'form': form,
+            'examination_item': lab_test,
+            'item_type': 'lab_test',
+            'title': _('Приостановить лабораторное исследование')
+        })
+    
+    def post(self, request, *args, **kwargs):
+        lab_test = get_object_or_404(ExaminationLabTest, pk=self.kwargs['pk'])
+        form = PauseForm(request.POST)
+        
+        if form.is_valid():
+            pause_reason = form.cleaned_data['pause_reason']
+            
+            try:
+                # Обновляем статус в examination_management
+                lab_test.status = 'paused'
+                lab_test.paused_at = timezone.now()
+                lab_test.paused_by = request.user
+                lab_test.pause_reason = pause_reason
+                lab_test.save()
+                
+                # Обновляем статус в clinical_scheduling
+                ExaminationStatusService.update_assignment_status(
+                    lab_test, 'skipped', request.user, pause_reason
+                )
+                
+                messages.success(request, _('Лабораторное исследование приостановлено.'))
+                return redirect('examination_management:plan_detail',
+                               owner_model=lab_test.examination_plan.get_owner_model_name(),
+                               owner_id=lab_test.examination_plan.get_owner_id(),
+                               pk=lab_test.examination_plan.pk)
+            except Exception as e:
+                messages.error(request, _('Ошибка при приостановке: {}').format(str(e)))
+        else:
+            messages.error(request, _('Пожалуйста, исправьте ошибки в форме.'))
+        
+        return render(request, 'examination_management/status_forms/pause_form.html', {
+            'form': form,
+            'examination_item': lab_test,
+            'item_type': 'lab_test',
+            'title': _('Приостановить лабораторное исследование')
+        })
+
+
+class ExaminationInstrumentalCompleteView(LoginRequiredMixin, View):
+    """Отметить инструментальное исследование как выполненное"""
+    
+    def post(self, request, *args, **kwargs):
+        instrumental = get_object_or_404(ExaminationInstrumental, pk=self.kwargs['pk'])
+        
+        try:
+            # Обновляем статус в examination_management
+            instrumental.status = 'completed'
+            instrumental.completed_at = timezone.now()
+            instrumental.completed_by = request.user
+            instrumental.save()
+            
+            # Обновляем статус в clinical_scheduling
+            ExaminationStatusService.update_assignment_status(
+                instrumental, 'completed', request.user, 'Отмечено как выполненное'
+            )
+            
+            messages.success(request, _('Инструментальное исследование отмечено как выполненное.'))
+        except Exception as e:
+            messages.error(request, _('Ошибка при обновлении статуса: {}').format(str(e)))
+        
+        return redirect('examination_management:plan_detail',
+                       owner_model=instrumental.examination_plan.get_owner_model_name(),
+                       owner_id=instrumental.examination_plan.get_owner_id(),
+                       pk=instrumental.examination_plan.pk)
+
+
+class ExaminationInstrumentalRejectView(LoginRequiredMixin, View):
+    """Отклонить инструментальное исследование"""
+    
+    def get(self, request, *args, **kwargs):
+        instrumental = get_object_or_404(ExaminationInstrumental, pk=self.kwargs['pk'])
+        form = RejectionForm()
+        return render(request, 'examination_management/status_forms/reject_form.html', {
+            'form': form,
+            'examination_item': instrumental,
+            'item_type': 'instrumental',
+            'title': _('Отклонить инструментальное исследование')
+        })
+    
+    def post(self, request, *args, **kwargs):
+        instrumental = get_object_or_404(ExaminationInstrumental, pk=self.kwargs['pk'])
+        form = RejectionForm(request.POST)
+        
+        if form.is_valid():
+            rejection_reason = form.cleaned_data['rejection_reason']
+            
+            try:
+                # Обновляем статус в examination_management
+                instrumental.status = 'rejected'
+                instrumental.cancelled_at = timezone.now()
+                instrumental.cancelled_by = request.user
+                instrumental.cancellation_reason = rejection_reason
+                instrumental.save()
+                
+                # Обновляем статус в clinical_scheduling
+                ExaminationStatusService.update_assignment_status(
+                    instrumental, 'rejected', request.user, rejection_reason
+                )
+                
+                messages.success(request, _('Инструментальное исследование отклонено.'))
+                return redirect('examination_management:plan_detail',
+                               owner_model=instrumental.examination_plan.get_owner_model_name(),
+                               owner_id=instrumental.examination_plan.get_owner_id(),
+                               pk=instrumental.examination_plan.pk)
+            except Exception as e:
+                messages.error(request, _('Ошибка при отклонении: {}').format(str(e)))
+        else:
+            messages.error(request, _('Пожалуйста, исправьте ошибки в форме.'))
+        
+        return render(request, 'examination_management/status_forms/reject_form.html', {
+            'form': form,
+            'examination_item': instrumental,
+            'item_type': 'instrumental',
+            'title': _('Отклонить инструментальное исследование')
+        })
+
+
+class ExaminationInstrumentalPauseView(LoginRequiredMixin, View):
+    """Приостановить инструментальное исследование"""
+    
+    def get(self, request, *args, **kwargs):
+        instrumental = get_object_or_404(ExaminationInstrumental, pk=self.kwargs['pk'])
+        form = PauseForm()
+        return render(request, 'examination_management/status_forms/pause_form.html', {
+            'form': form,
+            'examination_item': instrumental,
+            'item_type': 'instrumental',
+            'title': _('Приостановить инструментальное исследование')
+        })
+    
+    def post(self, request, *args, **kwargs):
+        instrumental = get_object_or_404(ExaminationInstrumental, pk=self.kwargs['pk'])
+        form = PauseForm(request.POST)
+        
+        if form.is_valid():
+            pause_reason = form.cleaned_data['pause_reason']
+            
+            try:
+                # Обновляем статус в examination_management
+                instrumental.status = 'paused'
+                instrumental.paused_at = timezone.now()
+                instrumental.paused_by = request.user
+                instrumental.pause_reason = pause_reason
+                instrumental.save()
+                
+                # Обновляем статус в clinical_scheduling
+                ExaminationStatusService.update_assignment_status(
+                    instrumental, 'skipped', request.user, pause_reason
+                )
+                
+                messages.success(request, _('Инструментальное исследование приостановлено.'))
+                return redirect('examination_management:plan_detail',
+                               owner_model=instrumental.examination_plan.get_owner_model_name(),
+                               owner_id=instrumental.examination_plan.get_owner_id(),
+                               pk=instrumental.examination_plan.pk)
+            except Exception as e:
+                messages.error(request, _('Ошибка при приостановке: {}').format(str(e)))
+        else:
+            messages.error(request, _('Пожалуйста, исправьте ошибки в форме.'))
+        
+        return render(request, 'examination_management/status_forms/pause_form.html', {
+            'form': form,
+            'examination_item': instrumental,
+            'item_type': 'instrumental',
+            'title': _('Приостановить инструментальное исследование')
+        })

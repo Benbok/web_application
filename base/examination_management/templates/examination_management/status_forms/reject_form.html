@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">{{ title }}</h4>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6>Информация о назначении:</h6>
+                        <p><strong>Тип:</strong> 
+                            {% if item_type == 'lab_test' %}
+                                Лабораторное исследование
+                            {% elif item_type == 'instrumental' %}
+                                Инструментальное исследование
+                            {% else %}
+                                Назначение
+                            {% endif %}
+                        </p>
+                        <p><strong>Название:</strong> 
+                            {% if item_type == 'lab_test' %}
+                                {{ examination_item.lab_test.name }}
+                            {% elif item_type == 'instrumental' %}
+                                {{ examination_item.instrumental_procedure.name }}
+                            {% endif %}
+                        </p>
+                        <p><strong>План обследования:</strong> {{ examination_item.examination_plan.name }}</p>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.rejection_reason.id_for_label }}" class="form-label">
+                                {{ form.rejection_reason.label }}
+                            </label>
+                            {{ form.rejection_reason }}
+                            {% if form.rejection_reason.help_text %}
+                                <div class="form-text">{{ form.rejection_reason.help_text }}</div>
+                            {% endif %}
+                            {% if form.rejection_reason.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.rejection_reason.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'examination_management:plan_detail' 
+                                       owner_model=examination_item.examination_plan.get_owner_model_name 
+                                       owner_id=examination_item.examination_plan.get_owner_id 
+                                       pk=examination_item.examination_plan.pk %}" 
+                               class="btn btn-secondary">
+                                Отмена
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                Отклонить назначение
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,92 @@
+{% extends 'patients/base.html' %}
+
+{% block title %}Создать результат инструментального исследования{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Создать результат инструментального исследования</h1>
+        <a href="{% url 'instrumental_procedures:result_list' %}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>Назад к списку
+        </a>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <form method="post" class="row g-3">
+                {% csrf_token %}
+                
+                <!-- Выбор процедуры -->
+                <div class="col-md-6">
+                    <label for="procedure_definition" class="form-label">Тип исследования *</label>
+                    <select class="form-select" id="procedure_definition" name="procedure_definition" required>
+                        <option value="">Выберите тип исследования...</option>
+                        {% for procedure in procedures %}
+                        <option value="{{ procedure.pk }}">{{ procedure.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Выбор пациента -->
+                <div class="col-md-6">
+                    <label for="patient" class="form-label">Пациент *</label>
+                    <select class="form-select" id="patient" name="patient" required>
+                        <option value="">Выберите пациента...</option>
+                        <!-- Пациенты будут загружены через AJAX -->
+                    </select>
+                </div>
+
+                <!-- Дата и время результата -->
+                <div class="col-md-6">
+                    <label for="datetime_result" class="form-label">Дата и время результата *</label>
+                    <input type="datetime-local" class="form-control" id="datetime_result" name="datetime_result" required>
+                </div>
+
+                <!-- Кнопки -->
+                <div class="col-12 mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Продолжить
+                    </button>
+                    <a href="{% url 'instrumental_procedures:result_list' %}" class="btn btn-secondary ms-2">
+                        Отмена
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Загрузка списка пациентов (упрощенная версия)
+document.addEventListener('DOMContentLoaded', function() {
+    // Здесь можно добавить AJAX загрузку пациентов
+    // Пока что оставляем простой вариант
+    const patientSelect = document.getElementById('patient');
+    
+    // Можно добавить статичный список или AJAX запрос
+    // Для демонстрации добавим несколько опций
+    const demoPatients = [
+        {id: 1, name: 'Иванов Иван Иванович'},
+        {id: 2, name: 'Петров Петр Петрович'},
+        {id: 3, name: 'Сидоров Сидор Сидорович'}
+    ];
+    
+    demoPatients.forEach(patient => {
+        const option = document.createElement('option');
+        option.value = patient.id;
+        option.textContent = patient.name;
+        patientSelect.appendChild(option);
+    });
+
+    // Установка текущей даты и времени
+    const now = new Date();
+    const dateTimeLocal = now.getFullYear() + '-' +
+        String(now.getMonth() + 1).padStart(2, '0') + '-' +
+        String(now.getDate()).padStart(2, '0') + 'T' +
+        String(now.getHours()).padStart(2, '0') + ':' +
+        String(now.getMinutes()).padStart(2, '0');
+    
+    document.getElementById('datetime_result').value = dateTimeLocal;
+});
+</script>
+{% endblock %}

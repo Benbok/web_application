@@ -187,7 +187,7 @@ class ExaminationPlan(BaseExaminationPlan, SoftDeleteMixin):
         Получить статус лабораторного исследования
         """
         try:
-            # Проверяем наличие результатов напрямую
+            # Сначала проверяем наличие результатов напрямую
             from lab_tests.models import LabTestResult
             has_results = LabTestResult.objects.filter(
                 patient=examination_lab_test.examination_plan.get_patient(),
@@ -205,16 +205,39 @@ class ExaminationPlan(BaseExaminationPlan, SoftDeleteMixin):
                     'assignment_id': None,
                     'has_results': True
                 }
-            else:
+            
+            # Проверяем статус в clinical_scheduling
+            from clinical_scheduling.models import ScheduledAppointment
+            from django.contrib.contenttypes.models import ContentType
+            
+            content_type = ContentType.objects.get_for_model(examination_lab_test.__class__)
+            scheduled_appointment = ScheduledAppointment.objects.filter(
+                content_type=content_type,
+                object_id=examination_lab_test.pk
+            ).first()
+            
+            if scheduled_appointment:
                 return {
-                    'status': 'active',
-                    'status_display': 'Активно',
-                    'completed_by': None,
-                    'end_date': None,
-                    'rejection_reason': None,
-                    'assignment_id': None,
+                    'status': scheduled_appointment.execution_status,
+                    'status_display': scheduled_appointment.get_execution_status_display(),
+                    'completed_by': scheduled_appointment.executed_by,
+                    'end_date': scheduled_appointment.executed_at,
+                    'rejection_reason': scheduled_appointment.rejection_reason,
+                    'assignment_id': scheduled_appointment.pk,
                     'has_results': False
                 }
+            
+            # Если ничего не найдено, возвращаем активный статус
+            return {
+                'status': 'active',
+                'status_display': 'Активно',
+                'completed_by': None,
+                'end_date': None,
+                'rejection_reason': None,
+                'assignment_id': None,
+                'has_results': False
+            }
+            
         except Exception as e:
             print(f"Ошибка при получении статуса лабораторного исследования: {e}")
             return {
@@ -250,16 +273,39 @@ class ExaminationPlan(BaseExaminationPlan, SoftDeleteMixin):
                     'assignment_id': None,
                     'has_results': True
                 }
-            else:
+            
+            # Проверяем статус в clinical_scheduling
+            from clinical_scheduling.models import ScheduledAppointment
+            from django.contrib.contenttypes.models import ContentType
+            
+            content_type = ContentType.objects.get_for_model(examination_instrumental.__class__)
+            scheduled_appointment = ScheduledAppointment.objects.filter(
+                content_type=content_type,
+                object_id=examination_instrumental.pk
+            ).first()
+            
+            if scheduled_appointment:
                 return {
-                    'status': 'active',
-                    'status_display': 'Активно',
-                    'completed_by': None,
-                    'end_date': None,
-                    'rejection_reason': None,
-                    'assignment_id': None,
+                    'status': scheduled_appointment.execution_status,
+                    'status_display': scheduled_appointment.get_execution_status_display(),
+                    'completed_by': scheduled_appointment.executed_by,
+                    'end_date': scheduled_appointment.executed_at,
+                    'rejection_reason': scheduled_appointment.rejection_reason,
+                    'assignment_id': scheduled_appointment.pk,
                     'has_results': False
                 }
+            
+            # Если ничего не найдено, возвращаем активный статус
+            return {
+                'status': 'active',
+                'status_display': 'Активно',
+                'completed_by': None,
+                'end_date': None,
+                'rejection_reason': None,
+                'assignment_id': None,
+                'has_results': False
+            }
+            
         except Exception as e:
             print(f"Ошибка при получении статуса инструментального исследования: {e}")
             return {
@@ -347,6 +393,30 @@ class ExaminationPlan(BaseExaminationPlan, SoftDeleteMixin):
                 return self.owner.patient
             elif hasattr(self.owner, 'get_patient'):
                 return self.owner.get_patient()
+        return None
+    
+    def get_owner_model_name(self):
+        """
+        Получает имя модели владельца для использования в URL
+        """
+        if self.patient_department_status:
+            return 'patientdepartmentstatus'
+        elif self.encounter:
+            return 'encounter'
+        elif self.owner:
+            return self.owner._meta.model_name
+        return 'unknown'
+    
+    def get_owner_id(self):
+        """
+        Получает ID владельца для использования в URL
+        """
+        if self.patient_department_status:
+            return self.patient_department_status.pk
+        elif self.encounter:
+            return self.encounter.pk
+        elif self.owner:
+            return self.owner.pk
         return None
 
 

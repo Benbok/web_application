@@ -113,8 +113,17 @@ class LabTestResultUpdateView(LoginRequiredMixin, View):
             result.datetime_result = form.cleaned_data['datetime_result']
             result.data = {k: v for k, v in form.cleaned_data.items() if k != 'datetime_result'}
             result.author = request.user
+            
+            # Проверяем, есть ли данные в результате (не только datetime_result)
+            data_fields = {k: v for k, v in form.cleaned_data.items() if k != 'datetime_result'}
+            if data_fields and any(v for v in data_fields.values() if v):
+                result.is_completed = True
+                messages.success(request, 'Данные результата успешно заполнены')
+            else:
+                result.is_completed = False
+                messages.warning(request, 'Результат обновлен, но данные не заполнены')
+            
             result.save()
-            messages.success(request, 'Результат успешно обновлен')
             return redirect(reverse_lazy('lab_tests:result_detail', kwargs={'pk': result.pk}))
 
         return render(request, self.template_name, {

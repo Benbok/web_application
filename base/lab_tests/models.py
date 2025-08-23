@@ -50,6 +50,7 @@ class LabTestResult(models.Model):
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, verbose_name="Автор")
     datetime_result = models.DateTimeField("Дата результата", default=timezone.now)
     data = models.JSONField("Данные результата", default=dict)
+    is_completed = models.BooleanField("Заполнено", default=False, help_text="Заполнены ли данные результата")
     created_at = models.DateTimeField("Создан", auto_now_add=True)
     updated_at = models.DateTimeField("Обновлён", auto_now=True)
 

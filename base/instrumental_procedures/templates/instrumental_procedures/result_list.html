@@ -1,0 +1,117 @@
+{% extends 'patients/base.html' %}
+
+{% block title %}Результаты инструментальных исследований{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Результаты инструментальных исследований</h1>
+
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            {% comment %} 
+              УЛУЧШЕНИЕ №1: Добавлены быстрые фильтры и улучшен поиск.
+            {% endcomment %}
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+                <div class="btn-group mb-2 mb-md-0" role="group" aria-label="Фильтр по статусу">
+                    <a href="{% url 'instrumental_procedures:result_list' %}" class="btn {% if not request.GET.status %}btn-primary{% else %}btn-outline-secondary{% endif %}">Все</a>
+                    <a href="?status=active" class="btn {% if request.GET.status == 'active' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Активные</a>
+                    <a href="?status=completed" class="btn {% if request.GET.status == 'completed' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Выполненные</a>
+                    <a href="?status=cancelled" class="btn {% if request.GET.status == 'cancelled' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Отмененные</a>
+                </div>
+                <form method="get" class="ms-md-auto" style="min-width: 300px;">
+                    <div class="input-group">
+                        <input type="text" name="q" class="form-control" placeholder="Поиск по пациенту или исследованию..." value="{{ request.GET.q|default_if_none:'' }}">
+                        <input type="hidden" name="status" value="{{ request.GET.status|default_if_none:'' }}">
+                        <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i></button>
+                    </div>
+                </form>
+            </div>
+
+            {% if results %}
+            {% comment %} 
+              УЛУЧШЕНИЕ №2: Таблица заменена на адаптивный список карточек.
+            {% endcomment %}
+            <div class="list-group">
+                {% for result in results %}
+                <div class="list-group-item list-group-item-action p-3">
+                    <div class="row align-items-center">
+                        <div class="col-md-4 mb-2 mb-md-0">
+                            <strong class="d-block">{{ result.patient.full_name }}</strong>
+                            <small class="text-muted">{{ result.procedure_definition.name }}</small>
+                        </div>
+                        <div class="col-md-3 mb-2 mb-md-0">
+                            <small class="text-muted d-block">Дата результата: {{ result.datetime_result|date:"d.m.Y H:i" }}</small>
+                            <small class="text-muted d-block">Автор: 
+                                {% if result.author %}
+                                    {{ result.author.get_full_name|default:result.author.username }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </small>
+                        </div>
+                        <div class="col-md-2 mb-2 mb-md-0 text-md-center">
+                            {% comment %} 
+                              УЛУЧШЕНИЕ №3: Визуальные статусы (бейджи).
+                            {% endcomment %}
+                            {% if result.is_completed %}
+                                <span class="badge bg-success">Заполнено</span>
+                            {% else %}
+                                <span class="badge bg-warning">Ожидает заполнения</span>
+                            {% endif %}
+                            {% if result.examination_plan %}
+                                <br><span class="badge bg-info">В плане</span>
+                            {% else %}
+                                <br><span class="badge bg-light text-dark">Отдельно</span>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3 text-md-end">
+                            <div class="btn-group btn-group-sm" role="group">
+                                {% if result.is_completed %}
+                                    <a href="{% url 'instrumental_procedures:result_detail' result.pk %}" class="btn btn-outline-info">
+                                        <i class="fas fa-eye me-1"></i>Просмотреть
+                                    </a>
+                                    <a href="{% url 'instrumental_procedures:result_update' result.pk %}" class="btn btn-outline-warning">
+                                        <i class="fas fa-edit me-1"></i>Редактировать
+                                    </a>
+                                {% else %}
+                                    <a href="{% url 'instrumental_procedures:result_update' result.pk %}" class="btn btn-primary">
+                                        <i class="fas fa-plus me-1"></i>Добавить данные
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center p-5">
+                <i class="fas fa-file-medical fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Результаты не найдены</h5>
+                <p>Нет результатов инструментальных исследований, соответствующих вашему запросу.</p>
+            </div>
+            {% endif %}
+
+            {% comment %} Пагинация обновлена для работы с фильтрами {% endcomment %}
+            {% if is_paginated %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ request.GET.q|default_if_none:'' }}&status={{ request.GET.status|default_if_none:'' }}">Предыдущая</a></li>
+                    {% endif %}
+                    
+                    <li class="page-item active" aria-current="page">
+                        <span class="page-link">{{ page_obj.number }}</span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ request.GET.q|default_if_none:'' }}&status={{ request.GET.status|default_if_none:'' }}">Следующая</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+{% endblock %}

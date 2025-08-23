@@ -52,7 +52,18 @@ urlpatterns = [
          views.ExaminationLabTestCreateView.as_view(), 
          name='lab_test_create'),
     
-
+    # Управление статусами лабораторных исследований
+    path('lab-tests/<int:pk>/status/complete/', 
+         views.ExaminationLabTestCompleteView.as_view(), 
+         name='lab_test_complete'),
+    
+    path('lab-tests/<int:pk>/status/reject/', 
+         views.ExaminationLabTestRejectView.as_view(), 
+         name='lab_test_reject'),
+    
+    path('lab-tests/<int:pk>/status/pause/', 
+         views.ExaminationLabTestPauseView.as_view(), 
+         name='lab_test_pause'),
     
     path('lab-tests/<int:pk>/delete/', 
          views.ExaminationLabTestDeleteView.as_view(), 
@@ -63,7 +74,18 @@ urlpatterns = [
          views.ExaminationInstrumentalCreateView.as_view(), 
          name='instrumental_create'),
     
-
+    # Управление статусами инструментальных исследований
+    path('instrumental/<int:pk>/status/complete/', 
+         views.ExaminationInstrumentalCompleteView.as_view(), 
+         name='instrumental_complete'),
+    
+    path('instrumental/<int:pk>/status/reject/', 
+         views.ExaminationInstrumentalRejectView.as_view(), 
+         name='instrumental_reject'),
+    
+    path('instrumental/<int:pk>/status/pause/', 
+         views.ExaminationInstrumentalPauseView.as_view(), 
+         name='instrumental_pause'),
     
     path('instrumental/<int:pk>/delete/', 
          views.ExaminationInstrumentalDeleteView.as_view(), 

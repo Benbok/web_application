@@ -4,14 +4,24 @@
 
 {% block content %}
 <div class="container-fluid">
-    <h1 class="h3 mb-4 text-gray-800">Детали результата для {{ result.instrumental_procedure_assignment.instrumental_procedure.name }}</h1>
+    <h1 class="h3 mb-4 text-gray-800">Детали результата для {{ result.procedure_definition.name }}</h1>
 
     <div class="card shadow mb-4">
         <div class="card-body">
-            <p><strong>Пациент:</strong> {{ result.instrumental_procedure_assignment.patient.full_name }}</p>
-            <p><strong>Тип исследования:</strong> {{ result.instrumental_procedure_assignment.instrumental_procedure.name }}</p>
+            <p><strong>Пациент:</strong> {{ result.patient.full_name }}</p>
+            <p><strong>Тип исследования:</strong> {{ result.procedure_definition.name }}</p>
             <p><strong>Дата выполнения:</strong> {{ result.datetime_result|date:"d.m.Y H:i" }}</p>
             <p><strong>Врач:</strong> {{ result.author.doctor_profile.full_name|default:result.author.username }}</p>
+            <p><strong>Статус:</strong> 
+                {% if result.is_completed %}
+                    <span class="badge bg-success">Заполнено</span>
+                {% else %}
+                    <span class="badge bg-warning">Ожидает заполнения</span>
+                {% endif %}
+            </p>
+            {% if result.examination_plan %}
+                <p><strong>План обследования:</strong> {{ result.examination_plan.name }}</p>
+            {% endif %}
 
             <hr>
             <h4>Результаты:</h4>

@@ -14,10 +14,10 @@ class Migration(migrations.Migration):
             model_name='examinationlabtest',
             name='examination_plan',
         ),
-        migrations.RemoveField(
-            model_name='examinationlabtest',
-            name='lab_test_assignment',
-        ),
+        # migrations.RemoveField(
+        #     model_name='examinationlabtest',
+        #     name='lab_test_assignment',
+        # ),
         migrations.RemoveField(
             model_name='examinationplan',
             name='encounter',

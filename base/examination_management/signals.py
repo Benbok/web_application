@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from .models import ExaminationLabTest, ExaminationInstrumental
 from clinical_scheduling.models import ScheduledAppointment
+from .services import ExaminationIntegrationService
 
 
 @receiver(post_save, sender=ExaminationLabTest)
@@ -32,6 +33,7 @@ def sync_examination_lab_test_status(sender, instance, created, **kwargs):
         return
     
     # Обновляем статус запланированных событий в зависимости от статуса исследования
+    # Используем status из SoftDeleteMixin
     if instance.status == 'cancelled':
         # Отменяем все будущие запланированные события
         future_appointments = scheduled_appointments.filter(
@@ -91,6 +93,8 @@ def sync_examination_instrumental_status(sender, instance, created, **kwargs):
     if not scheduled_appointments.exists():
         return
     
+    # Обновляем статус запланированных событий в зависимости от статуса исследования
+    # Используем status из SoftDeleteMixin
     if instance.status == 'cancelled':
         future_appointments = scheduled_appointments.filter(
             scheduled_date__gte=timezone.now().date()
@@ -153,4 +157,119 @@ def cleanup_examination_instrumental_appointments(sender, instance, **kwargs):
     ScheduledAppointment.objects.filter(
         content_type=content_type,
         object_id=instance.pk
-    ).delete() 
+    ).delete()
+
+
+@receiver(post_save, sender=ExaminationLabTest)
+def create_lab_test_result_on_save(sender, instance, created, **kwargs):
+    """
+    Автоматически создает запись результата в lab_tests при создании ExaminationLabTest
+    """
+    if created:
+        try:
+            # Получаем пользователя из examination_plan.created_by или используем системного пользователя
+            user = instance.examination_plan.created_by
+            if not user:
+                # Если нет пользователя, создаем системного
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                user, _ = User.objects.get_or_create(
+                    username='system_integration',
+                    defaults={'is_active': False}
+                )
+            
+            # Создаем результат через сервис интеграции
+            ExaminationIntegrationService.create_lab_test_result(instance, user)
+            
+        except Exception as e:
+            print(f"Ошибка при автоматическом создании результата лабораторного исследования: {e}")
+
+
+@receiver(post_save, sender=ExaminationInstrumental)
+def create_instrumental_procedure_result_on_save(sender, instance, created, **kwargs):
+    """
+    Автоматически создает запись результата в instrumental_procedures при создании ExaminationInstrumental
+    """
+    if created:
+        try:
+            # Получаем пользователя из examination_plan.created_by или используем системного пользователя
+            user = instance.examination_plan.created_by
+            if not user:
+                # Если нет пользователя, создаем системного
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                user, _ = User.objects.get_or_create(
+                    username='system_integration',
+                    defaults={'is_active': False}
+                )
+            
+            # Создаем результат через сервис интеграции
+            ExaminationIntegrationService.create_instrumental_procedure_result(instance, user)
+            
+        except Exception as e:
+            print(f"Ошибка при автоматическом создании результата инструментального исследования: {e}")
+
+
+# Сигналы для синхронизации статусов при заполнении данных
+@receiver(post_save, sender='instrumental_procedures.InstrumentalProcedureResult')
+def sync_instrumental_result_completion(sender, instance, **kwargs):
+    """
+    Синхронизирует статус выполнения инструментального исследования
+    когда данные результата заполнены
+    """
+    try:
+        # Проверяем, есть ли связанное назначение в examination_management
+        if instance.examination_plan:
+            # Ищем ExaminationInstrumental для этого плана и типа процедуры
+            from .models import ExaminationInstrumental
+            examination = ExaminationInstrumental.objects.filter(
+                examination_plan=instance.examination_plan,
+                instrumental_procedure=instance.procedure_definition
+            ).first()
+            
+            if examination and instance.is_completed:
+                # Если данные заполнены, обновляем статус в examination_management
+                examination.status = 'completed'
+                examination.completed_at = timezone.now()
+                examination.completed_by = instance.author
+                examination.save()
+                
+                # Обновляем статус в clinical_scheduling
+                ExaminationStatusService.update_assignment_status(
+                    examination, 'completed', instance.author, 'Данные результата заполнены'
+                )
+                
+    except Exception as e:
+        print(f"Ошибка при синхронизации статуса инструментального исследования: {e}")
+
+
+@receiver(post_save, sender='lab_tests.LabTestResult')
+def sync_lab_test_result_completion(sender, instance, **kwargs):
+    """
+    Синхронизирует статус выполнения лабораторного исследования
+    когда данные результата заполнены
+    """
+    try:
+        # Проверяем, есть ли связанное назначение в examination_management
+        if instance.examination_plan:
+            # Ищем ExaminationLabTest для этого плана и типа исследования
+            from .models import ExaminationLabTest
+            examination = ExaminationLabTest.objects.filter(
+                examination_plan=instance.examination_plan,
+                lab_test=instance.procedure_definition
+            ).first()
+            
+            if examination and instance.is_completed:
+                # Если данные заполнены, обновляем статус в examination_management
+                examination.status = 'completed'
+                examination.completed_at = timezone.now()
+                examination.completed_by = instance.author
+                examination.save()
+                
+                # Обновляем статус в clinical_scheduling
+                ExaminationStatusService.update_assignment_status(
+                    examination, 'completed', instance.author, 'Данные результата заполнены'
+                )
+                
+    except Exception as e:
+        print(f"Ошибка при синхронизации статуса лабораторного исследования: {e}") 
