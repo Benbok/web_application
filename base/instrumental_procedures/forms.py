@@ -1,5 +1,7 @@
 from django import forms
 from django.db.models import Q
+from django.utils.translation import gettext_lazy as _
+from .models import InstrumentalProcedureResult
 
 FIELD_TYPE_MAP = {
     'text': forms.CharField,
@@ -62,3 +64,39 @@ def build_instrumental_procedure_result_form(schema, user=None, initial=None):
                         self.fields[key].initial = value
 
     return BaseForm
+
+class InstrumentalProcedureResultForm(forms.ModelForm):
+    """Форма для создания/редактирования результата инструментального исследования"""
+    
+    class Meta:
+        model = InstrumentalProcedureResult
+        fields = ['data', 'is_completed']
+        widgets = {
+            'data': forms.Textarea(attrs={'rows': 4, 'class': 'form-control'}),
+            'is_completed': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+class InstrumentalProcedureRejectionForm(forms.Form):
+    """Форма для отклонения направления инструментального исследования"""
+    
+    REJECTION_REASONS = [
+        ('technical_issue', 'Техническая проблема'),
+        ('equipment_failure', 'Поломка оборудования'),
+        ('patient_preparation', 'Пациент не подготовлен'),
+        ('procedure_unavailable', 'Процедура недоступна'),
+        ('staff_shortage', 'Нехватка персонала'),
+        ('contraindication', 'Противопоказания'),
+        ('other', 'Другая причина'),
+    ]
+    
+    rejection_reason = forms.ChoiceField(
+        choices=REJECTION_REASONS,
+        label=_('Причина отклонения'),
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
+    rejection_notes = forms.CharField(
+        label=_('Дополнительные комментарии'),
+        widget=forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+        required=False
+    )

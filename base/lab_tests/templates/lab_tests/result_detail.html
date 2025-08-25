@@ -47,25 +47,40 @@
             <a href="{% url 'lab_tests:result_list' %}" class="btn btn-secondary">Назад к списку</a>
             <a href="{% url 'lab_tests:result_update' result.pk %}" class="btn btn-primary">Редактировать</a>
             
-            <!-- Кнопка подписания -->
-            {% if result.is_completed %}
-                {% load signature_tags %}
-                {% get_signature_status result as signature_status %}
-                {% if signature_status.status != 'all_signed' %}
-                    <form method="post" action="{% url 'lab_tests:result_sign' result.pk %}" style="display: inline;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-success">
-                            <i class="fas fa-signature"></i> Подписать документ
-                        </button>
-                    </form>
-                {% else %}
-                    <span class="btn btn-success disabled">
-                        <i class="fas fa-check"></i> Документ подписан
-                    </span>
+            <!-- Действия с результатом -->
+            <div class="mt-3">
+                <!-- Кнопка подписания -->
+                {% if result.is_completed %}
+                    {% load signature_tags %}
+                    {% get_signature_status result as signature_status %}
+                    {% if signature_status.status != 'all_signed' %}
+                        <form method="post" action="{% url 'lab_tests:result_sign' result.pk %}" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-signature"></i> Подписать документ
+                            </button>
+                        </form>
+                    {% else %}
+                        <span class="btn btn-success disabled">
+                            <i class="fas fa-check"></i> Документ подписан
+                        </span>
+                    {% endif %}
                 {% endif %}
-            {% endif %}
-            
-            <a href="{% url 'lab_tests:result_delete' result.pk %}" class="btn btn-danger">Удалить</a>
+                
+                <!-- Кнопки отклонения и забраковки -->
+                {% if not result.is_completed and signature_status.status != 'all_signed' %}
+                    <a href="{% url 'lab_tests:result_reject' result.pk %}" class="btn btn-warning">
+                        <i class="fas fa-times-circle"></i> Отклонить
+                    </a>
+                    <a href="{% url 'lab_tests:result_disqualify' result.pk %}" class="btn btn-danger">
+                        <i class="fas fa-ban"></i> Забраковать
+                    </a>
+                {% endif %}
+                
+                <a href="{% url 'lab_tests:result_delete' result.pk %}" class="btn btn-outline-danger">
+                    <i class="fas fa-trash"></i> Удалить
+                </a>
+            </div>
         </div>
     </div>
 </div>

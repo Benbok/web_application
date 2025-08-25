@@ -26,18 +26,25 @@ class SignatureService:
         if custom_workflow:
             workflow = custom_workflow
         else:
-            workflow, created = SignatureWorkflow.objects.get_or_create(
-                workflow_type=workflow_type,
-                defaults={
-                    'name': f'Рабочий процесс {workflow_type}',
-                    'require_doctor_signature': True,
-                    'require_head_signature': workflow_type in ['standard', 'complex', 'critical'],
-                    'require_chief_signature': workflow_type in ['complex', 'critical'],
-                    'require_patient_signature': workflow_type == 'critical',
-                    'auto_complete_on_doctor_signature': workflow_type == 'simple',
-                    'auto_complete_on_all_signatures': True,
-                }
-            )
+            try:
+                # Сначала пытаемся найти существующий workflow
+                workflow = SignatureWorkflow.objects.get(workflow_type=workflow_type)
+            except SignatureWorkflow.DoesNotExist:
+                # Если не найден, создаем новый
+                workflow = SignatureWorkflow.objects.create(
+                    workflow_type=workflow_type,
+                    name=f'Рабочий процесс {workflow_type}',
+                    require_doctor_signature=True,
+                    require_head_signature=workflow_type in ['standard', 'complex', 'critical'],
+                    require_chief_signature=workflow_type in ['complex', 'critical'],
+                    require_patient_signature=workflow_type == 'critical',
+                    auto_complete_on_doctor_signature=workflow_type == 'simple',
+                    auto_complete_on_all_signatures=True,
+                )
+            except SignatureWorkflow.MultipleObjectsReturned:
+                # Если найдено несколько, берем первый и логируем проблему
+                workflow = SignatureWorkflow.objects.filter(workflow_type=workflow_type).first()
+                print(f"Warning: Multiple SignatureWorkflow found for type '{workflow_type}'. Using first one.")
         
         # Определяем врача-исследователя
         doctor_user = getattr(document, 'author', None)

@@ -52,6 +52,11 @@ urlpatterns = [
          views.ExaminationLabTestCreateView.as_view(), 
          name='lab_test_create'),
     
+    # Просмотр результатов лабораторных исследований
+    path('lab-tests/<int:pk>/result/', 
+         views.LabTestResultView.as_view(), 
+         name='lab_test_result_view'),
+    
     # Управление статусами лабораторных исследований
     path('lab-tests/<int:pk>/status/complete/', 
          views.ExaminationLabTestCompleteView.as_view(), 
@@ -73,6 +78,11 @@ urlpatterns = [
     path('plans/<int:plan_pk>/instrumental/add/', 
          views.ExaminationInstrumentalCreateView.as_view(), 
          name='instrumental_create'),
+    
+    # Просмотр результатов инструментальных исследований
+    path('instrumental/<int:pk>/result/', 
+         views.InstrumentalResultView.as_view(), 
+         name='instrumental_result_view'),
     
     # Управление статусами инструментальных исследований
     path('instrumental/<int:pk>/status/complete/', 

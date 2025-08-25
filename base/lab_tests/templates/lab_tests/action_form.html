@@ -1,0 +1,80 @@
+{% extends "registration/base.html" %}
+{% load bootstrap5 %}
+
+{% block title %}{{ action_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-{% if action_type == 'reject' %}times-circle text-warning{% else %}ban text-danger{% endif %} me-2"></i>
+                        {{ action_title }}
+                    </h5>
+                    <a href="{% url 'lab_tests:result_detail' pk=result.pk %}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i> Назад
+                    </a>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Информация о результате -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Информация об исследовании</h6>
+                            <p><strong>Пациент:</strong> {{ result.patient.get_full_name }}</p>
+                            <p><strong>Тип исследования:</strong> {{ result.procedure_definition.name }}</p>
+                            <p><strong>Дата создания:</strong> {{ result.created_at|date:"d.m.Y H:i" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Статус</h6>
+                            <p><strong>Текущий статус:</strong> 
+                                {% if result.examination_plan %}
+                                    <span class="badge bg-info">{{ result.examination_plan.status|default:"Неизвестно" }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Не связан с планом</span>
+                                {% endif %}
+                            </p>
+                            {% if result.is_completed %}
+                                <p><strong>Заполнено:</strong> <span class="badge bg-success">Да</span></p>
+                            {% else %}
+                                <p><strong>Заполнено:</strong> <span class="badge bg-warning">Нет</span></p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- Форма -->
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="alert alert-{% if action_type == 'reject' %}warning{% else %}danger{% endif %}">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Внимание!</strong> 
+                            {% if action_type == 'reject' %}
+                                Отклонение исследования изменит его статус на "Отклонено". Это действие нельзя отменить.
+                            {% else %}
+                                Забраковка исследования изменит его статус на "Отклонено" с пометкой о забраковке. Это действие нельзя отменить.
+                            {% endif %}
+                        </div>
+
+                        {% bootstrap_form form %}
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'lab_tests:result_detail' pk=result.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-1"></i> Отмена
+                            </a>
+                            <button type="submit" class="btn btn-{% if action_type == 'reject' %}warning{% else %}danger{% endif %}">
+                                <i class="fas fa-{% if action_type == 'reject' %}times-circle{% else %}ban{% endif %} me-1"></i>
+                                {{ submit_text }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

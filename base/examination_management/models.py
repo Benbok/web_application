@@ -336,6 +336,29 @@ class ExaminationLabTest(SoftDeleteMixin):
     def get_lab_test_name(self):
         """Получить название лабораторного исследования"""
         return self.lab_test.name
+    
+    def can_be_deleted(self):
+        """
+        Проверяет, можно ли удалить назначение лабораторного исследования.
+        Удаление невозможно, если есть подписанное заключение.
+        """
+        from document_signatures.services import SignatureService
+        
+        # Ищем результат исследования
+        try:
+            result = self.lab_test.lab_test_results.filter(
+                examination_plan=self.examination_plan
+            ).first()
+            
+            if result and result.is_completed:
+                # Проверяем статус подписи
+                signature_status = SignatureService.get_document_signature_status(result)
+                return signature_status['status'] != 'all_signed'
+            
+            return True
+        except Exception:
+            # В случае ошибки разрешаем удаление
+            return True
 
 
 class ExaminationInstrumental(SoftDeleteMixin):
@@ -374,6 +397,29 @@ class ExaminationInstrumental(SoftDeleteMixin):
     def get_procedure_name(self):
         """Получить название процедуры"""
         return self.instrumental_procedure.name
+    
+    def can_be_deleted(self):
+        """
+        Проверяет, можно ли удалить назначение инструментального исследования.
+        Удаление невозможно, если есть подписанное заключение.
+        """
+        from document_signatures.services import SignatureService
+        
+        # Ищем результат исследования
+        try:
+            result = self.instrumental_procedure.instrumental_procedure_results.filter(
+                examination_plan=self.examination_plan
+            ).first()
+            
+            if result and result.is_completed:
+                # Проверяем статус подписи
+                signature_status = SignatureService.get_document_signature_status(result)
+                return signature_status['status'] != 'all_signed'
+            
+            return True
+        except Exception:
+            # В случае ошибки разрешаем удаление
+            return True
 
 # ============================================================================
 # СИГНАЛЫ УДАЛЕНЫ - больше не нужны, так как treatment_assignments удалено

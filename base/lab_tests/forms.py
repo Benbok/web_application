@@ -1,5 +1,7 @@
 from django import forms
 from django.db.models import Q
+from django.utils.translation import gettext_lazy as _
+from .models import LabTestResult
 
 FIELD_TYPE_MAP = {
     'text': forms.CharField,
@@ -62,3 +64,63 @@ def build_lab_test_result_form(schema, user=None, initial=None):
                         self.fields[key].initial = value
 
     return BaseForm
+
+class LabTestResultForm(forms.ModelForm):
+    """Форма для создания/редактирования результата лабораторного исследования"""
+    
+    class Meta:
+        model = LabTestResult
+        fields = ['data', 'is_completed']
+        widgets = {
+            'data': forms.Textarea(attrs={'rows': 4, 'class': 'form-control'}),
+            'is_completed': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+class LabTestRejectionForm(forms.Form):
+    """Форма для отклонения направления лабораторного исследования"""
+    
+    REJECTION_REASONS = [
+        ('technical_issue', 'Техническая проблема'),
+        ('sample_quality', 'Некачественный образец'),
+        ('patient_preparation', 'Пациент не подготовлен'),
+        ('equipment_failure', 'Поломка оборудования'),
+        ('staff_shortage', 'Нехватка персонала'),
+        ('other', 'Другая причина'),
+    ]
+    
+    rejection_reason = forms.ChoiceField(
+        choices=REJECTION_REASONS,
+        label=_('Причина отклонения'),
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
+    rejection_notes = forms.CharField(
+        label=_('Дополнительные комментарии'),
+        widget=forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+        required=False
+    )
+
+class LabTestDisqualificationForm(forms.Form):
+    """Форма для забраковки направления лабораторного исследования"""
+    
+    DISQUALIFICATION_REASONS = [
+        ('sample_contamination', 'Загрязнение образца'),
+        ('insufficient_volume', 'Недостаточный объем'),
+        ('wrong_tube', 'Неправильная пробирка'),
+        ('expired_sample', 'Истекший срок образца'),
+        ('transport_damage', 'Повреждение при транспортировке'),
+        ('labeling_error', 'Ошибка маркировки'),
+        ('other', 'Другая причина'),
+    ]
+    
+    disqualification_reason = forms.ChoiceField(
+        choices=DISQUALIFICATION_REASONS,
+        label=_('Причина забраковки'),
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
+    disqualification_notes = forms.CharField(
+        label=_('Дополнительные комментарии'),
+        widget=forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+        required=False
+    )

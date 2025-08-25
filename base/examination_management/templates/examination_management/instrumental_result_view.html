@@ -1,0 +1,204 @@
+{% extends "patients/base.html" %}
+{% load static %}
+
+{% block title %}Результат инструментального исследования - {{ instrumental.instrumental_procedure.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Заголовок с информацией о пациенте и исследовании -->
+            <div class="card mt-4">
+                <div class="card-header bg-info text-white">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div>
+                            <h4 class="card-title mb-0">
+                                <i class="fas fa-stethoscope me-2"></i>Результат инструментального исследования
+                            </h4>
+                            <small class="text-white-50">
+                                {% if patient %}
+                                    Пациент: <a href="{% url 'patients:patient_detail' patient.pk %}" class="text-white-50">{{ patient.full_name }}</a> | 
+                                {% endif %}
+                                {% if encounter %}
+                                    Случай: <a href="{% url 'encounters:encounter_detail' encounter.pk %}" class="text-white-50">{{ encounter.date_start|date:"d.m.Y H:i" }}</a> | 
+                                {% endif %}
+                                План: {{ examination_plan.name }}
+                            </small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-success fs-6">
+                                <i class="fas fa-check-circle me-1"></i>Выполнено
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h5 class="text-info">{{ instrumental.instrumental_procedure.name }}</h5>
+                            {% if instrumental.instrumental_procedure.description %}
+                                <p class="text-muted">{{ instrumental.instrumental_procedure.description }}</p>
+                            {% endif %}
+                            {% if instrumental.instructions %}
+                                <div class="alert alert-info py-2 px-3" style="font-size: 0.9rem;">
+                                    <strong><i class="fas fa-info-circle me-1"></i>Особые указания:</strong>
+                                    <p class="mb-0 mt-1">{{ instrumental.instructions|linebreaks }}</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title"><i class="fas fa-calendar me-1"></i>Информация</h6>
+                                    <ul class="list-unstyled mb-0">
+                                        <li><strong>Добавлено:</strong> {{ instrumental.created_at|date:"d.m.Y H:i" }}</li>
+                                        {% if result and result.datetime_result %}
+                                            <li><strong>Выполнено:</strong> {{ result.datetime_result|date:"d.m.Y H:i" }}</li>
+                                        {% endif %}
+                                        {% if result and result.author %}
+                                            <li><strong>Выполнил:</strong> {{ result.author.get_full_name|default:result.author.username }}</li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Результаты исследования -->
+            {% if result and result.data %}
+            <div class="card mt-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Результаты исследования
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if result.data %}
+                        <div class="row">
+                            {% for key, value in result.data.items %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card border-success">
+                                    <div class="card-header bg-success text-white">
+                                        <h6 class="card-title mb-0">{{ key|title }}</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        {% if value is mapping %}
+                                            {% for sub_key, sub_value in value.items %}
+                                            <div class="mb-2">
+                                                <strong>{{ sub_key|title }}:</strong>
+                                                {% if sub_value is mapping %}
+                                                    <ul class="list-unstyled mb-0 ms-3">
+                                                        {% for k, v in sub_value.items %}
+                                                        <li><strong>{{ k|title }}:</strong> {{ v|default:"-" }}</li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                {% else %}
+                                                    {{ sub_value|default:"-" }}
+                                                {% endif %}
+                                            </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            <p class="mb-0">{{ value|default:"-" }}</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning py-2 px-3" style="font-size: 0.9rem;">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Внимание:</strong> Данные результатов не заполнены или имеют нестандартный формат.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Заключение -->
+            {% if result and result.conclusion %}
+            <div class="card mt-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-stethoscope me-2"></i>Заключение
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info py-2 px-3" style="font-size: 0.9rem;">
+                        <p class="mb-0">{{ result.conclusion|linebreaks }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Изображения (если есть) -->
+            {% if result and result.images %}
+            <div class="card mt-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-images me-2"></i>Изображения
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for image in result.images %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card">
+                                <img src="{{ image.url }}" class="card-img-top" alt="Результат исследования">
+                                <div class="card-body">
+                                    <p class="card-text small">{{ image.description|default:"Изображение результата" }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Подписи -->
+            {% if signatures %}
+            <div class="card mt-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-signature me-2"></i>Подписи
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for signature in signatures %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-secondary">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ signature.get_signature_type_display }}</h6>
+                                    {% if signature.actual_signer %}
+                                        <p class="mb-1"><strong>Подписал:</strong> {{ signature.actual_signer.get_full_name|default:signature.actual_signer.username }}</p>
+                                    {% endif %}
+                                    {% if signature.signed_at %}
+                                        <p class="mb-1"><strong>Дата:</strong> {{ signature.signed_at|date:"d.m.Y H:i" }}</p>
+                                    {% endif %}
+                                    {% if signature.signature_notes %}
+                                        <p class="mb-0"><strong>Примечания:</strong> {{ signature.signature_notes }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Кнопка возврата -->
+            <div class="d-flex justify-content-center mt-4">
+                <a href="{% url 'examination_management:examination_plan_detail' encounter_pk=encounter.pk pk=examination_plan.pk %}" 
+                   class="btn btn-secondary btn-lg">
+                    <i class="fas fa-arrow-left me-2"></i>Вернуться к плану обследования
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

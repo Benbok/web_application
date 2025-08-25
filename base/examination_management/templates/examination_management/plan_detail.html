@@ -257,64 +257,27 @@
                             </div>
                         </div>
                         <div class="card-footer bg-white p-2">
-                            <div class="btn-group w-100" role="group">
-                                {% if status_info.status == 'active' %}
-                                    <a href="{% url 'examination_management:lab_test_complete' pk=lab_test.pk %}" 
-                                       class="btn btn-outline-success btn-sm"
-                                       onclick="return confirm('Отметить исследование как выполненное?')">
-                                        <i class="fas fa-check me-1"></i> Выполнено
+                            <div class="d-flex justify-content-end gap-2">
+                                {% if status_info.status == 'completed' %}
+                                    <a href="{% url 'examination_management:lab_test_result_view' pk=lab_test.pk %}" 
+                                       class="btn btn-outline-info btn-sm"
+                                       title="Просмотреть результат">
+                                        <i class="fas fa-eye me-1"></i> Просмотреть результат
                                     </a>
-                                    <a href="{% url 'examination_management:lab_test_pause' pk=lab_test.pk %}" 
-                                       class="btn btn-outline-warning btn-sm">
-                                        <i class="fas fa-pause me-1"></i> Приостановить
-                                    </a>
-                                    <a href="{% url 'examination_management:lab_test_reject' pk=lab_test.pk %}" 
-                                       class="btn btn-outline-danger btn-sm">
-                                        <i class="fas fa-times me-1"></i> Отклонить
-                                    </a>
-                                    <a href="{% url 'lab_tests:result_update' lab_test.pk %}" 
-                                       class="btn btn-outline-primary btn-sm">
-                                        <i class="fas fa-edit me-1"></i> Заполнить результат
-                                    </a>
-                                    <a href="{% url 'examination_management:lab_test_delete' pk=lab_test.pk %}" 
-                                       class="btn btn-outline-danger btn-sm">
-                                        <i class="fas fa-trash me-1"></i> Удалить
-                                    </a>
-                                {% elif status_info.status == 'paused' %}
-                                    <a href="{% url 'examination_management:lab_test_complete' pk=lab_test.pk %}" 
-                                       class="btn btn-outline-success btn-sm"
-                                       onclick="return confirm('Отметить исследование как выполненное?')">
-                                        <i class="fas fa-check me-1"></i> Выполнено
-                                    </a>
-                                    <a href="{% url 'examination_management:lab_test_reject' pk=lab_test.pk %}" 
-                                       class="btn btn-outline-danger btn-sm">
-                                        <i class="fas fa-times me-1"></i> Отклонить
-                                    </a>
-                                    <a href="{% url 'examination_management:lab_test_delete' pk=lab_test.pk %}" 
-                                       class="btn btn-outline-danger btn-sm">
-                                        <i class="fas fa-trash me-1"></i> Удалить
-                                    </a>
-                                {% elif status_info.status == 'completed' %}
-                                    <span class="btn btn-outline-success btn-sm disabled">
+                                    <span class="btn btn-outline-secondary btn-sm disabled" 
+                                          title="Удаление невозможно - исследование выполнено">
                                         <i class="fas fa-check me-1"></i> Выполнено
                                     </span>
-                                    <a href="{% url 'examination_management:lab_test_delete' pk=lab_test.pk %}" 
-                                       class="btn btn-outline-danger btn-sm">
-                                        <i class="fas fa-trash me-1"></i> Удалить
-                                    </a>
-                                {% elif status_info.status == 'rejected' %}
-                                    <span class="btn btn-outline-danger btn-sm disabled">
-                                        <i class="fas fa-times me-1"></i> Отклонено
-                                    </span>
+                                {% elif lab_test.can_be_deleted %}
                                     <a href="{% url 'examination_management:lab_test_delete' pk=lab_test.pk %}" 
                                        class="btn btn-outline-danger btn-sm">
                                         <i class="fas fa-trash me-1"></i> Удалить
                                     </a>
                                 {% else %}
-                                    <a href="{% url 'examination_management:lab_test_delete' pk=lab_test.pk %}" 
-                                       class="btn btn-outline-danger btn-sm">
+                                    <span class="btn btn-outline-secondary btn-sm disabled" 
+                                          title="Удаление невозможно - есть подписанное заключение. Удалите заключение в разделе лабораторных исследований.">
                                         <i class="fas fa-trash me-1"></i> Удалить
-                                    </a>
+                                    </span>
                                 {% endif %}
                             </div>
                         </div>
@@ -416,76 +379,27 @@
                         </div>
                     </div>
                     <div class="btn-group btn-group-sm" role="group">
-                        {% if status_info.status == 'active' %}
-                            <a href="{% url 'examination_management:instrumental_complete' pk=instrumental.pk %}" 
-                               class="btn btn-outline-success btn-sm"
-                               onclick="return confirm('Отметить исследование как выполненное?')"
-                               title="Отметить как выполненное">
-                                <i class="fas fa-check"></i>
+                        {% if status_info.status == 'completed' %}
+                            <a href="{% url 'examination_management:instrumental_result_view' pk=instrumental.pk %}" 
+                               class="btn btn-outline-info btn-sm"
+                               title="Просмотреть результат">
+                                <i class="fas fa-eye"></i> Просмотреть результат
                             </a>
-                            <a href="{% url 'examination_management:instrumental_pause' pk=instrumental.pk %}" 
-                               class="btn btn-outline-warning btn-sm"
-                               title="Приостановить">
-                                <i class="fas fa-pause"></i>
-                            </a>
-                            <a href="{% url 'examination_management:instrumental_reject' pk=instrumental.pk %}" 
-                               class="btn btn-outline-danger btn-sm"
-                               title="Отклонить">
-                                <i class="fas fa-times"></i>
-                            </a>
-                            <a href="{% url 'instrumental_procedures:result_update' instrumental.pk %}" 
-                               class="btn btn-outline-primary btn-sm"
-                               title="Заполнить результат">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            <a href="{% url 'examination_management:instrumental_delete' pk=instrumental.pk %}" 
-                               class="btn btn-outline-danger btn-sm"
-                               title="Удалить">
-                                <i class="fas fa-trash"></i>
-                            </a>
-                        {% elif status_info.status == 'paused' %}
-                            <a href="{% url 'examination_management:instrumental_complete' pk=instrumental.pk %}" 
-                               class="btn btn-outline-success btn-sm"
-                               onclick="return confirm('Отметить исследование как выполненное?')"
-                               title="Отметить как выполненное">
-                                <i class="fas fa-check"></i>
-                            </a>
-                            <a href="{% url 'examination_management:instrumental_reject' pk=instrumental.pk %}" 
-                               class="btn btn-outline-danger btn-sm"
-                               title="Отклонить">
-                                <i class="fas fa-times"></i>
-                            </a>
-                            <a href="{% url 'examination_management:instrumental_delete' pk=instrumental.pk %}" 
-                               class="btn btn-outline-danger btn-sm"
-                               title="Удалить">
-                                <i class="fas fa-trash"></i>
-                            </a>
-                        {% elif status_info.status == 'completed' %}
-                            <span class="btn btn-outline-success btn-sm disabled"
-                                  title="Исследование выполнено">
-                                <i class="fas fa-check"></i>
+                            <span class="btn btn-outline-secondary btn-sm disabled" 
+                                  title="Удаление невозможно - исследование выполнено">
+                                <i class="fas fa-check"></i> Выполнено
                             </span>
+                        {% elif instrumental.can_be_deleted %}
                             <a href="{% url 'examination_management:instrumental_delete' pk=instrumental.pk %}" 
                                class="btn btn-outline-danger btn-sm"
                                title="Удалить">
-                                <i class="fas fa-trash"></i>
-                            </a>
-                        {% elif status_info.status == 'rejected' %}
-                            <span class="btn btn-outline-danger btn-sm disabled"
-                                  title="Исследование отклонено">
-                                <i class="fas fa-times"></i>
-                            </span>
-                            <a href="{% url 'examination_management:instrumental_delete' pk=instrumental.pk %}" 
-                               class="btn btn-outline-danger btn-sm"
-                               title="Удалить">
-                                <i class="fas fa-trash"></i>
+                                <i class="fas fa-trash"></i> Удалить
                             </a>
                         {% else %}
-                            <a href="{% url 'examination_management:instrumental_delete' pk=instrumental.pk %}" 
-                               class="btn btn-outline-danger btn-sm"
-                               title="Удалить">
-                                <i class="fas fa-trash"></i>
-                            </a>
+                            <span class="btn btn-outline-secondary btn-sm disabled" 
+                                  title="Удаление невозможно - есть подписанное заключение. Удалите заключение в разделе инструментальных исследований.">
+                                <i class="fas fa-trash"></i> Удалить
+                            </span>
                         {% endif %}
                     </div>
                 </li>

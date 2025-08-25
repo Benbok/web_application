@@ -14,6 +14,11 @@ from .models import ExaminationPlan, ExaminationLabTest, ExaminationInstrumental
 from .forms import ExaminationPlanForm, ExaminationLabTestForm, ExaminationInstrumentalForm, ExaminationLabTestWithScheduleForm, ExaminationInstrumentalWithScheduleForm
 from .status_forms import RejectionForm, PauseForm, CompletionForm
 
+# Импорты для просмотра результатов
+from lab_tests.models import LabTestResult
+from instrumental_procedures.models import InstrumentalProcedureResult
+from document_signatures.models import DocumentSignature
+
 # Импортируем сервис для создания планов обследования
 from .services import ExaminationPlanService, ExaminationStatusService
 
@@ -599,6 +604,17 @@ class ExaminationLabTestDeleteView(LoginRequiredMixin, DeleteView):
         context['encounter'] = self.object.examination_plan.encounter
         context['patient'] = self.object.examination_plan.encounter.patient
         context['title'] = _('Отменить лабораторное исследование')
+        
+        # Проверяем возможность удаления
+        context['can_be_deleted'] = self.object.can_be_deleted()
+        
+        # Дополнительная проверка статуса
+        if hasattr(self.object, 'status') and self.object.status == 'completed':
+            context['warning_message'] = _('Удаление невозможно - исследование выполнено. Удалите результат в разделе лабораторных исследований.')
+            context['can_be_deleted'] = False
+        elif not context['can_be_deleted']:
+            context['warning_message'] = _('Удаление невозможно - есть подписанное заключение. Удалите заключение в разделе лабораторных исследований.')
+        
         return context
     
     def delete(self, request, *args, **kwargs):
@@ -606,6 +622,16 @@ class ExaminationLabTestDeleteView(LoginRequiredMixin, DeleteView):
         Переопределяем метод delete для использования soft delete
         """
         self.object = self.get_object()
+        
+        # Дополнительная защита: проверяем статус
+        if hasattr(self.object, 'status') and self.object.status == 'completed':
+            messages.error(request, _('Удаление невозможно - исследование выполнено. Удалите результат в разделе лабораторных исследований.'))
+            return redirect(self.get_success_url())
+        
+        # Проверяем, можно ли удалить назначение
+        if not self.object.can_be_deleted():
+            messages.error(request, _('Удаление невозможно - есть подписанное заключение. Удалите заключение в разделе лабораторных исследований.'))
+            return redirect(self.get_success_url())
         
         # Используем soft delete вместо физического удаления
         self.object.cancel(
@@ -738,6 +764,17 @@ class ExaminationInstrumentalDeleteView(LoginRequiredMixin, DeleteView):
         context['encounter'] = self.object.examination_plan.encounter
         context['patient'] = self.object.examination_plan.encounter.patient
         context['title'] = _('Отменить инструментальное исследование')
+        
+        # Проверяем возможность удаления
+        context['can_be_deleted'] = self.object.can_be_deleted()
+        
+        # Дополнительная проверка статуса
+        if hasattr(self.object, 'status') and self.object.status == 'completed':
+            context['warning_message'] = _('Удаление невозможно - исследование выполнено. Удалите результат в разделе инструментальных исследований.')
+            context['can_be_deleted'] = False
+        elif not context['can_be_deleted']:
+            context['warning_message'] = _('Удаление невозможно - есть подписанное заключение. Удалите заключение в разделе инструментальных исследований.')
+        
         return context
     
     def delete(self, request, *args, **kwargs):
@@ -745,6 +782,16 @@ class ExaminationInstrumentalDeleteView(LoginRequiredMixin, DeleteView):
         Переопределяем метод delete для использования soft delete
         """
         self.object = self.get_object()
+        
+        # Дополнительная защита: проверяем статус
+        if hasattr(self.object, 'status') and self.object.status == 'completed':
+            messages.error(request, _('Удаление невозможно - исследование выполнено. Удалите результат в разделе инструментальных исследований.'))
+            return redirect(self.get_success_url())
+        
+        # Проверяем, можно ли удалить назначение
+        if not self.object.can_be_deleted():
+            messages.error(request, _('Удаление невозможно - есть подписанное заключение. Удалите заключение в разделе инструментальных исследований.'))
+            return redirect(self.get_success_url())
         
         # Используем soft delete вместо физического удаления
         self.object.cancel(
@@ -1027,3 +1074,123 @@ class ExaminationInstrumentalPauseView(LoginRequiredMixin, View):
             'item_type': 'instrumental',
             'title': _('Приостановить инструментальное исследование')
         })
+
+
+class LabTestResultView(LoginRequiredMixin, DetailView):
+    """
+    Представление для просмотра результатов лабораторного исследования
+    Только для чтения, без возможности редактирования
+    """
+    model = ExaminationLabTest
+    template_name = 'examination_management/lab_test_result_view.html'
+    context_object_name = 'lab_test'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        lab_test = self.get_object()
+        
+        # Получаем план обследования
+        examination_plan = lab_test.examination_plan
+        context['examination_plan'] = examination_plan
+        
+        # Получаем пациента
+        context['patient'] = examination_plan.get_patient()
+        
+        # Получаем encounter
+        if examination_plan.encounter:
+            context['encounter'] = examination_plan.encounter
+        else:
+            # Если нет прямого encounter, ищем через patient_department_status
+            context['encounter'] = None
+            if examination_plan.patient_department_status:
+                # Создаем фиктивный encounter для отображения
+                from encounters.models import Encounter
+                context['encounter'] = Encounter(
+                    patient=examination_plan.patient_department_status.patient,
+                    date_start=examination_plan.patient_department_status.admission_date
+                )
+        
+        # Получаем результат исследования
+        try:
+            result = LabTestResult.objects.filter(
+                examination_plan=examination_plan,
+                procedure_definition=lab_test.lab_test
+            ).first()
+            context['result'] = result
+        except Exception:
+            context['result'] = None
+        
+                    # Получаем подписи
+            try:
+                if result:
+                    signatures = DocumentSignature.objects.filter(
+                        content_type__model='labtestresult',
+                        object_id=result.pk
+                    ).select_related('actual_signer', 'required_signer')
+                    context['signatures'] = signatures
+                else:
+                    context['signatures'] = []
+            except Exception:
+                context['signatures'] = []
+        
+        return context
+
+
+class InstrumentalResultView(LoginRequiredMixin, DetailView):
+    """
+    Представление для просмотра результатов инструментального исследования
+    Только для чтения, без возможности редактирования
+    """
+    model = ExaminationInstrumental
+    template_name = 'examination_management/instrumental_result_view.html'
+    context_object_name = 'instrumental'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        instrumental = self.get_object()
+        
+        # Получаем план обследования
+        examination_plan = instrumental.examination_plan
+        context['examination_plan'] = examination_plan
+        
+        # Получаем пациента
+        context['patient'] = examination_plan.get_patient()
+        
+        # Получаем encounter
+        if examination_plan.encounter:
+            context['encounter'] = examination_plan.encounter
+        else:
+            # Если нет прямого encounter, ищем через patient_department_status
+            context['encounter'] = None
+            if examination_plan.patient_department_status:
+                # Создаем фиктивный encounter для отображения
+                from encounters.models import Encounter
+                context['encounter'] = Encounter(
+                    patient=examination_plan.patient_department_status.patient,
+                    date_start=examination_plan.patient_department_status.admission_date
+                )
+        
+        # Получаем результат исследования
+        try:
+            result = InstrumentalProcedureResult.objects.filter(
+                examination_plan=examination_plan,
+                procedure_definition=instrumental.instrumental_procedure
+            ).first()
+            context['result'] = result
+        except Exception:
+            context['result'] = None
+        
+                    # Получаем подписи
+            try:
+                if result:
+                    signatures = DocumentSignature.objects.filter(
+                        content_type__model='instrumentalprocedureresult',
+                        object_id=result.pk
+                    ).select_related('actual_signer', 'required_signer')
+                    context['signatures'] = signatures
+                else:
+                    context['signatures'] = []
+            except Exception:
+                context['signatures'] = []
+        
+        return context

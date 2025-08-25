@@ -203,3 +203,125 @@ class LabTestResultSignView(LoginRequiredMixin, View):
             messages.error(request, f'Ошибка при подписании: {str(e)}')
         
         return redirect('lab_tests:result_detail', pk=pk)
+
+
+class LabTestRejectView(LoginRequiredMixin, View):
+    """View для отклонения лабораторного исследования"""
+    
+    def get(self, request, pk):
+        from .forms import LabTestRejectionForm
+        result = get_object_or_404(LabTestResult, pk=pk)
+        form = LabTestRejectionForm()
+        
+        context = {
+            'result': result,
+            'form': form,
+            'action_type': 'reject',
+            'action_title': 'Отклонить исследование',
+            'submit_text': 'Отклонить',
+        }
+        return render(request, 'lab_tests/action_form.html', context)
+    
+    def post(self, request, pk):
+        from .forms import LabTestRejectionForm
+        result = get_object_or_404(LabTestResult, pk=pk)
+        form = LabTestRejectionForm(request.POST)
+        
+        if form.is_valid():
+            try:
+                # Обновляем статус через сервис
+                from examination_management.services import ExaminationStatusService
+                
+                # Находим связанное назначение через examination_plan или через поиск в examination_management
+                if result.examination_plan:
+                    # Если есть прямая связь с планом
+                    examination_plan = result.examination_plan
+                else:
+                    # Ищем через patient и procedure_definition
+                    from examination_management.models import ExaminationLabTest
+                    examination_plan = ExaminationLabTest.objects.filter(
+                        lab_test=result.procedure_definition,
+                        examination_plan__encounter__patient=result.patient
+                    ).first()
+                
+                if examination_plan:
+                    ExaminationStatusService.update_assignment_status(
+                        examination_plan, 'rejected', 
+                        f"Отклонено: {form.cleaned_data['rejection_reason']} - {form.cleaned_data.get('rejection_notes', '')}"
+                    )
+                
+                messages.success(request, 'Исследование успешно отклонено')
+                return redirect('lab_tests:result_list')
+                
+            except Exception as e:
+                messages.error(request, f'Ошибка при отклонении: {str(e)}')
+        
+        context = {
+            'result': result,
+            'form': form,
+            'action_type': 'reject',
+            'action_title': 'Отклонить исследование',
+            'submit_text': 'Отклонить',
+        }
+        return render(request, 'lab_tests/action_form.html', context)
+
+
+class LabTestDisqualifyView(LoginRequiredMixin, View):
+    """View для забраковки лабораторного исследования"""
+    
+    def get(self, request, pk):
+        from .forms import LabTestDisqualificationForm
+        result = get_object_or_404(LabTestResult, pk=pk)
+        form = LabTestDisqualificationForm()
+        
+        context = {
+            'result': result,
+            'form': form,
+            'action_type': 'disqualify',
+            'action_title': 'Забраковать исследование',
+            'submit_text': 'Забраковать',
+        }
+        return render(request, 'lab_tests/action_form.html', context)
+    
+    def post(self, request, pk):
+        from .forms import LabTestDisqualificationForm
+        result = get_object_or_404(LabTestResult, pk=pk)
+        form = LabTestDisqualificationForm(request.POST)
+        
+        if form.is_valid():
+            try:
+                # Обновляем статус через сервис
+                from examination_management.services import ExaminationStatusService
+                
+                # Находим связанное назначение через examination_plan или через поиск в examination_management
+                if result.examination_plan:
+                    # Если есть прямая связь с планом
+                    examination_plan = result.examination_plan
+                else:
+                    # Ищем через patient и procedure_definition
+                    from examination_management.models import ExaminationLabTest
+                    examination_plan = ExaminationLabTest.objects.filter(
+                        lab_test=result.procedure_definition,
+                        examination_plan__encounter__patient=result.patient
+                    ).first()
+                
+                if examination_plan:
+                    ExaminationStatusService.update_assignment_status(
+                        examination_plan, 'rejected', 
+                        f"Забраковано: {form.cleaned_data['disqualification_reason']} - {form.cleaned_data.get('disqualification_notes', '')}"
+                    )
+                
+                messages.success(request, 'Исследование успешно забраковано')
+                return redirect('lab_tests:result_list')
+                
+            except Exception as e:
+                messages.error(request, f'Ошибка при забраковке: {str(e)}')
+        
+        context = {
+            'result': result,
+            'form': form,
+            'action_type': 'disqualify',
+            'action_title': 'Забраковать исследование',
+            'submit_text': 'Забраковать',
+        }
+        return render(request, 'lab_tests/action_form.html', context)
