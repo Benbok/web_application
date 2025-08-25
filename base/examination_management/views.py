@@ -107,7 +107,6 @@ class ExaminationPlanQuickCreateView(LoginRequiredMixin, View):
             name='Основной',
             description='Стандартный план обследования',
             priority='normal',
-            is_active=True,
             created_by=request.user,
         )
         return redirect('examination_management:examination_plan_detail', encounter_pk=encounter.pk, pk=plan.pk)
@@ -256,7 +255,6 @@ class ExaminationPlanCreateView(LoginRequiredMixin, OwnerContextMixin, CreateVie
             name=form.cleaned_data['name'],
             description=form.cleaned_data['description'],
             priority=form.cleaned_data['priority'],
-            is_active=form.cleaned_data['is_active'],
             created_by=self.request.user
         )
         

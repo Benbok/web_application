@@ -10,7 +10,7 @@ class ExaminationPlanService:
     """
     
     @staticmethod
-    def create_examination_plan(owner, name, description='', priority='normal', is_active=True, created_by=None):
+    def create_examination_plan(owner, name, description='', priority='normal', created_by=None):
         """
         Создает новый план обследования для указанного владельца
         
@@ -19,7 +19,6 @@ class ExaminationPlanService:
             name: Название плана
             description: Описание плана
             priority: Приоритет плана
-            is_active: Активен ли план
             created_by: Создатель плана
         
         Returns:
@@ -33,7 +32,6 @@ class ExaminationPlanService:
                 name=name,
                 description=description,
                 priority=priority,
-                is_active=is_active,
                 created_by=created_by
             )
         elif owner_model_name == 'encounter':
@@ -42,7 +40,6 @@ class ExaminationPlanService:
                 name=name,
                 description=description,
                 priority=priority,
-                is_active=is_active,
                 created_by=created_by
             )
         else:
@@ -54,7 +51,6 @@ class ExaminationPlanService:
                 name=name,
                 description=description,
                 priority=priority,
-                is_active=is_active,
                 created_by=created_by
             )
         
