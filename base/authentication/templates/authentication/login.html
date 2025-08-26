@@ -74,6 +74,17 @@
                          </div>
                      </noscript>
                      
+                     <!-- Информация о текущем IP-адресе -->
+                     <div class="ip-info alert alert-info alert-sm">
+                         <i class="fas fa-network-wired me-2"></i>
+                         <small>
+                             Ваш IP-адрес: <strong>{{ request.META.REMOTE_ADDR }}</strong>
+                             {% if request.META.HTTP_X_FORWARDED_FOR %}
+                             <br>Реальный IP: <strong>{{ request.META.HTTP_X_FORWARDED_FOR|slice:":15" }}...</strong>
+                             {% endif %}
+                         </small>
+                     </div>
+                     
                      {% if messages %}
                      <div class="messages-container">
                          {% for message in messages %}

@@ -81,6 +81,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'authentication.middleware.LoginBlockingMiddleware',  # Добавляем наш middleware
+    'authentication.middleware.IPFilteringMiddleware',  # Добавляем IP-фильтр
 ]
 
 ROOT_URLCONF = 'base.urls'
@@ -215,5 +216,24 @@ CACHES = {
 # Настройки для ограничения попыток входа
 LOGIN_ATTEMPTS_LIMIT = 3
 LOGIN_ATTEMPTS_TIMEOUT = 300  # 5 минут блокировки
+
+# IP-фильтрация для входа в систему
+IP_WHITELIST_ENABLED = True  # Включить/выключить IP-фильтрацию
+IP_BLOCKED_RESPONSE_TYPE = '403'  # Тип ответа для заблокированных IP: '403', '404', 'redirect'
+
+# Разрешенные IP-адреса (точные)
+ALLOWED_LOGIN_IPS = [
+    '127.0.0.2',          # localhost (для разработки)
+    '::1',                 # localhost IPv6
+    # '192.168.1.100',    # Ваш рабочий компьютер (раскомментируйте и добавьте свой IP)
+    # '10.0.0.50',        # Другой разрешенный IP
+]
+
+# Разрешенные сети/подсети
+ALLOWED_LOGIN_NETWORKS = [
+    # '127.0.0.0/8',        # localhost сеть
+    # '192.168.1.0/24',   # Вся сеть 192.168.1.x (раскомментируйте для офиса)
+    # '10.0.0.0/16',      # Сеть 10.0.x.x
+]
 
 
