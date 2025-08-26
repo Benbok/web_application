@@ -1,0 +1,59 @@
+{% extends "patients/base.html" %}
+{% load static %}
+
+{% block title %}Отметить как частично выполненное{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="card-title mb-0">
+                            <i class="fas fa-minus me-2"></i> Отметить как частично выполненное
+                        </h4>
+                        <div>
+                            {% if return_url and return_url != request.path %}
+                                <a href="{{ return_url }}" class="btn btn-outline-secondary btn-sm me-2">
+                                    <i class="fas fa-arrow-left me-1"></i> Вернуться
+                                </a>
+                            {% endif %}
+                            <a href="{% url 'clinical_scheduling:dashboard' %}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-list me-1"></i> Все назначения
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h5>Информация о назначении</h5>
+                        <p><strong>Пациент:</strong> {{ appointment.patient.get_full_name_with_age }}</p>
+                        <p><strong>Дата:</strong> {{ appointment.scheduled_date|date:"d.m.Y" }}</p>
+                        <p><strong>Время:</strong> {{ appointment.scheduled_time|time:"H:i" }}</p>
+                        <p><strong>Тип:</strong> {{ appointment.get_assignment_info.name|default:"Назначение" }}</p>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Примечания о частичном выполнении</label>
+                            <textarea name="notes" id="notes" class="form-control" rows="3" placeholder="Опишите, что было выполнено и что осталось"></textarea>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center mt-4">
+                            <a href="{{ return_url|default:'clinical_scheduling:dashboard' }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i> Отмена
+                            </a>
+                            <button type="submit" class="btn btn-info">
+                                <i class="fas fa-minus me-1"></i> Отметить как частично выполненное
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

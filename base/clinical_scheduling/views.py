@@ -16,6 +16,21 @@ from .services import ClinicalSchedulingService
 from .forms import ScheduleSettingsForm
 
 
+def get_safe_return_url(request, default_url='clinical_scheduling:dashboard'):
+    """Получить безопасный URL для возврата"""
+    next_url = request.GET.get('next') or request.META.get('HTTP_REFERER')
+    
+    # Проверяем безопасность URL
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url, 
+        allowed_hosts={request.get_host()}, 
+        require_https=request.is_secure()
+    ):
+        return next_url
+    
+    return reverse_lazy(default_url)
+
+
 def dashboard(request):
     """Главная страница планировщика"""
     # Получаем параметры фильтрации
@@ -69,6 +84,7 @@ def dashboard(request):
             'show_all': show_all_param,
         },
         'show_all': show_all,
+        'return_url': get_safe_return_url(request),
     }
     
     return render(request, 'clinical_scheduling/dashboard.html', context)
@@ -166,6 +182,7 @@ def schedule_settings(request):
         'content_type_id': content_type_id,
         'assignment': assignment,  # Добавляем объект назначения в контекст
         'next_url': next_url,  # Добавляем URL для возврата
+        'return_url': get_safe_return_url(request),
     }
     
     return render(request, 'clinical_scheduling/schedule_settings.html', context)
@@ -187,9 +204,15 @@ def mark_as_completed(request, appointment_id):
         appointment.save()
         
         messages.success(request, 'Назначение отмечено как выполненное')
-        return redirect('clinical_scheduling:dashboard')
+        # Используем безопасный URL для возврата
+        return_url = get_safe_return_url(request)
+        return redirect(return_url)
     
-    return render(request, 'clinical_scheduling/mark_completed.html', {'appointment': appointment})
+    context = {
+        'appointment': appointment,
+        'return_url': get_safe_return_url(request),
+    }
+    return render(request, 'clinical_scheduling/mark_completed.html', context)
 
 
 @login_required
@@ -209,9 +232,15 @@ def mark_as_rejected(request, appointment_id):
         appointment.save()
         
         messages.success(request, 'Назначение отмечено как отклоненное')
-        return redirect('clinical_scheduling:dashboard')
+        # Используем безопасный URL для возврата
+        return_url = get_safe_return_url(request)
+        return redirect(return_url)
     
-    return render(request, 'clinical_scheduling/mark_rejected.html', {'appointment': appointment})
+    context = {
+        'appointment': appointment,
+        'return_url': get_safe_return_url(request),
+    }
+    return render(request, 'clinical_scheduling/mark_rejected.html', context)
 
 
 @login_required
@@ -230,9 +259,15 @@ def mark_as_skipped(request, appointment_id):
         appointment.save()
         
         messages.success(request, 'Назначение отмечено как пропущенное')
-        return redirect('clinical_scheduling:dashboard')
+        # Используем безопасный URL для возврата
+        return_url = get_safe_return_url(request)
+        return redirect(return_url)
     
-    return render(request, 'clinical_scheduling/mark_skipped.html', {'appointment': appointment})
+    context = {
+        'appointment': appointment,
+        'return_url': get_safe_return_url(request),
+    }
+    return render(request, 'clinical_scheduling/mark_skipped.html', context)
 
 
 @login_required
@@ -244,6 +279,9 @@ def mark_as_partial(request, appointment_id):
         messages.error(request, 'У вас нет прав для редактирования этого назначения')
         return redirect('clinical_scheduling:dashboard')
     
+    # Используем безопасный URL для возврата
+    return_url = get_safe_return_url(request)
+    
     if request.method == 'POST':
         appointment.execution_status = 'partial'
         appointment.executed_by = request.user
@@ -252,9 +290,13 @@ def mark_as_partial(request, appointment_id):
         appointment.save()
         
         messages.success(request, 'Назначение отмечено как частично выполненное')
-        return redirect('clinical_scheduling:dashboard')
+        return redirect(return_url)
     
-    return render(request, 'clinical_scheduling/mark_partial.html', {'appointment': appointment})
+    context = {
+        'appointment': appointment,
+        'return_url': return_url,
+    }
+    return render(request, 'clinical_scheduling/mark_partial.html', context)
 
 
 def appointment_detail(request, appointment_id):
@@ -263,7 +305,8 @@ def appointment_detail(request, appointment_id):
     
     context = {
         'appointment': appointment,
-        'can_edit': appointment.can_be_edited_by_user(request.user) if request.user.is_authenticated else False
+        'can_edit': appointment.can_be_edited_by_user(request.user) if request.user.is_authenticated else False,
+        'return_url': get_safe_return_url(request),
     }
     
     return render(request, 'clinical_scheduling/appointment_detail.html', context)
@@ -315,7 +358,8 @@ def today_schedule(request):
             'completed': completed_count,
             'pending': pending_count,
             'skipped': skipped_count,
-        }
+        },
+        'return_url': get_safe_return_url(request),
     }
     
     return render(request, 'clinical_scheduling/today_schedule.html', context)
@@ -351,7 +395,8 @@ def patient_schedule(request, patient_id):
         'filters': {
             'start_date': start_date,
             'end_date': end_date,
-        }
+        },
+        'return_url': get_safe_return_url(request),
     }
     
     return render(request, 'clinical_scheduling/patient_schedule.html', context)

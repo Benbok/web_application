@@ -20,6 +20,11 @@
                                 - Случай ID: {{ filters.encounter_id }}
                             {% endif %}
                         </h4>
+                        {% if return_url and return_url != request.path %}
+                            <a href="{{ return_url }}" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-arrow-left me-1"></i> Вернуться
+                            </a>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="card-body">
