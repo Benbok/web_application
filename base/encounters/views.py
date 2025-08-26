@@ -1,6 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
-from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import (
     ListView, DetailView, CreateView, UpdateView, DeleteView, View
@@ -16,6 +15,7 @@ from .forms import (
     EncounterDiagnosisAdvancedForm, EncounterCloseForm
 )
 from patients.models import Patient
+
 
 
 class EncounterListView(LoginRequiredMixin, ListView):
@@ -114,7 +114,11 @@ class EncounterCreateView(CreateView):
         form.instance.patient = self.patient
         form.instance.doctor = self.request.user
         response = super().form_valid(form)
-        messages.success(self.request, 'Обращение успешно создано')
+        
+        # Показываем Toastr-уведомление
+        from django.contrib import messages
+        messages.success(self.request, f'Обращение для пациента {self.patient.get_full_name_with_age()} успешно создано')
+        
         return response
 
     def get_context_data(self, **kwargs):
@@ -143,7 +147,11 @@ class EncounterUpdateView(UpdateView):
 
     def form_valid(self, form):
         response = super().form_valid(form)
-        messages.success(self.request, 'Обращение успешно обновлено')
+        
+        # Показываем Toastr-уведомление
+        from django.contrib import messages
+        messages.success(self.request, f'Обращение №{self.object.pk} успешно обновлено')
+        
         return response
 
     def get_success_url(self):
@@ -163,7 +171,11 @@ class EncounterDiagnosisView(UpdateView):
 
     def form_valid(self, form):
         response = super().form_valid(form)
-        messages.success(self.request, 'Диагноз успешно установлен')
+        
+        # Показываем Toastr-уведомление
+        from django.contrib import messages
+        messages.success(self.request, f'Диагноз для обращения №{self.object.pk} успешно установлен')
+        
         return response
 
     def get_success_url(self):
@@ -197,7 +209,11 @@ class EncounterDiagnosisAdvancedView(UpdateView):
 
     def form_valid(self, form):
         response = super().form_valid(form)
-        messages.success(self.request, 'Диагнозы успешно установлены')
+        
+        # Показываем Toastr-уведомление
+        from django.contrib import messages
+        messages.success(self.request, f'Диагнозы для обращения №{self.object.pk} успешно установлены')
+        
         return response
 
     def get_success_url(self):
@@ -239,7 +255,11 @@ class EncounterDiagnosisAdvancedCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
         form.instance.encounter = encounter
-        messages.success(self.request, 'Диагноз успешно добавлен')
+        
+        # Показываем Toastr-уведомление
+        from django.contrib import messages
+        messages.success(self.request, f'Диагноз для обращения №{encounter.pk} успешно добавлен')
+        
         return super().form_valid(form)
 
     def get_success_url(self):
@@ -316,7 +336,9 @@ class EncounterCloseView(LoginRequiredMixin, View):
         """Показывает форму для закрытия случая"""
         encounter = get_object_or_404(Encounter, pk=pk)
         if not encounter.is_active:
-            messages.warning(request, 'Случай уже закрыт')
+            # Показываем Toastr-уведомление
+            from django.contrib import messages
+            messages.warning(request, 'Этот случай обращения уже находится в закрытом состоянии')
             return redirect('encounters:encounter_detail', pk=pk)
         
         form = EncounterCloseForm(instance=encounter)
@@ -330,7 +352,9 @@ class EncounterCloseView(LoginRequiredMixin, View):
         """Обрабатывает закрытие случая"""
         encounter = get_object_or_404(Encounter, pk=pk)
         if not encounter.is_active:
-            messages.warning(request, 'Случай уже закрыт')
+            # Показываем Toastr-уведомление
+            from django.contrib import messages
+            messages.warning(request, 'Этот случай обращения уже находится в закрытом состоянии')
             return redirect('encounters:encounter_detail', pk=pk)
         
         form = EncounterCloseForm(request.POST, instance=encounter)
@@ -338,12 +362,20 @@ class EncounterCloseView(LoginRequiredMixin, View):
             try:
                 # Сохраняем через форму, которая использует правильную логику
                 form.save(commit=True, user=request.user)
-                messages.success(request, 'Случай успешно закрыт')
+                
+                # Показываем Toastr-уведомление
+                from django.contrib import messages
+                messages.success(request, f"Случай обращения для пациента {encounter.patient.get_full_name_with_age()} успешно закрыт.")
+                
                 return redirect('encounters:encounter_detail', pk=pk)
             except Exception as e:
-                messages.error(request, f'Ошибка при закрытии случая: {str(e)}')
+                # Показываем Toastr-уведомление
+                from django.contrib import messages
+                messages.error(request, f"Не удалось закрыть случай обращения: {str(e)}")
         else:
-            messages.error(request, 'Пожалуйста, исправьте ошибки в форме')
+            # Показываем Toastr-уведомление
+            from django.contrib import messages
+            messages.error(request, "Пожалуйста, исправьте ошибки в форме закрытия случая")
         
         return render(request, 'encounters/close_form.html', {
             'form': form,
@@ -358,7 +390,9 @@ class EncounterReopenView(LoginRequiredMixin, View):
     def post(self, request, pk):
         encounter = get_object_or_404(Encounter, pk=pk)
         if encounter.is_active:
-            messages.warning(request, 'Случай уже активен')
+            # Показываем Toastr-уведомление
+            from django.contrib import messages
+            messages.warning(request, 'Этот случай обращения уже находится в активном состоянии')
             return redirect('encounters:encounter_detail', pk=pk)
         
         try:
@@ -367,12 +401,18 @@ class EncounterReopenView(LoginRequiredMixin, View):
             service = EncounterService(encounter)
             
             if service.reopen_encounter(user=request.user):
-                messages.success(request, 'Случай возвращен в активное состояние')
+                # Показываем Toastr-уведомление
+                from django.contrib import messages
+                messages.success(request, f"Случай обращения для пациента {encounter.patient.get_full_name_with_age()} возвращен в активное состояние.")
             else:
-                messages.error(request, 'Не удалось вернуть случай в активное состояние')
+                # Показываем Toastr-уведомление
+                from django.contrib import messages
+                messages.error(request, f"Не удалось вернуть случай обращения для пациента {encounter.patient.get_full_name_with_age()}.")
                 
         except Exception as e:
-            messages.error(request, f'Ошибка при возврате случая: {str(e)}')
+            # Показываем Toastr-уведомление
+            from django.contrib import messages
+            messages.error(request, f"Ошибка при возврате случая обращения: {str(e)}")
         
         return redirect('encounters:encounter_detail', pk=pk)
 

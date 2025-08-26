@@ -39,6 +39,43 @@
 
     <!-- Собственный CSS -->
     <link rel="stylesheet" href="{% static 'patients/css/style.css' %}" />
+    
+
+    
+    <!-- Дополнительные CSS блоки -->
+    {% block extra_css %}{% endblock %}
+    
+    <!-- Дополнительные стили для кнопки выхода -->
+    <style>
+        .dropdown-item[href*="logout"] {
+            color: #dc3545 !important;
+            transition: all 0.3s ease;
+        }
+        
+        .dropdown-item[href*="logout"]:hover {
+            background-color: #dc3545 !important;
+            color: white !important;
+            transform: translateX(5px);
+        }
+        
+        .dropdown-item[href*="logout"] i {
+            transition: transform 0.3s ease;
+        }
+        
+        .dropdown-item[href*="logout"]:hover i {
+            transform: rotate(90deg);
+        }
+        
+        /* Анимация для индикатора загрузки */
+        .fa-spinner {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 
     <!-- Django Select2 CSS -->
     {{ form.media.css }}
@@ -190,7 +227,7 @@
                   <hr class="dropdown-divider" />
                 </li>
                 <li>
-                  <a class="dropdown-item" href="#"
+                  <a class="dropdown-item" href="{% url 'authentication:logout' %}"
                     ><i class="fas fa-sign-out-alt me-2"></i>Выйти</a
                   >
                 </li>
@@ -214,50 +251,7 @@
           </div>
 
           <div class="header-right">
-            <div class="header-actions">
-              <div class="notification-dropdown dropdown">
-                <button class="btn btn-icon" data-bs-toggle="dropdown">
-                  <i class="fas fa-bell"></i>
-                  <span class="badge bg-danger">5</span>
-                </button>
-                <div
-                  class="dropdown-menu dropdown-menu-end notification-dropdown-menu"
-                >
-                  <div class="notification-header">
-                    <h6>Уведомления</h6>
-                    <a href="#" class="mark-all-read"
-                      >Отметить все как прочитанные</a
-                    >
-                  </div>
-                  <div class="notification-list">
-                    <a href="#" class="notification-item unread">
-                      <div class="notification-icon bg-primary">
-                        <i class="fas fa-calendar-check"></i>
-                      </div>
-                      <div class="notification-content">
-                        <div class="notification-text">
-                          Новая запись на завтра
-                        </div>
-                        <div class="notification-time">10 мин назад</div>
-                      </div>
-                    </a>
-                    <a href="#" class="notification-item">
-                      <div class="notification-icon bg-warning">
-                        <i class="fas fa-exclamation-triangle"></i>
-                      </div>
-                      <div class="notification-content">
-                        <div class="notification-text">
-                          Пациент Петров отменил прием
-                        </div>
-                        <div class="notification-time">2 часа назад</div>
-                      </div>
-                    </a>
-                  </div>
-                  <div class="notification-footer">
-                    <a href="#" class="view-all">Показать все уведомления</a>
-                  </div>
-                </div>
-              </div>
+                         <div class="header-actions">
 
               <div class="user-dropdown dropdown">
                 <button class="btn btn-icon" data-bs-toggle="dropdown">
@@ -285,7 +279,7 @@
                     <hr class="dropdown-divider" />
                   </li>
                   <li>
-                    <a class="dropdown-item" href="#"
+                    <a class="dropdown-item" href="{% url 'authentication:logout' %}"
                       ><i class="fas fa-sign-out-alt me-2"></i>Выйти</a
                     >
                   </li>
@@ -332,6 +326,12 @@
 
     <!-- Input Mask для форм -->
     <script src="https://cdn.jsdelivr.net/npm/inputmask@5.0.8/dist/inputmask.min.js"></script>
+    
+    <!-- Toastr для красивых уведомлений -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    
+
 
     <script>
       // Инициализация анимаций и функционала
@@ -355,6 +355,49 @@
         if (typeof $ !== 'undefined' && $.fn.select2) {
           $('.django-select2').select2();
         }
+        
+        // Обработка выхода из системы
+        document.querySelectorAll('a[href*="logout"]').forEach(function(link) {
+          link.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            if (confirm('Вы уверены, что хотите выйти из системы?')) {
+              // Показываем индикатор загрузки
+              this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Выход...';
+              this.style.pointerEvents = 'none';
+              
+              // Выполняем переход
+              setTimeout(() => {
+                window.location.href = this.href;
+              }, 500);
+            }
+          });
+        });
+        
+        // Обработка Django messages для Toastr
+        {% if messages %}
+          {% for message in messages %}
+            var messageType = '{{ message.tags }}';
+            var messageText = '{{ message|escapejs }}';
+            
+            // Преобразуем Django message tags в Toastr типы
+            var toastrType = 'info';
+            if (messageType === 'success') toastrType = 'success';
+            else if (messageType === 'error') toastrType = 'error';
+            else if (messageType === 'warning') toastrType = 'warning';
+            else if (messageType === 'info') toastrType = 'info';
+            
+            // Показываем Toastr уведомление
+            toastr[toastrType](messageText, {
+              timeOut: 5000,
+              extendedTimeOut: 2000,
+              closeButton: true,
+              progressBar: true,
+              positionClass: 'toast-top-right'
+            });
+          {% endfor %}
+        {% endif %}
+
       });
     </script>
   </body>

@@ -1,6 +1,14 @@
 from django.db import models
 from django.utils import timezone
 
+class TimeStampedModel(models.Model):
+    """Базовая модель с временными метками"""
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
+
+    class Meta:
+        abstract = True
+
 class ArchivableModel(models.Model):
     is_archived = models.BooleanField(default=False, verbose_name="Архивировано")
     archived_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата архивации")

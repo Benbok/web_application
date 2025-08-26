@@ -22,6 +22,7 @@ from appointments.views import AppointmentEventViewSet
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('select2/', include('django_select2.urls')), # Добавляем URL-адреса django-select2
+    path('auth/', include('authentication.urls')),  # URL-адреса для аутентификации
     path('', include('patients.urls')),  # ← Вот это подключает страницу с Vue
     path('encounters/', include('encounters.urls')),
     path('documents/', include('documents.urls')),
@@ -35,7 +36,7 @@ urlpatterns = [
     path('treatment/', include('treatment_management.urls')),  # Добавляем URL-адреса treatment_management
     path('examination/', include('examination_management.urls')),  # Добавляем URL-адреса examination_management
     path('scheduling/', include('clinical_scheduling.urls')),  # Добавляем URL-адреса clinical_scheduling
-    path('signatures/', include('document_signatures.urls')),  # Добавляем URL-адреса document_signatures
+    path('signatures/', include('document_signatures.urls')),  # URL-адреса document_signatures
 ]
 
 if settings.DEBUG:

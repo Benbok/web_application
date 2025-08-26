@@ -51,3 +51,6 @@ alwaysApply: false
 
 ## Управление зависимостями (Dependency Management)
 - **Воспроизводимые сборки.** Вместо простого `pip freeze > requirements.txt` используйте инструменты вроде `pip-tools` (`pip-compile`). Это создает файл `requirements.txt` со всеми вложенными зависимостями и их точными версиями, что гарантирует полную идентичность окружения.
+
+Путь к вирутальному окружению venv: .venv
+Путь к файлу manage.py: base\manage.py

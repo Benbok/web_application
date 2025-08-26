@@ -51,6 +51,7 @@ THIRD_PARTY_APPS = [
 ]
 
 LOCAL_APPS = [
+    'authentication',
     'profiles',
     'patients',
     'appointments',
@@ -188,3 +189,16 @@ SELECT2_CACHE_PREFIX = "select2"
 
 # Crispy Forms
 CRISPY_TEMPLATE_PACK = 'bootstrap5'
+
+# Настройки аутентификации
+LOGIN_URL = 'authentication:login'
+LOGIN_REDIRECT_URL = 'patients:home'
+LOGOUT_REDIRECT_URL = 'authentication:login'
+
+# Настройки сессии
+SESSION_COOKIE_AGE = 3600  # 1 час
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_SAVE_EVERY_REQUEST = True
+
+# Настройки языка
+LANGUAGE_CODE = 'ru-ru'
