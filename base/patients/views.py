@@ -5,6 +5,12 @@ from django.db import transaction
 from urllib.parse import urlencode
 from django.urls import reverse
 from django.utils import timezone
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic import ListView
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic import ListView
 
 from .models import Patient, PatientContact, PatientAddress, PatientDocument
 from .forms import PatientForm, PatientContactForm, PatientAddressForm, PatientDocumentForm
@@ -44,6 +50,7 @@ def save_patient_with_related(patient_form, contact_form, address_form, document
 
         return patient
 
+@login_required
 def home(request):
     latest_patients = Patient.objects.order_by('-created_at')[:5]
     total_patients = Patient.objects.count()
@@ -64,6 +71,7 @@ def home(request):
     })
 
 
+@login_required
 def patient_list(request):
     query = request.GET.get('q')
     patients = Patient.objects.all()
@@ -99,6 +107,7 @@ def patient_list(request):
     })
 
 
+@login_required
 def patient_detail(request, pk):
     patient = get_object_or_404(Patient, pk=pk)
     encounters = patient.encounters.all().order_by('-is_active', '-date_start')
@@ -117,6 +126,7 @@ def patient_detail(request, pk):
     })
 
 
+@login_required
 def patient_create(request):
     if request.method == 'POST':
         form = PatientForm(request.POST)
@@ -149,6 +159,7 @@ def patient_create(request):
     })
 
 
+@login_required
 def newborn_create(request, parent_id):
     parent = get_object_or_404(Patient, pk=parent_id)
     if request.method == 'POST':
@@ -178,6 +189,7 @@ def newborn_create(request, parent_id):
     })
 
 
+@login_required
 def child_create(request, parent_id):
     parent = get_object_or_404(Patient, pk=parent_id)
     if request.method == 'POST':
@@ -201,6 +213,7 @@ def child_create(request, parent_id):
     })
 
 
+@login_required
 def teen_create(request, parent_id):
     parent = get_object_or_404(Patient, pk=parent_id)
     if request.method == 'POST':
@@ -224,6 +237,7 @@ def teen_create(request, parent_id):
     })
 
 
+@login_required
 def patient_update(request, pk):
     patient = get_object_or_404(Patient, pk=pk)
     newborn_profile = getattr(patient, '_newborn_profile', None)
@@ -279,6 +293,7 @@ def patient_update(request, pk):
     return render(request, 'patients/form.html', context)
 
 
+@login_required
 def patient_delete(request, pk):
     patient = get_object_or_404(Patient, pk=pk)
     if request.method == "POST":

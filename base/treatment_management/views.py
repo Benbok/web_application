@@ -512,7 +512,7 @@ class QuickAddMedicationView(LoginRequiredMixin, OwnerContextMixin, CreateView):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class MedicationInfoView(View):
+class MedicationInfoView(LoginRequiredMixin, View):
     """AJAX endpoint для получения информации о препарате"""
     
     def get(self, request, medication_id):
@@ -664,7 +664,7 @@ class MedicationInfoView(View):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class TradeNameInfoView(View):
+class TradeNameInfoView(LoginRequiredMixin, View):
     """AJAX endpoint для получения информации о конкретной торговой форме препарата"""
     
     def get(self, request, trade_name_id):

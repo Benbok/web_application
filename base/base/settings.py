@@ -80,6 +80,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'authentication.middleware.LoginBlockingMiddleware',  # Добавляем наш middleware
 ]
 
 ROOT_URLCONF = 'base.urls'
@@ -202,3 +203,17 @@ SESSION_SAVE_EVERY_REQUEST = True
 
 # Настройки языка
 LANGUAGE_CODE = 'ru-ru'
+
+# Настройки кэша для ограничения попыток входа
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
+}
+
+# Настройки для ограничения попыток входа
+LOGIN_ATTEMPTS_LIMIT = 3
+LOGIN_ATTEMPTS_TIMEOUT = 300  # 5 минут блокировки
+
+

@@ -4,6 +4,8 @@ import json
 from rest_framework import viewsets
 from django.http import JsonResponse
 from django.views.generic import TemplateView, CreateView, UpdateView, View, DetailView, DeleteView
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import login_required
 from django.urls import reverse_lazy
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -115,7 +117,7 @@ class AvailableSlotsAPIView(APIView):
 
         slots = generate_available_slots(start_dt, end_dt, doctor_id)
         return Response(slots)
-class CalendarView(TemplateView):
+class CalendarView(LoginRequiredMixin, TemplateView):
     template_name = "appointments/calendar.html"
 
     def get_context_data(self, **kwargs):
@@ -125,7 +127,7 @@ class CalendarView(TemplateView):
         return context
 
 
-class AppointmentCreateView(CreateView):
+class AppointmentCreateView(LoginRequiredMixin, CreateView):
     model = AppointmentEvent
     form_class = AppointmentEventForm
     template_name = 'appointments/appointment_form.html'
@@ -171,14 +173,14 @@ class AppointmentCreateView(CreateView):
         return initial
 
 
-class AppointmentUpdateView(UpdateView):
+class AppointmentUpdateView(LoginRequiredMixin, UpdateView):
     model = AppointmentEvent
     form_class = AppointmentEventForm
     template_name = 'appointments/appointment_form.html'
     success_url = reverse_lazy('appointments:calendar')
 
 
-class AppointmentEventUpdateView(UpdateView):
+class AppointmentEventUpdateView(LoginRequiredMixin, UpdateView):
     model = AppointmentEvent
     form_class = AppointmentEventForm
     template_name = 'appointments/appointment_form.html'
@@ -186,17 +188,18 @@ class AppointmentEventUpdateView(UpdateView):
     def get_success_url(self):
         return reverse_lazy('appointments:detail', kwargs={'pk': self.object.pk})
 
-class AppointmentEventDetailView(DetailView):
+class AppointmentEventDetailView(LoginRequiredMixin, DetailView):
     model = AppointmentEvent
     template_name = 'appointments/appointment_detail.html'
     context_object_name = 'appointment'
 
-class AppointmentEventDeleteView(DeleteView):
+class AppointmentEventDeleteView(LoginRequiredMixin, DeleteView):
     model = AppointmentEvent
     template_name = 'appointments/appointment_confirm_delete.html'
     success_url = reverse_lazy('appointments:calendar')
 
 @csrf_exempt
+@login_required
 def save_session_params(request):
     if request.method == 'POST':
         data = json.loads(request.body)
@@ -204,7 +207,7 @@ def save_session_params(request):
         return JsonResponse({'status': 'ok'})
     return JsonResponse({'error': 'invalid method'}, status=405)
 
-class CreateEncounterForAppointmentView(View):
+class CreateEncounterForAppointmentView(LoginRequiredMixin, View):
     def post(self, request, pk):
         appointment = get_object_or_404(AppointmentEvent, pk=pk)
         if appointment.encounter:

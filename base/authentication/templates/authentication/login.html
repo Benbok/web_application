@@ -48,13 +48,44 @@
                 <form method="post" novalidate>
                     {% csrf_token %}
                     
-                    {% if form.non_field_errors %}
-                    <div class="alert alert-danger animate__animated animate__shakeX">
-                        {% for error in form.non_field_errors %}
-                            <i class="fas fa-exclamation-triangle me-2"></i>{{ error }}
-                        {% endfor %}
-                    </div>
-                    {% endif %}
+                                         {% if form.non_field_errors %}
+                     <div class="alert alert-danger animate__animated animate__shakeX">
+                         {% for error in form.non_field_errors %}
+                             <i class="fas fa-exclamation-triangle me-2"></i>{{ error }}
+                         {% endfor %}
+                     </div>
+                     {% endif %}
+                     
+                     <!-- Блок для отображения блокировки без JavaScript -->
+                     {% if request.session.blocked_username %}
+                     <div class="blocked-user-warning alert alert-danger animate__animated animate__shakeX">
+                         <i class="fas fa-lock me-2"></i>
+                         <strong>Внимание!</strong> Аккаунт <strong>{{ request.session.blocked_username }}</strong> заблокирован.
+                         <br>
+                         <small>Попробуйте войти снова через {{ login_attempts_timeout }} минут или используйте другой аккаунт.</small>
+                     </div>
+                     {% endif %}
+                     
+                     <!-- Предупреждение об отключенном JavaScript -->
+                     <noscript>
+                         <div class="alert alert-warning">
+                             <i class="fas fa-exclamation-triangle me-2"></i>
+                             <strong>JavaScript отключен!</strong> Для корректной работы системы безопасности включите JavaScript в браузере.
+                         </div>
+                     </noscript>
+                     
+                     {% if messages %}
+                     <div class="messages-container">
+                         {% for message in messages %}
+                         <div class="alert alert-{{ message.tags }} animate__animated animate__shakeX" 
+                              data-message-type="{{ message.tags }}" 
+                              data-username="{{ form.data.username|default:'' }}">
+                             <i class="fas fa-{% if message.tags == 'error' %}exclamation-triangle{% elif message.tags == 'success' %}check-circle{% elif message.tags == 'warning' %}exclamation-circle{% else %}info-circle{% endif %} me-2"></i>
+                             {{ message }}
+                         </div>
+                         {% endfor %}
+                     </div>
+                     {% endif %}
                     
                     <div class="form-group">
                         <label for="{{ form.username.id_for_label }}">
@@ -97,6 +128,17 @@
                         <button type="submit" class="btn btn-primary btn-block">
                             <i class="fas fa-sign-in-alt me-2"></i>Войти в систему
                         </button>
+                    </div>
+                    
+                    <!-- Информация о лимите попыток входа -->
+                    <div class="login-info mt-3">
+                        <div class="alert alert-info alert-sm">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <small>
+                                Лимит попыток входа: <strong>{{ login_attempts_limit }}</strong><br>
+                                Блокировка на <strong>{{ login_attempts_timeout }}</strong> минут при превышении лимита
+                            </small>
+                        </div>
                     </div>
                 </form>
             </div>

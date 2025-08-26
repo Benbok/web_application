@@ -396,3 +396,198 @@ notificationStyles.textContent = `
 `;
 document.head.appendChild(notificationStyles);
 
+// Автоматическое скрытие сообщений об ошибках
+function autoHideMessages() {
+    const errorMessages = document.querySelectorAll('.alert-danger, .alert-warning');
+    errorMessages.forEach(message => {
+        setTimeout(() => {
+            gsap.to(message, {
+                opacity: 0,
+                height: 0,
+                marginBottom: 0,
+                duration: 0.5,
+                ease: "power2.out",
+                onComplete: () => message.remove()
+            });
+        }, 8000);
+    });
+}
+
+// Вызываем функцию при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    autoHideMessages();
+    checkAndHandleBlockedUser();
+});
+
+// Функция для проверки и обработки заблокированного пользователя
+function checkAndHandleBlockedUser() {
+    // Проверяем сообщения Django
+    const blockedMessages = document.querySelectorAll('.alert-danger[data-message-type="error"]');
+    
+    blockedMessages.forEach(message => {
+        const messageText = message.textContent || message.innerText;
+        const username = message.getAttribute('data-username');
+        
+        // Проверяем, является ли это сообщением о блокировке
+        if (messageText.includes('заблокирован') || messageText.includes('блокирован')) {
+            blockFormInputs(username);
+        }
+    });
+    
+    // Проверяем предупреждение о блокировке без JavaScript
+    const blockedUserWarning = document.querySelector('.blocked-user-warning');
+    if (blockedUserWarning) {
+        const warningText = blockedUserWarning.textContent || blockedUserWarning.innerText;
+        const usernameMatch = warningText.match(/Аккаунт\s+(\w+)\s+заблокирован/);
+        if (usernameMatch) {
+            const username = usernameMatch[1];
+            blockFormInputs(username);
+        }
+    }
+}
+
+// Функция для блокировки полей ввода
+function blockFormInputs(username) {
+    const usernameField = document.getElementById('id_username');
+    const passwordField = document.getElementById('id_password');
+    const rememberMeField = document.getElementById('id_remember_me');
+    const submitButton = document.querySelector('button[type="submit"]');
+    
+    // Блокируем поля ввода
+    if (usernameField) {
+        usernameField.disabled = true;
+        usernameField.classList.add('blocked');
+        usernameField.placeholder = 'Пользователь заблокирован';
+    }
+    
+    if (passwordField) {
+        passwordField.disabled = true;
+        passwordField.classList.add('blocked');
+        passwordField.placeholder = 'Пользователь заблокирован';
+    }
+    
+    if (rememberMeField) {
+        rememberMeField.disabled = true;
+        rememberMeField.classList.add('blocked');
+    }
+    
+    if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.classList.add('blocked');
+        submitButton.innerHTML = '<i class="fas fa-lock me-2"></i>Вход заблокирован';
+    }
+    
+    // Добавляем визуальную индикацию блокировки
+    addBlockedVisualIndicators();
+    
+    // Показываем таймер разблокировки
+    showUnlockTimer();
+}
+
+// Функция для добавления визуальных индикаторов блокировки
+function addBlockedVisualIndicators() {
+    const form = document.querySelector('.login-form form');
+    if (form) {
+        // Добавляем оверлей блокировки
+        const blockOverlay = document.createElement('div');
+        blockOverlay.className = 'form-block-overlay';
+        blockOverlay.innerHTML = `
+            <div class="block-indicator">
+                <i class="fas fa-lock"></i>
+                <span>Форма заблокирована</span>
+            </div>
+        `;
+        form.appendChild(blockOverlay);
+        
+
+    }
+}
+
+// Функция для показа таймера разблокировки
+function showUnlockTimer() {
+    const messagesContainer = document.querySelector('.messages-container');
+    if (messagesContainer) {
+        const timerElement = document.createElement('div');
+        timerElement.className = 'unlock-timer alert alert-warning';
+        timerElement.innerHTML = `
+            <i class="fas fa-clock me-2"></i>
+            <span>Разблокировка через: </span>
+            <span class="timer-countdown">5:00</span>
+        `;
+        messagesContainer.appendChild(timerElement);
+        
+        // Запускаем обратный отсчет
+        startUnlockCountdown(timerElement);
+    }
+}
+
+// Функция для запуска обратного отсчета
+function startUnlockCountdown(timerElement) {
+    let timeLeft = 5 * 60; // 5 минут в секундах
+    
+    const countdown = setInterval(() => {
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        
+        const countdownElement = timerElement.querySelector('.timer-countdown');
+        if (countdownElement) {
+            countdownElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        timeLeft--;
+        
+        if (timeLeft < 0) {
+            clearInterval(countdown);
+            // Разблокируем форму
+            unlockForm();
+        }
+    }, 1000);
+}
+
+// Функция для разблокировки формы
+function unlockForm() {
+    const usernameField = document.getElementById('id_username');
+    const passwordField = document.getElementById('id_password');
+    const rememberMeField = document.getElementById('id_remember_me');
+    const submitButton = document.querySelector('button[type="submit"]');
+    
+    // Разблокируем поля
+    if (usernameField) {
+        usernameField.disabled = false;
+        usernameField.classList.remove('blocked');
+        usernameField.placeholder = 'Имя пользователя или табельный номер';
+    }
+    
+    if (passwordField) {
+        passwordField.disabled = false;
+        passwordField.classList.remove('blocked');
+        passwordField.placeholder = 'Пароль';
+    }
+    
+    if (rememberMeField) {
+        rememberMeField.disabled = false;
+        rememberMeField.classList.remove('blocked');
+    }
+    
+    if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.classList.remove('blocked');
+        submitButton.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Войти в систему';
+    }
+    
+    // Убираем визуальные индикаторы
+    const overlay = document.querySelector('.form-block-overlay');
+    if (overlay) {
+        overlay.remove();
+    }
+    
+    // Убираем таймер
+    const timer = document.querySelector('.unlock-timer');
+    if (timer) {
+        timer.remove();
+    }
+    
+    // Показываем сообщение о разблокировке
+    showNotification('Форма разблокирована. Можете попробовать войти снова.', 'success');
+}
+

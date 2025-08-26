@@ -18,7 +18,7 @@ from examination_management.models import ExaminationPlan
 logger = logging.getLogger(__name__)
 
 
-class DepartmentListView(ListView):
+class DepartmentListView(LoginRequiredMixin, ListView):
     model = Department
     template_name = 'departments/department_list.html'
     context_object_name = 'departments'

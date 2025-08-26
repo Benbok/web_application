@@ -5,9 +5,11 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.views import View
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import login_required
 from .models import Medication
 
-class MedicationListView(ListView):
+class MedicationListView(LoginRequiredMixin, ListView):
     model = Medication
     template_name = 'pharmacy/medication_list.html'
     context_object_name = 'medications'
@@ -27,6 +29,7 @@ class MedicationListView(ListView):
         return context
 
 
+@login_required
 def medication_detail_api(request, pk):
     medication = Medication.objects.get(pk=pk)
     data = {
@@ -47,7 +50,7 @@ def medication_detail_api(request, pk):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class MedicationAjaxSearchView(View):
+class MedicationAjaxSearchView(LoginRequiredMixin, View):
     """AJAX endpoint для поиска препаратов с использованием нового MedicationSearchService"""
     
     def get(self, request, *args, **kwargs):
@@ -95,7 +98,7 @@ class MedicationAjaxSearchView(View):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class MedicationAjaxSearchLightView(View):
+class MedicationAjaxSearchLightView(LoginRequiredMixin, View):
     """Облегченный AJAX endpoint для поиска препаратов по МНН и торговым названиям"""
     
     def get(self, request, *args, **kwargs):

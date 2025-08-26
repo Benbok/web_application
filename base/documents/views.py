@@ -26,7 +26,7 @@ def convert_decimals_to_str(data):
         return data.isoformat()
     return data
 
-class DocumentTypeSelectionView(View):
+class DocumentTypeSelectionView(LoginRequiredMixin, View):
     """
     Представление для выбора типа документа перед его созданием.
     """
@@ -54,7 +54,7 @@ class DocumentTypeSelectionView(View):
             'search_query': search_query, # Передаем поисковый запрос в шаблон
         })
 
-class DocumentCreateView(TemplateApplicationMixin, View):
+class DocumentCreateView(TemplateApplicationMixin, LoginRequiredMixin, View):
     def get(self, request, model_name, object_id, document_type_id):
         document_type = get_object_or_404(DocumentType, pk=document_type_id)
         content_type = get_object_or_404(ContentType, model=model_name)
@@ -118,7 +118,7 @@ class DocumentCreateView(TemplateApplicationMixin, View):
         context['form'] = form
         return render(request, 'documents/form.html', context)
 
-class DocumentDetailView(View):
+class DocumentDetailView(LoginRequiredMixin, View):
     """
     Представление для отображения деталей динамического документа.
     """
@@ -234,7 +234,7 @@ from django.utils.decorators import method_decorator
 from .services import DocumentPrintService, DocumentTemplateService
 
 @method_decorator(login_required, name='dispatch')
-class DocumentPrintView(View):
+class DocumentPrintView(LoginRequiredMixin, View):
     """
     Представление для печати документа в PDF формате
     """
@@ -267,7 +267,7 @@ class DocumentPrintView(View):
 
 
 @method_decorator(login_required, name='dispatch')
-class DocumentPrintPreviewView(View):
+class DocumentPrintPreviewView(LoginRequiredMixin, View):
     """
     Представление для предварительного просмотра документа перед печатью
     """
@@ -305,7 +305,7 @@ class DocumentPrintPreviewView(View):
 
 
 @method_decorator(login_required, name='dispatch')
-class DocumentPrintListView(View):
+class DocumentPrintListView(LoginRequiredMixin, View):
     """
     Представление для списка документов с возможностью печати
     """
@@ -355,7 +355,7 @@ class DocumentPrintListView(View):
 
 
 @method_decorator(login_required, name='dispatch')
-class DocumentPrintSettingsView(View):
+class DocumentPrintSettingsView(LoginRequiredMixin, View):
     """
     Представление для настройки параметров печати
     """

@@ -1,10 +1,11 @@
 from django.http import JsonResponse
 from django.views import View
 from django.db.models import Q
+from django.contrib.auth.mixins import LoginRequiredMixin
 from .models import Diagnosis
 
 
-class DiagnosisAjaxSearchView(View):
+class DiagnosisAjaxSearchView(LoginRequiredMixin, View):
     """
     AJAX view для поиска диагнозов по запросу.
     Возвращает результаты в формате, совместимом с Select2.
@@ -49,7 +50,7 @@ class DiagnosisAjaxSearchView(View):
         })
 
 
-class DiagnosisAjaxSearchLightView(View):
+class DiagnosisAjaxSearchLightView(LoginRequiredMixin, View):
     """
     Облегченная версия AJAX поиска диагнозов.
     Возвращает только первые 50 результатов для быстрого старта.

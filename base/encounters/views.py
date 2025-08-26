@@ -101,7 +101,7 @@ class EncounterDetailView(LoginRequiredMixin, DetailView):
         return context
 
 
-class EncounterCreateView(CreateView):
+class EncounterCreateView(LoginRequiredMixin, CreateView):
     model = Encounter
     form_class = EncounterForm
     template_name = 'encounters/form.html'
@@ -131,7 +131,7 @@ class EncounterCreateView(CreateView):
         return reverse('encounters:encounter_detail', kwargs={'pk': self.object.pk})
 
 
-class EncounterUpdateView(UpdateView):
+class EncounterUpdateView(LoginRequiredMixin, UpdateView):
     model = Encounter
     form_class = EncounterUpdateForm
     template_name = 'encounters/form.html'
@@ -158,7 +158,7 @@ class EncounterUpdateView(UpdateView):
         return reverse('encounters:encounter_detail', kwargs={'pk': self.object.pk})
 
 
-class EncounterDiagnosisView(UpdateView):
+class EncounterDiagnosisView(LoginRequiredMixin, UpdateView):
     """Представление для установки диагноза в случае обращения"""
     model = Encounter
     form_class = EncounterDiagnosisForm
@@ -182,7 +182,7 @@ class EncounterDiagnosisView(UpdateView):
         return reverse('encounters:encounter_detail', kwargs={'pk': self.object.pk})
 
 
-class EncounterDiagnosisAdvancedView(UpdateView):
+class EncounterDiagnosisAdvancedView(LoginRequiredMixin, UpdateView):
     """Представление для расширенной установки диагнозов"""
     model = Encounter
     form_class = EncounterDiagnosisAdvancedForm
