@@ -14,6 +14,7 @@ from .forms import (
     EncounterForm, EncounterUpdateForm, EncounterDiagnosisForm,
     EncounterDiagnosisAdvancedForm, EncounterCloseForm
 )
+from .services.encounter_service import EncounterService
 from patients.models import Patient
 
 
@@ -382,11 +383,19 @@ class EncounterCloseView(LoginRequiredMixin, View):
                 encounter_position = i + 1
                 break
         
+        # Создаем сервис для валидации
+        service = EncounterService(encounter)
+        
+        # Определяем основной диагноз для отображения
+        main_diagnosis = encounter.diagnoses.filter(diagnosis_type='main').first()
+        
         form = EncounterCloseForm(instance=encounter)
         return render(request, 'encounters/close_form.html', {
             'form': form,
             'encounter': encounter,
             'encounter_number': encounter_position,
+            'encounter_service': service,
+            'main_diagnosis': main_diagnosis,
             'title': 'Закрыть случай'
         })
     
@@ -415,13 +424,25 @@ class EncounterCloseView(LoginRequiredMixin, View):
                 from django.contrib import messages
                 messages.error(request, f"Не удалось закрыть случай обращения: {str(e)}")
         else:
-            # Показываем Toastr-уведомление
+            # Проверяем конкретные проблемы и показываем соответствующие уведомления
             from django.contrib import messages
+            
+            # Проверяем наличие документов
+            if not encounter.clinical_documents.exists():
+                messages.warning(request, "Для закрытия случая необходимо прикрепить хотя бы один документ.")
+            
+            # Проверяем наличие основного диагноза
+            if not encounter.diagnoses.filter(diagnosis_type='main').exists():
+                messages.warning(request, "Для закрытия случая необходимо установить основной диагноз.")
+            
+            # Показываем общее уведомление об ошибках
             messages.error(request, "Пожалуйста, исправьте ошибки в форме закрытия случая")
         
         return render(request, 'encounters/close_form.html', {
             'form': form,
             'encounter': encounter,
+            'encounter_service': EncounterService(encounter),
+            'main_diagnosis': encounter.diagnoses.filter(diagnosis_type='main').first(),
             'title': 'Закрыть случай'
         })
 
@@ -439,7 +460,6 @@ class EncounterReopenView(LoginRequiredMixin, View):
         
         try:
             # Используем сервис для правильной логики возврата
-            from .services.encounter_service import EncounterService
             service = EncounterService(encounter)
             
             if service.reopen_encounter(user=request.user):

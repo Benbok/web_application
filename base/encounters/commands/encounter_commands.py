@@ -63,8 +63,11 @@ class CloseEncounterCommand(Command):
         if not self.encounter.is_active:
             return False
         
-        # Используем прямую связь clinical_documents
-        if not self.encounter.clinical_documents.exists():
+        # Используем сервис для валидации
+        from ..services.encounter_service import EncounterService
+        service = EncounterService(self.encounter)
+        
+        if not service.validate_for_closing():
             return False
         
         if self.outcome == 'transferred' and not self.transfer_department:

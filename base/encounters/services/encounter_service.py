@@ -156,10 +156,28 @@ class EncounterService:
         if not self.encounter.is_active:
             return False
         
-        if not self.encounter.clinical_documents.exists():
+        if not self.has_documents():
+            return False
+        
+        if not self.encounter.diagnoses.filter(diagnosis_type='main').exists():
             return False
         
         return True
+    
+    def has_documents(self) -> bool:
+        """Проверяет наличие документов у случая"""
+        return self.encounter.clinical_documents.exists()
+    
+    def get_documents_count(self) -> int:
+        """Возвращает количество документов у случая"""
+        return self.encounter.clinical_documents.count()
+    
+    def _validate_diagnosis(self) -> None:
+        """Валидация наличия основного диагноза"""
+        if not self.encounter.diagnoses.filter(diagnosis_type='main').exists():
+            raise EncounterValidationError(
+                "Необходимо установить основной диагноз для закрытия случая."
+            )
     
     def get_available_outcomes(self) -> Dict[str, str]:
         """
@@ -231,7 +249,7 @@ class EncounterService:
     
     def _validate_documents(self) -> None:
         """Валидация наличия документов"""
-        if not self.encounter.has_documents():
+        if not self.has_documents():
             raise EncounterValidationError(
                 "Необходимо прикрепить хотя бы один документ для закрытия случая."
             )

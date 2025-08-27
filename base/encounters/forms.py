@@ -233,12 +233,12 @@ class EncounterCloseForm(forms.ModelForm):
 
         # Проверяем обязательное поле outcome
         if not outcome:
-            self.add_error('outcome', "Необходимо выбрать исход случая.")
+            # Ошибка уже будет добавлена в clean_outcome(), поэтому здесь не добавляем
             return cleaned_data
 
         # Проверяем обязательное поле date_end
         if not date_end:
-            self.add_error('date_end', "Необходимо указать дату и время закрытия.")
+            # Ошибка уже будет добавлена в clean_date_end(), поэтому здесь не добавляем
             return cleaned_data
 
         # Проверяем, что дата закрытия не в будущем
@@ -257,8 +257,14 @@ class EncounterCloseForm(forms.ModelForm):
             self.add_error('transfer_to_department', "Отделение для перевода может быть выбрано только при исходе 'Переведён'.")
 
         # Проверяем наличие документов при любом исходе
-        if not self.instance.clinical_documents.exists():
+        from .services.encounter_service import EncounterService
+        service = EncounterService(self.instance)
+        if not service.has_documents():
             self.add_error('outcome', "Невозможно закрыть случай обращения: нет прикрепленных документов.")
+
+        # Проверяем наличие основного диагноза при любом исходе
+        if not self.instance.diagnoses.filter(diagnosis_type='main').exists():
+            self.add_error('outcome', "Невозможно закрыть случай обращения: не установлен основной диагноз.")
 
         return cleaned_data
     

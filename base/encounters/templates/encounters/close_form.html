@@ -47,29 +47,25 @@
           </li>
           <li class="list-group-item d-flex justify-content-between align-items-center">
             <span><i class="fas fa-file-medical me-2"></i>Документы:</span>
-            <span class="badge bg-success">{{ encounter.clinical_documents.count }}</span>
+            <span class="badge bg-success">{{ encounter_service.get_documents_count }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-stethoscope me-2"></i>Основной диагноз:</span>
+            {% if main_diagnosis %}
+              {% if main_diagnosis.diagnosis %}
+                <span class="badge bg-info">{{ main_diagnosis.diagnosis.name }}</span>
+              {% elif main_diagnosis.custom_diagnosis %}
+                <span class="badge bg-info">{{ main_diagnosis.custom_diagnosis|truncatechars:30 }}</span>
+              {% else %}
+                <span class="badge bg-warning">Не указан</span>
+              {% endif %}
+            {% else %}
+              <span class="badge bg-warning">Не установлен</span>
+            {% endif %}
           </li>
         </ul>
       </div>
     </div>
-
-    <!-- Проверка документов -->
-    {% if not encounter.clinical_documents.exists %}
-      <div class="alert alert-warning">
-        <div class="d-flex align-items-center">
-          <i class="fas fa-exclamation-triangle me-3"></i>
-          <div>
-            <h6 class="alert-heading mb-2">
-              <strong>Внимание! Случай не может быть закрыт</strong>
-            </h6>
-            <p class="mb-2">Для закрытия случая необходимо прикрепить хотя бы один документ.</p>
-            <a href="{% url 'encounters:encounter_detail' encounter.pk %}" class="btn btn-outline-warning btn-sm">
-              <i class="fas fa-file-medical me-1"></i>Вернуться к случаю
-            </a>
-          </div>
-        </div>
-      </div>
-    {% endif %}
 
     <!-- Сообщения об ошибках -->
     {% if messages %}
@@ -156,27 +152,15 @@
             {% endif %}
           </div>
 
-          <!-- Предупреждение -->
-          <div class="alert alert-warning mt-4">
+          <!-- Информация о закрытии -->
+          <div class="alert alert-info mt-4">
             <div class="d-flex align-items-start">
-              <i class="fas fa-exclamation-triangle me-3"></i>
+              <i class="fas fa-info-circle me-3"></i>
               <div>
                 <h6 class="alert-heading mb-2">
-                  <strong>Важное предупреждение!</strong>
+                  <strong>Информация</strong>
                 </h6>
-                <p class="mb-2">После закрытия случая его нельзя будет изменить.</p>
-                
-                {% if encounter.clinical_documents.exists %}
-                  <p class="mb-0">
-                    <i class="fas fa-check me-1"></i>
-                    Все необходимые документы прикреплены.
-                  </p>
-                {% else %}
-                  <p class="mb-0">
-                    <i class="fas fa-times me-1"></i>
-                    <strong>Случай не может быть закрыт без прикрепленных документов!</strong>
-                  </p>
-                {% endif %}
+                <p class="mb-0">После закрытия случая его нельзя будет изменить.</p>
               </div>
             </div>
           </div>
@@ -185,7 +169,7 @@
           <div class="d-flex justify-content-between align-items-center mt-4">
             <div class="btn-toolbar" role="toolbar">
               <div class="btn-group me-2" role="group">
-                <button type="submit" class="btn btn-primary" data-has-documents="{% if encounter.clinical_documents.exists %}true{% else %}false{% endif %}">
+                <button type="submit" class="btn btn-primary">
                   <i class="fas fa-check me-2"></i>Закрыть случай
                 </button>
                 <a href="{% url 'encounters:encounter_detail' encounter.pk %}" class="btn btn-secondary">
@@ -249,7 +233,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const outcomeSelect = document.querySelector('select[name="outcome"]');
     const transferField = document.querySelector('select[name="transfer_to_department"]');
     const submitButton = document.querySelector('button[type="submit"]');
-    const hasDocuments = submitButton.dataset.hasDocuments === 'true';
     
     function toggleTransferField() {
         if (!transferField) return;
@@ -273,17 +256,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    function updateSubmitButton() {
-        if (!hasDocuments) {
-            submitButton.disabled = true;
-            submitButton.title = 'Случай не может быть закрыт без документов';
-            submitButton.classList.add('disabled');
-        } else {
-            submitButton.disabled = false;
-            submitButton.title = '';
-            submitButton.classList.remove('disabled');
-        }
-    }
+
     
     if (outcomeSelect) {
         outcomeSelect.addEventListener('change', toggleTransferField);
@@ -299,8 +272,6 @@ document.addEventListener('DOMContentLoaded', function() {
             transferFieldContainer.style.display = 'none';
         }
     }
-    
-    updateSubmitButton(); // Инициализация кнопки
 });
 </script>
 {% endblock %}
