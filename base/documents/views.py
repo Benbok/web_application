@@ -85,11 +85,20 @@ class DocumentCreateView(TemplateApplicationMixin, LoginRequiredMixin, View):
             cleaned_data = form.cleaned_data
             
             # Создаем документ с новыми полями
+            # Получаем дату документа или используем текущее время
+            datetime_document = cleaned_data.get('datetime_document')
+            if not datetime_document:
+                datetime_document = timezone.now()
+            
+            # Удаляем служебные поля из cleaned_data, чтобы они не попали в JSON
+            cleaned_data.pop('datetime_document', None)
+            cleaned_data.pop('template_choice', None)
+            
             document = ClinicalDocument(
                 document_type=document_type,
                 author=request.user,
                 author_position=request.user.doctor_profile.position if hasattr(request.user, 'doctor_profile') else '',
-                datetime_document=cleaned_data.get('datetime_document', timezone.now()),
+                datetime_document=datetime_document,
                 data=convert_decimals_to_str(cleaned_data)
             )
             
@@ -128,13 +137,25 @@ class DocumentDetailView(LoginRequiredMixin, View):
 
         # Создаем форму динамически на основе схемы и заполняем ее данными документа
         DocumentForm = build_document_form(document_type.schema)
-        form = DocumentForm(initial={'datetime_document': document.datetime_document, **document.data})
+        
+        # Формируем initial данные, правильно обрабатывая datetime_document
+        initial_data = {}
+        if document.datetime_document:
+            # Форматируем дату для HTML5 datetime-local input
+            initial_data['datetime_document'] = document.datetime_document.strftime('%Y-%m-%dT%H:%M')
+        
+        # Добавляем остальные данные документа (исключая datetime_document)
+        if document.data:
+            initial_data.update(document.data)
+        
+        form = DocumentForm(initial=initial_data)
 
         return render(request, 'documents/detail.html', {
             'document': document,
             'document_type': document_type,
             'form': form, # Передаем форму для отображения полей
             'title': f'Детали: {document_type.name}',
+            'has_content_object': document.content_object is not None,
         })
 
 # ... (остальной код)
@@ -159,7 +180,18 @@ class DocumentUpdateView(TemplateApplicationMixin, DocumentPermissionMixin, Logi
         document_type = document.document_type
 
         DocumentForm = build_document_form(document_type.schema, document_type=document_type, user=request.user)
-        form = DocumentForm(initial={'datetime_document': document.datetime_document, **document.data})
+        
+        # Формируем initial данные, правильно обрабатывая datetime_document
+        initial_data = {}
+        if document.datetime_document:
+            # Форматируем дату для HTML5 datetime-local input
+            initial_data['datetime_document'] = document.datetime_document.strftime('%Y-%m-%dT%H:%M')
+        
+        # Добавляем остальные данные документа (исключая datetime_document)
+        if document.data:
+            initial_data.update(document.data)
+        
+        form = DocumentForm(initial=initial_data)
 
         context = self._get_form_context(document_type, document)
         context['form'] = form
@@ -179,8 +211,14 @@ class DocumentUpdateView(TemplateApplicationMixin, DocumentPermissionMixin, Logi
 
         if form.is_valid():
             cleaned_data = form.cleaned_data
-            document.datetime_document = cleaned_data.pop('datetime_document')
-            template_choice = cleaned_data.pop('template_choice') # Удаляем поле шаблона
+            
+            # Обновляем дату документа, если она передана
+            if 'datetime_document' in cleaned_data:
+                document.datetime_document = cleaned_data.pop('datetime_document')
+            
+            # Удаляем служебные поля из cleaned_data, чтобы они не попали в JSON
+            cleaned_data.pop('template_choice', None)
+            cleaned_data.pop('datetime_document', None)
             
             # Получаем текущую должность автора на момент документа
             if request.user.is_authenticated and hasattr(request.user, 'doctor_profile'):

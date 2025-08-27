@@ -1,4 +1,6 @@
 from django import forms
+from django.utils import timezone
+from django.db.models import Q
 from .models import DocumentTemplate
 
 FIELD_TYPE_MAP = {
@@ -20,7 +22,12 @@ def build_document_form(schema, document_type=None, user=None):
         # Добавляем стандартное поле для даты документа
         'datetime_document': forms.DateTimeField(
             label="Дата и время документа",
-            widget=forms.DateTimeInput(attrs={'type': 'datetime-local'})
+            widget=forms.DateTimeInput(
+                format='%Y-%m-%dT%H:%M',
+                attrs={'type': 'datetime-local'}
+            ),
+            input_formats=['%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M'],
+            initial=lambda: timezone.now()
         ),
         'template_choice': forms.ModelChoiceField(
             queryset=DocumentTemplate.objects.none(), # Будет заполнен в __init__

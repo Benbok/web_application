@@ -95,8 +95,37 @@ class EncounterDetailView(LoginRequiredMixin, DetailView):
             # Если приложение examination_management не установлено
             context['examination_plans'] = []
         
-        # Добавляем прикрепленные документы
-        context['documents'] = encounter.documents.all()
+        # Добавляем прикрепленные документы (включая дневники)
+        try:
+            from documents.models import ClinicalDocument
+            # Получаем все документы, связанные с этим случаем
+            # Используем прямое поле encounter в ClinicalDocument
+            all_documents = ClinicalDocument.objects.filter(
+                encounter=encounter
+            ).select_related('document_type', 'author').order_by('-datetime_document')
+            
+            # Убираем GenericRelation, используем только прямую связь
+            # generic_documents = encounter.documents.all()
+            
+            # Объединяем документы, убирая дубликаты
+            all_document_ids = set()
+            combined_documents = []
+            
+            # Добавляем документы из новой системы
+            for doc in all_documents:
+                combined_documents.append(doc)
+                all_document_ids.add(doc.pk)
+            
+            # Убираем GenericRelation, так как используем только прямую связь
+            # for doc in generic_documents:
+            #     if doc.pk not in all_document_ids:
+            #         combined_documents.append(doc)
+            #         all_document_ids.add(doc.pk)
+            
+            context['documents'] = combined_documents
+        except ImportError:
+            # Fallback к прямой связи, если приложение documents не установлено
+            context['documents'] = encounter.clinical_documents.all()
         
         return context
 
@@ -341,10 +370,23 @@ class EncounterCloseView(LoginRequiredMixin, View):
             messages.warning(request, 'Этот случай обращения уже находится в закрытом состоянии')
             return redirect('encounters:encounter_detail', pk=pk)
         
+        # Вычисляем порядковый номер обращения для данного пациента
+        patient_encounters = Encounter.objects.filter(
+            patient=encounter.patient
+        ).order_by('date_start')
+        
+        # Находим позицию текущего обращения в списке обращений пациента
+        encounter_position = 1
+        for i, patient_encounter in enumerate(patient_encounters):
+            if patient_encounter.pk == encounter.pk:
+                encounter_position = i + 1
+                break
+        
         form = EncounterCloseForm(instance=encounter)
         return render(request, 'encounters/close_form.html', {
             'form': form,
             'encounter': encounter,
+            'encounter_number': encounter_position,
             'title': 'Закрыть случай'
         })
     

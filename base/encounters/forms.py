@@ -168,7 +168,8 @@ class EncounterCloseForm(forms.ModelForm):
             attrs={
                 'type': 'datetime-local',
                 'class': 'form-control',
-                'value': timezone.now().strftime('%Y-%m-%dT%H:%M')
+                'min': '',  # Будет установлено в __init__
+                'max': '',  # Будет установлено в __init__
             }
         ),
         help_text="Укажите дату и время закрытия случая"
@@ -194,6 +195,27 @@ class EncounterCloseForm(forms.ModelForm):
             'class': 'form-select'
         })
         
+        # Автозаполнение даты и времени закрытия
+        current_time = timezone.now()
+        
+        # Устанавливаем текущее время как значение по умолчанию
+        if not self.instance.pk or not self.instance.date_end:
+            # Форматируем для datetime-local input (округляем до минут)
+            current_time = current_time.replace(second=0, microsecond=0)
+            formatted_time = current_time.strftime('%Y-%m-%dT%H:%M')
+            self.fields['date_end'].initial = formatted_time
+            self.fields['date_end'].widget.attrs['value'] = formatted_time
+        
+        # Устанавливаем ограничения для даты
+        if self.instance.pk and self.instance.date_start:
+            # Минимальная дата - дата начала случая
+            min_date = self.instance.date_start.strftime('%Y-%m-%dT%H:%M')
+            self.fields['date_end'].widget.attrs['min'] = min_date
+        
+        # Максимальная дата - текущее время + 1 час (для корректировок)
+        max_date = (current_time + timezone.timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M')
+        self.fields['date_end'].widget.attrs['max'] = max_date
+        
         # Настройки для crispy forms
         self.helper = FormHelper()
         self.helper.form_method = 'post'
@@ -207,14 +229,35 @@ class EncounterCloseForm(forms.ModelForm):
         cleaned_data = super().clean()
         outcome = cleaned_data.get('outcome')
         transfer_to_department = cleaned_data.get('transfer_to_department')
+        date_end = cleaned_data.get('date_end')
 
-        if outcome == 'transferred' and not transfer_to_department:
-            self.add_error('transfer_to_department', "Для перевода необходимо выбрать отделение.")
+        # Проверяем обязательное поле outcome
+        if not outcome:
+            self.add_error('outcome', "Необходимо выбрать исход случая.")
+            return cleaned_data
+
+        # Проверяем обязательное поле date_end
+        if not date_end:
+            self.add_error('date_end', "Необходимо указать дату и время закрытия.")
+            return cleaned_data
+
+        # Проверяем, что дата закрытия не в будущем
+        if date_end and date_end > timezone.now():
+            self.add_error('date_end', "Дата закрытия не может быть в будущем.")
+
+        # Проверяем, что дата закрытия не раньше даты начала случая
+        if date_end and self.instance.date_start and date_end < self.instance.date_start:
+            self.add_error('date_end', "Дата закрытия не может быть раньше даты начала случая.")
+
+        # Проверяем логику для перевода
+        if outcome == 'transferred':
+            if not transfer_to_department:
+                self.add_error('transfer_to_department', "Для перевода необходимо выбрать отделение.")
         elif outcome != 'transferred' and transfer_to_department:
             self.add_error('transfer_to_department', "Отделение для перевода может быть выбрано только при исходе 'Переведён'.")
 
         # Проверяем наличие документов при любом исходе
-        if self.instance and not self.instance.documents.exists():
+        if not self.instance.clinical_documents.exists():
             self.add_error('outcome', "Невозможно закрыть случай обращения: нет прикрепленных документов.")
 
         return cleaned_data
@@ -241,6 +284,39 @@ class EncounterCloseForm(forms.ModelForm):
                 raise forms.ValidationError("Не удалось закрыть случай обращения.")
         
         return encounter
+    
+    def clean_outcome(self):
+        """Валидация поля outcome"""
+        outcome = self.cleaned_data.get('outcome')
+        if not outcome:
+            raise forms.ValidationError("Необходимо выбрать исход случая.")
+        return outcome
+    
+    def clean_date_end(self):
+        """Валидация поля date_end"""
+        date_end = self.cleaned_data.get('date_end')
+        if not date_end:
+            raise forms.ValidationError("Необходимо указать дату и время закрытия.")
+        
+        # Проверяем, что дата не в будущем
+        if date_end > timezone.now():
+            raise forms.ValidationError("Дата закрытия не может быть в будущем.")
+        
+        # Проверяем, что дата не раньше даты начала случая
+        if self.instance and self.instance.date_start and date_end < self.instance.date_start:
+            raise forms.ValidationError("Дата закрытия не может быть раньше даты начала случая.")
+        
+        return date_end
+    
+    def clean_transfer_to_department(self):
+        """Валидация поля transfer_to_department"""
+        transfer_to_department = self.cleaned_data.get('transfer_to_department')
+        outcome = self.cleaned_data.get('outcome')
+        
+        if outcome == 'transferred' and not transfer_to_department:
+            raise forms.ValidationError("Для перевода необходимо выбрать отделение.")
+        
+        return transfer_to_department
 
 
 class EncounterReopenForm(forms.Form):

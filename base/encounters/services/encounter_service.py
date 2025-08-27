@@ -135,8 +135,8 @@ class EncounterService:
         Returns:
             Dict с информацией о случае, документах и номере обращения
         """
-        # Используем уже загруженные данные через prefetch_related
-        documents = list(self.encounter.documents.all())
+        # Используем прямую связь clinical_documents
+        documents = list(self.encounter.clinical_documents.all())
         
         return {
             'encounter': self.encounter,
@@ -156,7 +156,7 @@ class EncounterService:
         if not self.encounter.is_active:
             return False
         
-        if not self.encounter.documents.exists():
+        if not self.encounter.clinical_documents.exists():
             return False
         
         return True
@@ -231,7 +231,7 @@ class EncounterService:
     
     def _validate_documents(self) -> None:
         """Валидация наличия документов"""
-        if not self.encounter.documents.exists():
+        if not self.encounter.has_documents():
             raise EncounterValidationError(
                 "Необходимо прикрепить хотя бы один документ для закрытия случая."
             )

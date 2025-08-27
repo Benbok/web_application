@@ -291,7 +291,13 @@
                 {% if next_url %}
                     window.location.href = '{{ next_url }}';
                 {% elif document.content_object %}
-                    window.location.href = '{{ document.content_object.get_back_url }}';
+                    {% if document.content_object.get_back_url %}
+                        window.location.href = '{{ document.content_object.get_back_url }}';
+                    {% elif document.content_object.get_absolute_url %}
+                        window.location.href = '{{ document.content_object.get_absolute_url }}';
+                    {% else %}
+                        window.location.href = '/';
+                    {% endif %}
                 {% elif document.referrer %}
                     window.location.href = document.referrer;
                 {% else %}

@@ -2,7 +2,8 @@ from django.db import models
 from django.conf import settings
 from patients.models import Patient
 from django.utils import timezone
-from django.contrib.contenttypes.fields import GenericRelation
+# Убираем неиспользуемый импорт
+# from django.contrib.contenttypes.fields import GenericRelation
 from django.core.exceptions import ValidationError
 
 from documents.models import ClinicalDocument
@@ -109,7 +110,8 @@ class Encounter(ArchivableModel, models.Model):
         blank=True,
         related_name="transferred_encounters"
     )
-    documents = GenericRelation(ClinicalDocument)
+    # Убираем GenericRelation, используем только прямую связь
+    # documents = GenericRelation(ClinicalDocument)
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="encounters")
     doctor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     # Старое поле диагноза (оставляем для обратной совместимости)
@@ -141,7 +143,7 @@ class Encounter(ArchivableModel, models.Model):
                 'doctor',
                 'transfer_to_department'
             ).prefetch_related(
-                'documents',
+                'clinical_documents',  # Используем только прямую связь
                 'diagnoses__diagnosis',
                 'department_transfer_records'
             )
@@ -168,7 +170,7 @@ class Encounter(ArchivableModel, models.Model):
         Метод для закрытия случая обращения.
         Позволяет инкапсулировать логику закрытия.
         """
-        if not self.documents.exists():
+        if not self.has_documents():
             raise ValueError("Необходимо прикрепить хотя бы один документ для закрытия случая.")
 
         if self.is_active:

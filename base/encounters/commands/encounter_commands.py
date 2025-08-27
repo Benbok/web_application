@@ -63,7 +63,8 @@ class CloseEncounterCommand(Command):
         if not self.encounter.is_active:
             return False
         
-        if not self.encounter.documents.exists():
+        # Используем прямую связь clinical_documents
+        if not self.encounter.clinical_documents.exists():
             return False
         
         if self.outcome == 'transferred' and not self.transfer_department:

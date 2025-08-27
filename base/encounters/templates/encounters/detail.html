@@ -158,6 +158,8 @@
           </a>
         </div>
         
+
+        
         {% comment %} Выпадающее меню для второстепенных действий {% endcomment %}
         <div class="btn-group" role="group">
           <button id="btnGroupDrop1" type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="false" aria-expanded="false">
@@ -214,7 +216,9 @@
 <div class="card mt-4">
   <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="card-title mb-0">Прикреплённые документы</h5>
+            <h5 class="card-title mb-0">
+                <i class="fas fa-file-medical me-2"></i>Прикреплённые документы
+            </h5>
             <a href="{% url 'documents:document_type_selection' model_name='encounter' object_id=encounter.pk %}?department_slug={{ DEPARTMENT_SLUGS.admission }}&next={{ request.get_full_path|urlencode }}"
               class="btn btn-success btn-sm"
               ><i class="fas fa-plus me-1"></i> Добавить новый документ</a
@@ -224,35 +228,125 @@
     <ul class="list-group list-group-flush mb-3">
       {% for doc in documents %}
       <li
-        class="list-group-item d-flex justify-content-between align-items-center"
+        class="list-group-item d-flex justify-content-between align-items-center document-item"
       >
-        <span>
-          <strong>Тип документа:</strong> {{ doc.document_type.name }}<br />
-          <strong>Врач:</strong>
-          {% if doc.author.doctor_profile %}
-              {{ doc.author.doctor_profile.full_name }}
-          {% else %}
-              {{ doc.author.get_full_name|default:doc.author.username }}
-          {% endif %}
-          <br />
-          <small class="text-muted"
-            >{{ doc.datetime_document|date:'d.m.Y H:i' }}</small
+        <div class="document-info">
+          <div class="d-flex align-items-center mb-2">
+            <i class="fas fa-file-medical text-primary me-2"></i>
+            <strong class="document-type">{{ doc.document_type.name }}</strong>
+            {% if doc.is_signed %}
+              <span class="badge bg-success ms-2"><i class="fas fa-signature me-1"></i>Подписан</span>
+            {% endif %}
+            {% if doc.is_canceled %}
+              <span class="badge bg-danger ms-2"><i class="fas fa-ban me-1"></i>Аннулирован</span>
+            {% endif %}
+          </div>
+          <div class="document-meta">
+            <small class="text-muted">
+              <i class="fas fa-user-md me-1"></i>
+              {% if doc.author.doctor_profile %}
+                  {{ doc.author.doctor_profile.full_name }}
+              {% else %}
+                  {{ doc.author.get_full_name|default:doc.author.username }}
+              {% endif %}
+              <span class="mx-2">•</span>
+              <i class="fas fa-calendar me-1"></i>
+              {{ doc.datetime_document|date:'d.m.Y H:i' }}
+              {% if doc.author_position %}
+                <span class="mx-2">•</span>
+                <i class="fas fa-id-badge me-1"></i>
+                {{ doc.author_position }}
+              {% endif %}
+            </small>
+          </div>
+        </div>
+        <div class="document-actions">
+          <a
+            href="{% url 'documents:document_detail' doc.pk %}?next={{ request.get_full_path|urlencode }}"
+            class="btn btn-sm btn-outline-primary me-2"
+            title="Просмотреть документ"
           >
-        </span>
-        <a
-          href="{% url 'documents:document_detail' doc.pk %}?next={{ request.get_full_path|urlencode }}"
-          class="btn btn-sm btn-outline-primary"
-          >Открыть</a
-        >
+            <i class="fas fa-eye me-1"></i>Открыть
+          </a>
+          {% if not doc.is_signed and not doc.is_canceled %}
+            <a
+              href="{% url 'documents:document_update' doc.pk %}?next={{ request.get_full_path|urlencode }}"
+              class="btn btn-sm btn-outline-warning me-2"
+              title="Редактировать документ"
+            >
+              <i class="fas fa-edit me-1"></i>Редактировать
+            </a>
+          {% endif %}
+          {% if doc.is_signed %}
+            <a
+              href="{% url 'documents:document_print' doc.pk %}?next={{ request.get_full_path|urlencode }}"
+              class="btn btn-sm btn-outline-secondary"
+              title="Распечатать документ"
+            >
+              <i class="fas fa-print me-1"></i>Печать
+            </a>
+          {% endif %}
+        </div>
       </li>
       {% endfor %}
     </ul>
     {% else %}
-    <p class="text-muted">Нет прикреплённых документов.</p>
+    <div class="text-center py-4">
+        <i class="fas fa-file-medical fa-3x text-muted mb-3"></i>
+        <p class="text-muted">Нет прикреплённых документов.</p>
+        <p class="text-muted small">Создайте первый документ для этого случая обращения.</p>
+    </div>
     {% endif %}
   </div>
 </div>
 
+
+
 {# Уведомления отображаются через Toastr в правом верхнем углу #}
+
+<style>
+.document-item {
+    transition: all 0.2s ease-in-out;
+    border-left: 3px solid transparent;
+}
+
+.document-item:hover {
+    background-color: #f8f9fa;
+    border-left-color: #007bff;
+    transform: translateX(2px);
+}
+
+.document-type {
+    color: #495057;
+    font-size: 1.1rem;
+}
+
+.document-meta {
+    color: #6c757d;
+}
+
+.document-actions {
+    opacity: 0.9;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.document-actions:hover {
+    opacity: 1;
+}
+
+.document-actions .btn {
+    transition: all 0.2s ease-in-out;
+}
+
+.document-actions .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+</style>
 
 {% endblock %}

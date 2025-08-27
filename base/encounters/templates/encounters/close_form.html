@@ -2,102 +2,246 @@
 {% load static %}
 {% load crispy_forms_tags %}
 
-{% block title %}{{ title }}{% endblock %}
-
-{% block extra_css %}
-<style>
-.form-control[type="datetime-local"] {
-    padding-right: 2.5rem;
-}
-
-.form-control[type="datetime-local"]::after {
-    content: "📅";
-    position: absolute;
-    right: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    pointer-events: none;
-    font-size: 1rem;
-}
-</style>
-{% endblock %}
+{% block title %}Закрытие случая №{{ encounter_number }}{% endblock %}
+{% block page_title %}Закрытие случая{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">
-                    <h4 class="card-title mb-0">{{ title }}</h4>
-                </div>
-                <div class="card-body">
-                    <div class="border rounded p-3 mb-4 bg-light">
-                        <h6 class="text-muted mb-3"><i class="fas fa-info-circle me-2"></i>Информация о случае</h6>
-                        <p class="mb-1"><strong>Пациент:</strong> {{ encounter.patient.get_full_name_with_age }}</p>
-                        <p class="mb-1"><strong>Дата начала:</strong> {{ encounter.date_start|date:'d.m.Y H:i' }}</p>
-                        <p class="mb-0"><strong>Врач:</strong> 
-                            {% if encounter.doctor.doctor_profile %}
-                                {{ encounter.doctor.doctor_profile.full_name }}
-                            {% else %}
-                                {{ encounter.doctor.get_full_name|default:encounter.doctor.username }}
-                            {% endif %}
-                        </p>
-                    </div>
-
-                    {% if messages %}
-                        {% for message in messages %}
-                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-
-                    {% if form.non_field_errors %}
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            {% for error in form.non_field_errors %}
-                                {{ error }}
-                            {% endfor %}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    {% endif %}
-
-                    {% if not encounter.documents.exists %}
-                        <div class="alert alert-warning">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <strong>Внимание!</strong> Для закрытия случая необходимо прикрепить хотя бы один документ.
-                            <a href="{% url 'encounters:encounter_detail' encounter.pk %}" class="alert-link">Вернуться к случаю</a> для прикрепления документов.
-                        </div>
-                    {% endif %}
-
-                    <form method="post">
-                        {% csrf_token %}
-                        {{ form|crispy }}
-
-                        <div class="alert alert-warning">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <strong>Внимание!</strong> После закрытия случая его нельзя будет изменить. 
-                            {% if encounter.documents.exists %}
-                                Убедитесь, что все необходимые документы прикреплены.
-                            {% else %}
-                                <strong class="text-danger">Случай не может быть закрыт без прикрепленных документов!</strong>
-                            {% endif %}
-                        </div>
-
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-primary" data-has-documents="{% if encounter.documents.exists %}true{% else %}false{% endif %}">
-                                <i class="fas fa-check me-2"></i>Закрыть случай
-                            </button>
-                            <a href="{% url 'encounters:encounter_detail' encounter.pk %}" class="btn btn-secondary">
-                                <i class="fas fa-times me-2"></i>Отмена
-                            </a>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
+<div class="card mt-4">
+  <div class="card-body">
+    <h4 class="card-title mb-4">
+      <i class="fas fa-lock me-2"></i>Закрытие случая №{{ encounter.encounter_number }}
+    </h4>
+    
+    <!-- Информация о случае -->
+    <div class="card mb-4 border-light">
+      <div class="card-header bg-light">
+        <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Информация о случае</h6>
+      </div>
+      <div class="card-body">
+        <ul class="list-group list-group-flush">
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-hashtag me-2"></i>Номер случая:</span>
+            <span class="badge bg-secondary">{{ encounter_number }}</span>
+          </li>
+          <li class="list-group-item">
+            <strong>Пациент:</strong>
+            <a href="{% url 'patients:patient_detail' encounter.patient.pk %}" class="text-decoration-none">
+              {{ encounter.patient.get_full_name_with_age }}
+            </a>
+          </li>
+          <li class="list-group-item">
+            <strong>Дата начала:</strong>
+            {{ encounter.date_start|date:'d.m.Y H:i' }}
+          </li>
+          <li class="list-group-item">
+            <strong>Врач:</strong> 
+            {% if encounter.doctor.doctor_profile %}
+              {{ encounter.doctor.doctor_profile.full_name }}
+            {% else %}
+              {{ encounter.doctor.get_full_name|default:encounter.doctor.username }}
+            {% endif %}
+          </li>
+          <li class="list-group-item">
+            <strong>Статус:</strong>
+            <span class="badge bg-secondary">Активен</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-file-medical me-2"></i>Документы:</span>
+            <span class="badge bg-success">{{ encounter.clinical_documents.count }}</span>
+          </li>
+        </ul>
+      </div>
     </div>
+
+    <!-- Проверка документов -->
+    {% if not encounter.clinical_documents.exists %}
+      <div class="alert alert-warning">
+        <div class="d-flex align-items-center">
+          <i class="fas fa-exclamation-triangle me-3"></i>
+          <div>
+            <h6 class="alert-heading mb-2">
+              <strong>Внимание! Случай не может быть закрыт</strong>
+            </h6>
+            <p class="mb-2">Для закрытия случая необходимо прикрепить хотя бы один документ.</p>
+            <a href="{% url 'encounters:encounter_detail' encounter.pk %}" class="btn btn-outline-warning btn-sm">
+              <i class="fas fa-file-medical me-1"></i>Вернуться к случаю
+            </a>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- Сообщения об ошибках -->
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+          <i class="fas fa-info-circle me-2"></i>{{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        {% for error in form.non_field_errors %}
+          {{ error }}
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endif %}
+
+    <!-- Форма закрытия -->
+    <div class="card">
+      <div class="card-header bg-light">
+        <h6 class="mb-0"><i class="fas fa-edit me-2"></i>Параметры закрытия</h6>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label for="{{ form.outcome.id_for_label }}" class="form-label">
+              <i class="fas fa-flag me-2"></i>{{ form.outcome.label }}
+            </label>
+            {{ form.outcome }}
+            {% if form.outcome.errors %}
+              <div class="invalid-feedback d-block">
+                {% for error in form.outcome.errors %}
+                  <small class="text-danger">
+                    <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                  </small>
+                {% endfor %}
+              </div>
+            {% endif %}
+            {% if form.outcome.help_text %}
+              <div class="form-text">{{ form.outcome.help_text }}</div>
+            {% endif %}
+          </div>
+
+          <div class="mb-3">
+            <label for="{{ form.date_end.id_for_label }}" class="form-label">
+              <i class="fas fa-calendar-alt me-2"></i>{{ form.date_end.label }}
+            </label>
+            {{ form.date_end }}
+            {% if form.date_end.errors %}
+              <div class="invalid-feedback d-block">
+                {% for error in form.date_end.errors %}
+                  <small class="text-danger">
+                    <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                  </small>
+                {% endfor %}
+              </div>
+            {% endif %}
+            {% if form.date_end.help_text %}
+              <div class="form-text">{{ form.date_end.help_text }}</div>
+            {% endif %}
+          </div>
+
+          <div class="mb-3" id="transfer_department_field" style="display: none;">
+            <label for="{{ form.transfer_to_department.id_for_label }}" class="form-label">
+              <i class="fas fa-hospital me-2"></i>{{ form.transfer_to_department.label }}
+            </label>
+            {{ form.transfer_to_department }}
+            {% if form.transfer_to_department.errors %}
+              <div class="invalid-feedback d-block">
+                {% for error in form.transfer_to_department.errors %}
+                  <small class="text-danger">
+                    <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                  </small>
+                {% endfor %}
+              </div>
+            {% endif %}
+            {% if form.transfer_to_department.help_text %}
+              <div class="form-text">{{ form.transfer_to_department.help_text }}</div>
+            {% endif %}
+          </div>
+
+          <!-- Предупреждение -->
+          <div class="alert alert-warning mt-4">
+            <div class="d-flex align-items-start">
+              <i class="fas fa-exclamation-triangle me-3"></i>
+              <div>
+                <h6 class="alert-heading mb-2">
+                  <strong>Важное предупреждение!</strong>
+                </h6>
+                <p class="mb-2">После закрытия случая его нельзя будет изменить.</p>
+                
+                {% if encounter.clinical_documents.exists %}
+                  <p class="mb-0">
+                    <i class="fas fa-check me-1"></i>
+                    Все необходимые документы прикреплены.
+                  </p>
+                {% else %}
+                  <p class="mb-0">
+                    <i class="fas fa-times me-1"></i>
+                    <strong>Случай не может быть закрыт без прикрепленных документов!</strong>
+                  </p>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Кнопки действий -->
+          <div class="d-flex justify-content-between align-items-center mt-4">
+            <div class="btn-toolbar" role="toolbar">
+              <div class="btn-group me-2" role="group">
+                <button type="submit" class="btn btn-primary" data-has-documents="{% if encounter.clinical_documents.exists %}true{% else %}false{% endif %}">
+                  <i class="fas fa-check me-2"></i>Закрыть случай
+                </button>
+                <a href="{% url 'encounters:encounter_detail' encounter.pk %}" class="btn btn-secondary">
+                  <i class="fas fa-times me-2"></i>Отмена
+                </a>
+              </div>
+            </div>
+            
+            <div class="ms-auto">
+              <a href="{% url 'patients:patient_detail' encounter.patient.pk %}" class="btn btn-outline-secondary">
+                <i class="fas fa-user me-1"></i>К пациенту
+              </a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 </div>
+
+<style>
+.card {
+    transition: all 0.2s ease-in-out;
+}
+
+.card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.btn {
+    transition: all 0.2s ease-in-out;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.list-group-item {
+    border-left: none;
+    border-right: none;
+}
+
+.list-group-item:first-child {
+    border-top: none;
+}
+
+.list-group-item:last-child {
+    border-bottom: none;
+}
+</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -133,9 +277,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!hasDocuments) {
             submitButton.disabled = true;
             submitButton.title = 'Случай не может быть закрыт без документов';
+            submitButton.classList.add('disabled');
         } else {
             submitButton.disabled = false;
             submitButton.title = '';
+            submitButton.classList.remove('disabled');
         }
     }
     

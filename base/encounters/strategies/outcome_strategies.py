@@ -54,7 +54,7 @@ class ConsultationEndStrategy(OutcomeStrategy):
     
     def validate(self, **kwargs) -> bool:
         """Проверяет, что есть документы для закрытия"""
-        if not self.encounter.documents.exists():
+        if not self.encounter.clinical_documents.exists():
             return False
         return True
     
@@ -100,7 +100,7 @@ class TransferStrategy(OutcomeStrategy):
     
     def validate(self, **kwargs) -> bool:
         """Проверяет наличие документов и отделения для перевода"""
-        if not self.encounter.documents.exists():
+        if not self.encounter.clinical_documents.exists():
             return False
         
         transfer_department = kwargs.get('transfer_department')
