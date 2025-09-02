@@ -44,10 +44,14 @@ def archive_record(request, app_label, model_name, pk):
         form = ArchiveForm(request.POST, instance=instance, user=request.user)
         if form.is_valid():
             try:
-                # Архивируем запись напрямую (обход проблемы с ArchiveService)
-                instance.archive(
+                # Архивируем запись через универсальную систему
+                from base.services import ArchiveService
+                success = ArchiveService.archive_record(
+                    instance=instance,
                     user=request.user,
-                    reason=form.cleaned_data['reason']
+                    reason=form.cleaned_data['reason'],
+                    request=request,
+                    cascade=form.cleaned_data.get('cascade', True)
                 )
                 
                 messages.success(request, _("Запись успешно архивирована"))
@@ -323,10 +327,14 @@ def archive_ajax(request):
             if instance.is_archived:
                 return JsonResponse({'error': 'Запись уже архивирована'}, status=400)
             
-            # Архивируем запись напрямую (обход проблемы с ArchiveService)
-            instance.archive(
+            # Архивируем запись через универсальную систему
+            from base.services import ArchiveService
+            success = ArchiveService.archive_record(
+                instance=instance,
                 user=request.user,
-                reason=reason
+                reason=reason,
+                request=request,
+                cascade=True
             )
             
             return JsonResponse({

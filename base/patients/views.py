@@ -306,14 +306,22 @@ def patient_archive(request, pk):
         reason = request.POST.get('reason', '')
         
         try:
-            # Архивируем пациента напрямую (обход проблемы с ArchiveService)
-            patient.archive(
+            # Используем универсальную систему архивирования
+            from base.services import ArchiveService
+            success = ArchiveService.archive_record(
+                instance=patient,
                 user=request.user,
-                reason=reason
+                reason=reason,
+                request=request,
+                cascade=True
             )
             
-            from django.contrib import messages
-            messages.success(request, f"Пациент {patient.get_full_name_with_age()} успешно архивирован.")
+            if success:
+                from django.contrib import messages
+                messages.success(request, f"Пациент {patient.get_full_name_with_age()} успешно архивирован.")
+            else:
+                from django.contrib import messages
+                messages.error(request, f"Не удалось архивировать пациента {patient.get_full_name_with_age()}.")
                 
         except Exception as e:
             from django.contrib import messages
@@ -334,11 +342,21 @@ def patient_restore(request, pk):
         return redirect('patients:patient_detail', pk=pk)
     
     try:
-        # Восстанавливаем пациента напрямую
-        patient.restore(user=request.user)
+        # Используем универсальную систему восстановления
+        from base.services import ArchiveService
+        success = ArchiveService.restore_record(
+            instance=patient,
+            user=request.user,
+            request=request,
+            cascade=True
+        )
         
-        from django.contrib import messages
-        messages.success(request, f"Пациент {patient.get_full_name_with_age()} успешно восстановлен.")
+        if success:
+            from django.contrib import messages
+            messages.success(request, f"Пациент {patient.get_full_name_with_age()} успешно восстановлен.")
+        else:
+            from django.contrib import messages
+            messages.error(request, f"Не удалось восстановить пациента {patient.get_full_name_with_age()}.")
             
     except Exception as e:
         from django.contrib import messages

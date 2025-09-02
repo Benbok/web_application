@@ -1,39 +1,16 @@
 from django.contrib import admin
-from django.utils.html import format_html
-from django.urls import path, reverse
-from django.shortcuts import redirect
+from django.contrib.auth.models import User
 from django.contrib import messages
-from django.http import HttpResponseRedirect
+from django.shortcuts import redirect
+from django.urls import path
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+from django.db.models import Q
+from django.http import HttpResponseRedirect
+from django.core.exceptions import PermissionDenied
+
 from .models import Patient, PatientContact, PatientAddress, PatientDocument
 from newborns.models import NewbornProfile
-
-
-class PatientContactInline(admin.StackedInline):
-    model = PatientContact
-    extra = 0
-
-
-class PatientAddressInline(admin.StackedInline):
-    model = PatientAddress
-    extra = 0
-
-
-class PatientDocumentInline(admin.StackedInline):
-    model = PatientDocument
-    extra = 0
-
-
-class NewbornProfileInline(admin.StackedInline):
-    model = NewbornProfile
-    extra = 0
-    verbose_name = "Профиль новорожденного"
-    verbose_name_plural = "Профиль новорожденного"
-    
-    def get_queryset(self, request):
-        # Показываем только для пациентов типа 'newborn'
-        qs = super().get_queryset(request)
-        return qs.filter(patient__patient_type='newborn')
 
 
 @admin.register(Patient)
@@ -45,14 +22,10 @@ class PatientAdmin(admin.ModelAdmin):
     actions = ['archive_selected', 'restore_selected']
     
     fieldsets = (
-        ('Основная информация', {
-            'fields': ('patient_type', 'last_name', 'first_name', 'middle_name', 'birth_date', 'gender')
+        (_('Основная информация'), {
+            'fields': ('last_name', 'first_name', 'middle_name', 'birth_date', 'gender', 'patient_type')
         }),
-        ('Связи', {
-            'fields': ('parents',),
-            'classes': ('collapse',)
-        }),
-        ('Архивирование', {
+        (_('Архивирование'), {
             'fields': ('is_archived', 'archived_at', 'archived_by', 'archive_reason'),
             'classes': ('collapse',)
         }),
@@ -60,54 +33,59 @@ class PatientAdmin(admin.ModelAdmin):
     
     readonly_fields = ('archived_at', 'archived_by')
     
-    def get_inlines(self, request, obj=None):
-        inlines = [PatientContactInline, PatientAddressInline, PatientDocumentInline]
-        # Добавляем inline для новорожденных только если пациент новорожденный
-        if obj and obj.patient_type == 'newborn':
-            inlines.append(NewbornProfileInline)
-        return inlines
+    def get_queryset(self, request):
+        # Получаем базовый queryset без применения фильтров Django Admin
+        qs = self.model.objects.all()
+        
+        # Проверяем, есть ли фильтр по архивированию в параметрах запроса
+        if 'is_archived__exact' in request.GET:
+            # Если фильтр указан, применяем его
+            is_archived_value = request.GET.get('is_archived__exact')
+            if is_archived_value == '1':
+                return qs.filter(is_archived=True)
+            elif is_archived_value == '0':
+                return qs.filter(is_archived=False)
+        elif 'is_archived' in request.GET:
+            # Если есть другие параметры архивирования, применяем их
+            is_archived_value = request.GET.get('is_archived')
+            if is_archived_value == '1':
+                return qs.filter(is_archived=True)
+            elif is_archived_value == '0':
+                return qs.filter(is_archived=False)
+        else:
+            # По умолчанию показываем только активных пациентов
+            return qs.filter(is_archived=False)
+
+    def full_name(self, obj):
+        return obj.get_full_name_with_age()
+    full_name.short_description = _('ФИО и возраст')
     
     def age_display(self, obj):
-        if obj.birth_date:
-            from datetime import date
-            today = date.today()
-            age = today.year - obj.birth_date.year - ((today.month, today.day) < (obj.birth_date.month, obj.birth_date.day))
-            if age == 0:
-                months = (today.year - obj.birth_date.year) * 12 + today.month - obj.birth_date.month
-                if months == 0:
-                    days = (today - obj.birth_date).days
-                    return f"{days} дней"
-                return f"{months} мес."
+        age = obj.get_age()
+        if age is not None:
             return f"{age} лет"
-        return "-"
-    age_display.short_description = "Возраст"
+        return "Не указан"
+    age_display.short_description = _('Возраст')
     
     def archive_status(self, obj):
         if obj.is_archived:
-            return format_html(
-                '<span style="color: orange; font-weight: bold;">📦 Архивирован</span>'
-            )
-        return format_html(
-            '<span style="color: green; font-weight: bold;">✅ Активен</span>'
-        )
-    archive_status.short_description = "Статус"
+            return format_html('<span style="color: orange;">📦 Архивирован</span>')
+        else:
+            return format_html('<span style="color: green;">✅ Активен</span>')
+    archive_status.short_description = _('Статус')
     
     def archive_actions(self, obj):
         if obj.is_archived:
-            # Кнопка восстановления
-            restore_url = reverse('admin:patients_patient_restore', args=[obj.pk])
             return format_html(
-                '<a class="button" href="{}" style="background-color: #28a745; color: white; padding: 5px 10px; text-decoration: none; border-radius: 3px;">🔄 Восстановить</a>',
-                restore_url
+                '<a class="button" href="{}">Восстановить</a>',
+                f'/admin/patients/patient/{obj.pk}/restore/'
             )
         else:
-            # Кнопка архивирования
-            archive_url = reverse('admin:patients_patient_archive', args=[obj.pk])
             return format_html(
-                '<a class="button" href="{}" style="background-color: #ffc107; color: black; padding: 5px 10px; text-decoration: none; border-radius: 3px;">📦 Архивировать</a>',
-                archive_url
+                '<a class="button" href="{}">Архивировать</a>',
+                f'/admin/patients/patient/{obj.pk}/archive/'
             )
-    archive_actions.short_description = "Действия"
+    archive_actions.short_description = _('Действия')
     
     def get_urls(self):
         urls = super().get_urls()
@@ -115,16 +93,16 @@ class PatientAdmin(admin.ModelAdmin):
             path(
                 '<int:patient_id>/archive/',
                 self.admin_site.admin_view(self.archive_patient),
-                name='patients_patient_archive',
+                name='patient-archive',
             ),
             path(
                 '<int:patient_id>/restore/',
                 self.admin_site.admin_view(self.restore_patient),
-                name='patients_patient_restore',
+                name='patient-restore',
             ),
         ]
         return custom_urls + urls
-    
+
     def archive_patient(self, request, patient_id):
         """Архивирует пациента"""
         try:
@@ -132,12 +110,15 @@ class PatientAdmin(admin.ModelAdmin):
             if patient.is_archived:
                 messages.warning(request, f"Пациент {patient} уже архивирован")
             else:
-                # Архивируем пациента напрямую (обход проблемы с ArchiveService)
-                patient.archive(
+                # Используем универсальную систему архивирования
+                from base.services import ArchiveService
+                success = ArchiveService.archive_record(
+                    instance=patient,
                     user=request.user,
-                    reason="Архивирование через Django Admin"
+                    reason="Архивирование через Django Admin",
+                    request=request,
+                    cascade=True
                 )
-                success = True
                 if success:
                     messages.success(request, f"Пациент {patient} успешно архивирован")
                 else:
@@ -147,8 +128,8 @@ class PatientAdmin(admin.ModelAdmin):
         except Exception as e:
             messages.error(request, f"Ошибка при архивировании: {str(e)}")
         
-        return HttpResponseRedirect(reverse('admin:patients_patient_changelist'))
-    
+        return HttpResponseRedirect("../")
+
     def restore_patient(self, request, patient_id):
         """Восстанавливает пациента"""
         try:
@@ -156,9 +137,14 @@ class PatientAdmin(admin.ModelAdmin):
             if not patient.is_archived:
                 messages.warning(request, f"Пациент {patient} не архивирован")
             else:
-                # Восстанавливаем пациента напрямую
-                patient.restore(user=request.user)
-                success = True
+                # Используем универсальную систему восстановления
+                from base.services import ArchiveService
+                success = ArchiveService.restore_record(
+                    instance=patient,
+                    user=request.user,
+                    request=request,
+                    cascade=True
+                )
                 if success:
                     messages.success(request, f"Пациент {patient} успешно восстановлен")
                 else:
@@ -168,59 +154,60 @@ class PatientAdmin(admin.ModelAdmin):
         except Exception as e:
             messages.error(request, f"Ошибка при восстановлении: {str(e)}")
         
-        return HttpResponseRedirect(reverse('admin:patients_patient_changelist'))
-    
+        return HttpResponseRedirect("../")
+
     def archive_selected(self, request, queryset):
-        """Массовое архивирование выбранных пациентов"""
+        """Архивирует выбранных пациентов"""
         archived_count = 0
         for patient in queryset:
             if not patient.is_archived:
                 try:
-                    # Архивируем пациента напрямую (обход проблемы с ArchiveService)
-                    patient.archive(
+                    # Используем универсальную систему архивирования
+                    from base.services import ArchiveService
+                    success = ArchiveService.archive_record(
+                        instance=patient,
                         user=request.user,
-                        reason="Массовое архивирование через Django Admin"
+                        reason="Массовое архивирование через Django Admin",
+                        request=request,
+                        cascade=True
                     )
-                    archived_count += 1
+                    if success:
+                        archived_count += 1
                 except Exception as e:
                     messages.error(request, f"Ошибка при архивировании {patient}: {str(e)}")
         
         if archived_count > 0:
             messages.success(request, f"Успешно архивировано {archived_count} пациентов")
         else:
-            messages.warning(request, "Не удалось архивировать ни одного пациента")
+            messages.warning(request, "Нет пациентов для архивирования")
     
-    archive_selected.short_description = "Архивировать выбранных пациентов"
-    
+    archive_selected.short_description = _("Архивировать выбранных пациентов")
+
     def restore_selected(self, request, queryset):
-        """Массовое восстановление выбранных пациентов"""
+        """Восстанавливает выбранных пациентов"""
         restored_count = 0
         for patient in queryset:
             if patient.is_archived:
                 try:
-                    # Восстанавливаем пациента напрямую
-                    patient.restore(user=request.user)
-                    restored_count += 1
+                    # Используем универсальную систему восстановления
+                    from base.services import ArchiveService
+                    success = ArchiveService.restore_record(
+                        instance=patient,
+                        user=request.user,
+                        request=request,
+                        cascade=True
+                    )
+                    if success:
+                        restored_count += 1
                 except Exception as e:
                     messages.error(request, f"Ошибка при восстановлении {patient}: {str(e)}")
         
         if restored_count > 0:
             messages.success(request, f"Успешно восстановлено {restored_count} пациентов")
         else:
-            messages.warning(request, "Не удалось восстановить ни одного пациента")
+            messages.warning(request, "Нет пациентов для восстановления")
     
-    restore_selected.short_description = "Восстановить выбранных пациентов"
-    
-    def get_queryset(self, request):
-        """Возвращает QuerySet с учетом фильтрации по архивированию"""
-        qs = super().get_queryset(request)
-        
-        # Добавляем фильтр по архивированию, если не указан явно
-        if 'is_archived' not in request.GET:
-            # По умолчанию показываем только активных пациентов
-            qs = qs.filter(is_archived=False)
-        
-        return qs
+    restore_selected.short_description = _("Восстановить выбранных пациентов")
 
 
 @admin.register(PatientContact)
@@ -230,36 +217,32 @@ class PatientContactAdmin(admin.ModelAdmin):
     search_fields = ('patient__last_name', 'patient__first_name', 'phone', 'email')
     readonly_fields = ('archived_at', 'archived_by')
     
-    fieldsets = (
-        ('Основная информация', {
-            'fields': ('patient', 'phone', 'email')
-        }),
-        ('Законный представитель', {
-            'fields': ('legal_representative_full_name', 'legal_representative_relation', 'legal_representative_contacts')
-        }),
-        ('Архивирование', {
-            'fields': ('is_archived', 'archived_at', 'archived_by', 'archive_reason'),
-            'classes': ('collapse',)
-        }),
-    )
-    
+    def get_queryset(self, request):
+        # Получаем базовый queryset без применения фильтров Django Admin
+        qs = self.model.objects.all()
+        
+        # Проверяем, есть ли фильтр по архивированию в параметрах запроса
+        if 'is_archived__exact' in request.GET:
+            # Если фильтр указан, применяем его
+            is_archived_value = request.GET.get('is_archived__exact')
+            if is_archived_value == '1':
+                return qs.filter(is_archived=True)
+            elif is_archived_value == '0':
+                return qs.filter(is_archived=False)
+        elif 'is_archived' in request.GET:
+            # Если есть другие параметры архивирования, применяем их
+            is_archived_value = request.GET.get('is_archived')
+            if is_archived_value == '1':
+                return qs.filter(is_archived=True)
+            elif is_archived_value == '0':
+                return qs.filter(is_archived=False)
+        else:
+            # По умолчанию показываем только активные контакты
+            return qs.filter(is_archived=False)
+
     def archive_status(self, obj):
         if obj.is_archived:
-            return format_html(
-                '<span style="color: orange; font-weight: bold;">📦 Архивирован</span>'
-            )
-        return format_html(
-            '<span style="color: green; font-weight: bold;">✅ Активен</span>'
-        )
-    archive_status.short_description = "Статус"
-    
-    def get_queryset(self, request):
-        """Возвращает QuerySet с учетом фильтрации по архивированию"""
-        qs = super().get_queryset(request)
-        
-        # Добавляем фильтр по архивированию, если не указан явно
-        if 'is_archived' not in request.GET:
-            # По умолчанию показываем только активные контакты
-            qs = qs.filter(is_archived=False)
-        
-        return qs
+            return format_html('<span style="color: orange;">📦 Архивирован</span>')
+        else:
+            return format_html('<span style="color: green;">✅ Активен</span>')
+    archive_status.short_description = _('Статус')

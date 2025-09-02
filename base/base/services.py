@@ -55,7 +55,11 @@ class ArchiveService:
             
             # Архивируем связанные записи если включено каскадное архивирование
             if cascade and config.cascade_archive:
-                cls._archive_related_records(instance, user, reason, request)
+                # Вызываем метод экземпляра модели, если он существует
+                if hasattr(instance, '_archive_related_records'):
+                    instance._archive_related_records(user, reason)
+                else:
+                    cls._archive_related_records(instance, user, reason, request)
             
             # Логируем действие
             cls._log_archive_action(instance, user, 'archive', reason, request)
@@ -100,7 +104,11 @@ class ArchiveService:
             
             # Восстанавливаем связанные записи если включено каскадное восстановление
             if cascade and config.cascade_restore:
-                cls._restore_related_records(instance, user, request)
+                # Вызываем метод экземпляра модели, если он существует
+                if hasattr(instance, '_restore_related_records'):
+                    instance._restore_related_records(user)
+                else:
+                    cls._restore_related_records(instance, user, request)
             
             # Логируем действие
             cls._log_archive_action(instance, user, 'restore', "", request)
@@ -288,11 +296,25 @@ class ArchiveService:
             for field in instance._meta.fields:
                 if field.name not in ['password', 'secret_key']:  # Исключаем чувствительные поля
                     value = getattr(instance, field.name)
-                    if hasattr(value, 'isoformat'):  # Для datetime полей
+                    
+                    # Обработка datetime полей
+                    if hasattr(value, 'isoformat'):
                         value = value.isoformat()
+                    # Обработка User объектов
+                    elif hasattr(value, 'username'):
+                        value = value.username
+                    # Обработка связанных объектов
+                    elif hasattr(value, 'pk'):
+                        value = f"{value.__class__.__name__}(pk={value.pk})"
+                    # Обработка других объектов
+                    elif hasattr(value, '__str__'):
+                        value = str(value)
+                    
                     data[field.name] = value
             return data
-        except Exception:
+        except Exception as e:
+            # Логируем ошибку, но не прерываем процесс
+            print(f"Ошибка сериализации данных для логирования: {e}")
             return None
 
 

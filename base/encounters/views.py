@@ -494,14 +494,22 @@ class EncounterArchiveView(LoginRequiredMixin, View):
         reason = request.POST.get('reason', '')
         
         try:
-            # Архивируем случай обращения напрямую (обход проблемы с ArchiveService)
-            encounter.archive(
+            # Используем универсальную систему архивирования
+            from base.services import ArchiveService
+            success = ArchiveService.archive_record(
+                instance=encounter,
                 user=request.user,
-                reason=reason
+                reason=reason,
+                request=request,
+                cascade=True
             )
             
-            from django.contrib import messages
-            messages.success(request, f"Случай обращения для пациента {encounter.patient.get_full_name_with_age()} успешно архивирован.")
+            if success:
+                from django.contrib import messages
+                messages.success(request, f"Случай обращения для пациента {encounter.patient.get_full_name_with_age()} успешно архивирован.")
+            else:
+                from django.contrib import messages
+                messages.error(request, f"Не удалось архивировать случай обращения для пациента {encounter.patient.get_full_name_with_age()}.")
                 
         except Exception as e:
             from django.contrib import messages
@@ -522,11 +530,21 @@ class EncounterRestoreView(LoginRequiredMixin, View):
             return redirect('encounters:encounter_detail', pk=pk)
         
         try:
-            # Восстанавливаем случай обращения напрямую
-            encounter.restore(user=request.user)
+            # Используем универсальную систему восстановления
+            from base.services import ArchiveService
+            success = ArchiveService.restore_record(
+                instance=encounter,
+                user=request.user,
+                request=request,
+                cascade=True
+            )
             
-            from django.contrib import messages
-            messages.success(request, f"Случай обращения для пациента {encounter.patient.get_full_name_with_age()} успешно восстановлен.")
+            if success:
+                from django.contrib import messages
+                messages.success(request, f"Случай обращения для пациента {encounter.patient.get_full_name_with_age()} успешно восстановлен.")
+            else:
+                from django.contrib import messages
+                messages.error(request, f"Не удалось восстановить случай обращения для пациента {encounter.patient.get_full_name_with_age()}.")
                 
         except Exception as e:
             from django.contrib import messages
