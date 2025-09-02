@@ -1,22 +1,65 @@
 {% extends "patients/base.html" %}
+{% load static %}
 
 {% block title %}{{ title }}{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'documents/css/confirm_delete.css' %}">
+{% endblock %}
+
 {% block content %}
-<div class="card shadow-lg">
-    <div class="card-body p-5">
-        <h3 class="card-title mb-4 text-center">{{ title }}</h3>
-
-        <p class="text-center">Вы уверены, что хотите удалить документ "{{ document.document_type.name }}" от {{ document.datetime_document|date:"d.m.Y H:i" }}?</p>
-
-        <form method="post" class="d-flex justify-content-center mt-4">
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0 text-danger">
+            <i class="fas fa-exclamation-triangle me-1"></i> Подтверждение удаления
+        </h5>
+    </div>
+    <div class="card-body">
+        <p class="card-text">
+            Вы действительно хотите <strong>удалить</strong> документ <strong>"{{ document.document_type.name }}"</strong> от <strong>{{ document.datetime_document|date:"d.m.Y H:i" }}</strong>?
+        </p>
+        
+        <div class="alert alert-warning">
+            <h6><i class="fas fa-exclamation-triangle"></i> Внимание:</h6>
+            <ul class="mb-0">
+                <li>Документ будет безвозвратно удален из системы</li>
+                <li>Все связанные данные будут потеряны</li>
+                <li>Это действие нельзя отменить</li>
+                <li>Рекомендуется создать резервную копию перед удалением</li>
+            </ul>
+        </div>
+        
+        <div class="alert alert-info">
+            <h6><i class="fas fa-info-circle"></i> Информация о документе:</h6>
+            <div class="row">
+                <div class="col-md-6">
+                    <small><strong>Тип документа:</strong><br>{{ document.document_type.name }}</small>
+                </div>
+                <div class="col-md-6">
+                    <small><strong>Дата создания:</strong><br>{{ document.datetime_document|date:"d.m.Y H:i" }}</small>
+                </div>
+            </div>
+            {% if document.patient %}
+            <div class="mt-2">
+                <small><strong>Пациент:</strong> {{ document.patient.get_full_name_with_age }}</small>
+            </div>
+            {% endif %}
+        </div>
+        
+        <p class="card-text text-muted">
+            <strong>Это действие является необратимым!</strong>
+        </p>
+        
+        <form method="post">
             {% csrf_token %}
-            <button type="submit" class="btn btn-danger btn-lg me-3">
-                <i class="bi bi-trash me-2"></i>Удалить
-            </button>
-            <a href="{{ request.GET.next|default:'/' }}" class="btn btn-outline-secondary btn-lg">
-                <i class="bi bi-x-circle me-2"></i>Отмена
-            </a>
+            <div class="d-flex justify-content-between">
+                <a href="{{ request.GET.next|default:'/' }}" class="btn btn-secondary">
+                    <i class="fas fa-times me-1"></i> Отмена
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash me-1"></i> Удалить документ
+                </button>
+            </div>
         </form>
     </div>
 </div>
