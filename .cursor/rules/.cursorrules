@@ -39,6 +39,7 @@
 ### 1. Разработка
 - **Создавай feature branches** для новых функций
 - **Документируй изменения** в коде
+- **Используй MCP Context7** для получения актуальной документации по библиотекам
 
 ### 2. Code Review
 - **Проводи code review** для всех изменений
@@ -49,6 +50,38 @@
 - **Обновляй архитектурную документацию** при изменениях
 - **Документируй API** с помощью drf-spectacular
 - **Веди changelog** для версий системы
+
+## MCP Context7 Интеграция
+
+### 1. Получение документации
+- **Используй resolve-library-id** для поиска библиотек по названию
+- **Используй get-library-docs** для получения актуальной документации
+- **Применяй полученные знания** в коде согласно best practices
+
+### 2. Примеры использования
+```python
+# Для получения документации по Django
+# resolve-library-id: django
+# get-library-docs: /django/django
+
+# Для получения документации по DRF
+# resolve-library-id: djangorestframework
+# get-library-docs: /encode/django-rest-framework
+
+# Для получения документации по PostgreSQL
+# resolve-library-id: psycopg2
+# get-library-docs: /psycopg/psycopg2
+```
+
+### 3. Рекомендуемые библиотеки для проекта
+- **Django** - основной веб-фреймворк
+- **Django REST Framework** - API разработка
+- **psycopg2** - PostgreSQL адаптер
+- **redis** - кеширование
+- **celery** - асинхронные задачи
+- **pillow** - обработка изображений
+- **pandas** - анализ данных
+- **pytest** - тестирование
 
 ---
 

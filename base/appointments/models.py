@@ -4,7 +4,8 @@ from django.utils import timezone
 from patients.models import Patient
 import recurrence.fields
 from datetime import datetime, timedelta
-from base.models import ArchivableModel, NotArchivedManager
+from base.models import ArchivableModel
+from base.services import ArchiveManager
 
 class AppointmentStatus(models.TextChoices):
     SCHEDULED = "scheduled", "Запланирован"
@@ -69,7 +70,7 @@ class AppointmentEvent(ArchivableModel, models.Model):
         default=AppointmentStatus.SCHEDULED
     )
     encounter = models.OneToOneField('encounters.Encounter', null=True, blank=True, on_delete=models.SET_NULL, related_name='appointment')
-    objects = NotArchivedManager()
+    objects = ArchiveManager()
     all_objects = models.Manager()
 
     @property
@@ -93,15 +94,29 @@ class AppointmentEvent(ArchivableModel, models.Model):
     def is_completed(self):
         return self.status == AppointmentStatus.COMPLETED
 
-    def archive(self):
+    def _archive_related_records(self, user, reason):
+        """Архивирует связанные записи при архивировании AppointmentEvent"""
+        # Архивируем связанный случай обращения
         if self.encounter and not self.encounter.is_archived:
-            self.encounter.archive()
-        super().archive()
+            if hasattr(self.encounter, 'archive'):
+                self.encounter.archive(user=user, reason=f"Архивирование связанного назначения: {reason}")
 
-    def unarchive(self):
+    def _restore_related_records(self, user):
+        """Восстанавливает связанные записи при восстановлении AppointmentEvent"""
+        # Восстанавливаем связанный случай обращения
+        if self.encounter and self.encounter.is_archived:
+            if hasattr(self.encounter, 'restore'):
+                self.encounter.restore(user=user)
+
+    def archive(self, user=None, reason=""):
+        if self.encounter and not self.encounter.is_archived:
+            self.encounter.archive(user, f"Архивирование связанного назначения: {reason}")
+        super().archive(user, reason)
+
+    def restore(self, user=None):
         if self.encounter and getattr(self.encounter, 'is_archived', False):
-            self.encounter.unarchive()
-        super().unarchive()
+            self.encounter.restore(user)
+        super().restore(user)
 
     class Meta:
         verbose_name = "Запись на прием"

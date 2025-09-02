@@ -14,5 +14,6 @@ urlpatterns = [
     path('patient/<int:parent_id>/teen/', views.teen_create, name='teen_create'),
 
     path('patient/<int:pk>/edit/', views.patient_update, name='patient_update'),
-    path('patient/<int:pk>/delete/', views.patient_delete, name='patient_delete'),
+    path('patient/<int:pk>/archive/', views.patient_archive, name='patient_archive'),
+    path('patient/<int:pk>/restore/', views.patient_restore, name='patient_restore'),
 ]

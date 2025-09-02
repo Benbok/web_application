@@ -27,6 +27,7 @@ class EncounterListView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
+        # Показываем как активные, так и архивированные записи
         return Encounter.objects.select_related('patient', 'doctor').order_by('-date_start')
 
     def get_context_data(self, **kwargs):
@@ -479,11 +480,56 @@ class EncounterReopenView(LoginRequiredMixin, View):
         return redirect('encounters:encounter_detail', pk=pk)
 
 
-class EncounterDeleteView(LoginRequiredMixin, DeleteView):
-    """Представление для удаления случая"""
+class EncounterArchiveView(LoginRequiredMixin, View):
+    """Представление для архивирования случая обращения"""
     
-    model = Encounter
-    template_name = 'encounters/encounter_confirm_delete.html'
+    def post(self, request, pk):
+        encounter = get_object_or_404(Encounter, pk=pk)
+        
+        if encounter.is_archived:
+            from django.contrib import messages
+            messages.warning(request, 'Этот случай обращения уже архивирован')
+            return redirect('encounters:encounter_detail', pk=pk)
+        
+        reason = request.POST.get('reason', '')
+        
+        try:
+            # Архивируем случай обращения напрямую (обход проблемы с ArchiveService)
+            encounter.archive(
+                user=request.user,
+                reason=reason
+            )
+            
+            from django.contrib import messages
+            messages.success(request, f"Случай обращения для пациента {encounter.patient.get_full_name_with_age()} успешно архивирован.")
+                
+        except Exception as e:
+            from django.contrib import messages
+            messages.error(request, f"Ошибка при архивировании случая обращения: {str(e)}")
+        
+        return redirect('encounters:encounter_detail', pk=pk)
+
+
+class EncounterRestoreView(LoginRequiredMixin, View):
+    """Представление для восстановления случая обращения"""
     
-    def get_success_url(self):
-        return reverse('patients:patient_detail', kwargs={'pk': self.object.patient.pk}) 
+    def post(self, request, pk):
+        encounter = get_object_or_404(Encounter, pk=pk)
+        
+        if not encounter.is_archived:
+            from django.contrib import messages
+            messages.warning(request, 'Этот случай обращения не архивирован')
+            return redirect('encounters:encounter_detail', pk=pk)
+        
+        try:
+            # Восстанавливаем случай обращения напрямую
+            encounter.restore(user=request.user)
+            
+            from django.contrib import messages
+            messages.success(request, f"Случай обращения для пациента {encounter.patient.get_full_name_with_age()} успешно восстановлен.")
+                
+        except Exception as e:
+            from django.contrib import messages
+            messages.error(request, f"Ошибка при восстановлении случая обращения: {str(e)}")
+        
+        return redirect('encounters:encounter_detail', pk=pk) 

@@ -1,0 +1,42 @@
+<!-- patients/templates/patients/confirm_archive.html -->
+{% extends "patients/base.html" %}
+{% block content %}
+<div class="card border-warning">
+    <div class="card-body">
+        <h4 class="card-title text-warning">
+            <i class="fas fa-archive me-2"></i>Архивирование пациента
+        </h4>
+        <p class="mb-4">
+            Вы уверены, что хотите <strong>архивировать</strong> пациента <strong>{{ patient.get_full_name_with_age }}</strong>?
+        </p>
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Важно:</strong> При архивировании пациента будут также архивированы все связанные записи:
+            <ul class="mb-0 mt-2">
+                <li>Контактная информация</li>
+                <li>Адреса</li>
+                <li>Документы</li>
+                <li>Случаи обращения</li>
+                <li>Назначения</li>
+                <li>Другие связанные записи</li>
+            </ul>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="reason" class="form-label">Причина архивирования (обязательно для заполнения):</label>
+                <textarea class="form-control" id="reason" name="reason" rows="3" 
+                          placeholder="Укажите причину архивирования пациента..." required></textarea>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-warning">
+                    <i class="fas fa-archive me-1"></i> Да, архивировать
+                </button>
+                <a href="{% url 'patients:patient_detail' patient.pk %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-1"></i> Отмена
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

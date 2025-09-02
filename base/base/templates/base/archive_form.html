@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Архивирование записи" %} - {{ instance }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-archive text-warning"></i>
+                        {% trans "Архивирование записи" %}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <h5><i class="fas fa-exclamation-triangle"></i> {% trans "Внимание!" %}</h5>
+                        <p class="mb-0">
+                            {% trans "Вы собираетесь архивировать запись" %} <strong>{{ instance }}</strong>.
+                            {% if form.cascade.initial %}
+                            {% trans "Это действие также затронет все связанные записи." %}
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6>{% trans "Информация о записи:" %}</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>{% trans "Тип:" %}</strong> {{ model_name|title }}</li>
+                            <li><strong>{% trans "ID:" %}</strong> {{ instance.pk }}</li>
+                            <li><strong>{% trans "Название:" %}</strong> {{ instance }}</li>
+                            {% if instance.created_at %}
+                            <li><strong>{% trans "Дата создания:" %}</strong> {{ instance.created_at|date:"d.m.Y H:i" }}</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                            <p class="mb-0">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label for="{{ form.reason.id_for_label }}" class="form-label">
+                                {{ form.reason.label }}
+                            </label>
+                            {{ form.reason }}
+                            {% if form.reason.help_text %}
+                            <div class="form-text">{{ form.reason.help_text }}</div>
+                            {% endif %}
+                            {% if form.reason.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.reason.errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        {% if form.cascade %}
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.cascade }}
+                                <label class="form-check-label" for="{{ form.cascade.id_for_label }}">
+                                    {{ form.cascade.label }}
+                                </label>
+                                {% if form.cascade.help_text %}
+                                <div class="form-text">{{ form.cascade.help_text }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.confirm }}
+                                <label class="form-check-label" for="{{ form.confirm.id_for_label }}">
+                                    {{ form.confirm.label }}
+                                </label>
+                                {% if form.confirm.help_text %}
+                                <div class="form-text">{{ form.confirm.help_text }}</div>
+                                {% endif %}
+                            </div>
+                            {% if form.confirm.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.confirm.errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ request.GET.next|default:request.META.HTTP_REFERER|default:'/' }}" 
+                               class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> {% trans "Отмена" %}
+                            </a>
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-archive"></i> {% trans "Архивировать" %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

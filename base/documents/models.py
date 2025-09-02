@@ -5,6 +5,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.db.models import Q
+from base.models import ArchivableModel
+from base.services import ArchiveManager
 
 
 # 1. Новая модель для описания структуры документа
@@ -36,7 +38,7 @@ class DocumentType(models.Model):
         return self.name
 
 # 2. Обновленная модель для хранения экземпляров документов
-class ClinicalDocument(models.Model):
+class ClinicalDocument(ArchivableModel, models.Model):
     """
     Хранит экземпляр документа с поддержкой двух типов связей.
     Данные хранятся в поле JSON.
@@ -81,6 +83,10 @@ class ClinicalDocument(models.Model):
     # Здесь хранятся все введенные пользователем данные
     data = models.JSONField("Данные документа", default=dict)
 
+    # Менеджеры для архивирования
+    objects = ArchiveManager()
+    all_objects = models.Manager()
+
     class Meta:
         verbose_name = "Клинический документ"
         verbose_name_plural = "Клинические документы"
@@ -123,6 +129,40 @@ class ClinicalDocument(models.Model):
         elif self.content_object:
             return str(self.content_object)
         return "Неизвестно"
+    
+    def _archive_related_records(self, user, reason):
+        """Архивирует связанные записи при архивировании ClinicalDocument"""
+        # Архивируем связанный статус в отделении
+        if self.patient_department_status and not self.patient_department_status.is_archived:
+            if hasattr(self.patient_department_status, 'archive'):
+                self.patient_department_status.archive(user=user, reason=f"Архивирование связанного документа: {reason}")
+        
+        # Архивируем связанный случай обращения
+        if self.encounter and not self.encounter.is_archived:
+            if hasattr(self.encounter, 'archive'):
+                self.encounter.archive(user=user, reason=f"Архивирование связанного документа: {reason}")
+        
+        # Архивируем связанный content_object (если он поддерживает архивирование)
+        if self.content_object and hasattr(self.content_object, 'is_archived') and not self.content_object.is_archived:
+            if hasattr(self.content_object, 'archive'):
+                self.content_object.archive(user=user, reason=f"Архивирование связанного документа: {reason}")
+
+    def _restore_related_records(self, user):
+        """Восстанавливает связанные записи при восстановлении ClinicalDocument"""
+        # Восстанавливаем связанный статус в отделении
+        if self.patient_department_status and self.patient_department_status.is_archived:
+            if hasattr(self.patient_department_status, 'restore'):
+                self.patient_department_status.restore(user=user)
+        
+        # Восстанавливаем связанный случай обращения
+        if self.encounter and self.encounter.is_archived:
+            if hasattr(self.encounter, 'restore'):
+                self.encounter.restore(user=user)
+        
+        # Восстанавливаем связанный content_object (если он поддерживает архивирование)
+        if self.content_object and hasattr(self.content_object, 'is_archived') and self.content_object.is_archived:
+            if hasattr(self.content_object, 'restore'):
+                self.content_object.restore(user=user)
     
     def get_patient(self):
         """Возвращает пациента из владельца документа"""

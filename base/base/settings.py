@@ -51,6 +51,7 @@ THIRD_PARTY_APPS = [
 ]
 
 LOCAL_APPS = [
+    'base',  # Добавляем базовое приложение
     'authentication',
     'profiles',
     'patients',
@@ -235,5 +236,23 @@ ALLOWED_LOGIN_NETWORKS = [
     # '192.168.1.0/24',   # Вся сеть 192.168.1.x (раскомментируйте для офиса)
     # '10.0.0.0/16',      # Сеть 10.0.x.x
 ]
+
+# Дополнительные настройки безопасности
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
+# Настройки для защиты от CSRF
+CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = 'Lax'
+
+# Настройки для защиты сессий
+SESSION_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
 
 

@@ -36,7 +36,9 @@
                             <td>{{ encounter.date_start|date:"d.m.Y H:i" }}</td>
                             <td>{{ encounter.date_end|date:"d.m.Y H:i" }}</td>
                             <td class="text-center align-middle">
-                                {% if encounter.is_active %}
+                                {% if encounter.is_archived %}
+                                    <span class="badge bg-danger">Архивирован</span>
+                                {% elif encounter.is_active %}
                                     <span class="badge bg-success">Активен</span>
                                 {% else %}
                                     <span class="badge bg-secondary">Завершён</span>

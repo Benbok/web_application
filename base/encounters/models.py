@@ -9,9 +9,10 @@ from django.core.exceptions import ValidationError
 from documents.models import ClinicalDocument
 from departments.models import PatientDepartmentStatus, Department
 from diagnosis.models import Diagnosis
-from base.models import ArchivableModel, NotArchivedManager
+from base.models import ArchivableModel
+from base.services import ArchiveManager
 
-class EncounterDiagnosis(models.Model):
+class EncounterDiagnosis(ArchivableModel):
     """Модель для хранения диагнозов случая обращения"""
     
     DIAGNOSIS_TYPE_CHOICES = [
@@ -52,6 +53,8 @@ class EncounterDiagnosis(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    objects = ArchiveManager()
     
     class Meta:
         verbose_name = "Диагноз случая"
@@ -131,7 +134,7 @@ class Encounter(ArchivableModel, models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = NotArchivedManager()
+    objects = ArchiveManager()
     all_objects = models.Manager()
     
     class OptimizedManager(models.Manager):
@@ -247,31 +250,49 @@ class Encounter(ArchivableModel, models.Model):
                     appointment.status = AppointmentStatus.COMPLETED
                     appointment.save(update_fields=['status'])
 
-    def archive(self):
-        # Обнуляем ссылку на Encounter в AppointmentEvent, если есть
-        appointment = getattr(self, 'appointment', None)
-        if appointment is not None:
-            appointment.encounter = None
-            appointment.save(update_fields=['encounter'])
-
-        # Архивируем все связанные PatientDepartmentStatus
+    def _archive_related_records(self, user, reason):
+        """Архивирует связанные записи при архивировании Encounter"""
+        # Архивируем все связанные диагнозы
+        for diagnosis in self.diagnoses.all():
+            if hasattr(diagnosis, 'archive') and not diagnosis.is_archived:
+                diagnosis.archive(user=user, reason=f"Архивирование связанного случая обращения: {reason}")
+        
+        # Архивируем все связанные документы
+        for document in self.clinical_documents.all():
+            if hasattr(document, 'archive') and not document.is_archived:
+                document.archive(user=user, reason=f"Архивирование связанного случая обращения: {reason}")
+        
+        # Архивируем все связанные записи о переводе в отделения
         for dept_status in self.department_transfer_records.all():
-            if not getattr(dept_status, 'is_archived', False):
-                dept_status.archive()
+            if hasattr(dept_status, 'archive') and not dept_status.is_archived:
+                dept_status.archive(user=user, reason=f"Архивирование связанного случая обращения: {reason}")
+        
+        # Архивируем связанную запись о назначении
+        if hasattr(self, 'appointment') and self.appointment:
+            if hasattr(self.appointment, 'archive') and not self.appointment.is_archived:
+                self.appointment.archive(user=user, reason=f"Архивирование связанного случая обращения: {reason}")
 
-        super().archive()
-
-    def unarchive(self):
-        # Восстанавливаем связанные AppointmentEvent
-        appointment = getattr(self, 'appointment', None)
-        if appointment is not None and getattr(appointment, 'is_archived', False):
-            appointment.unarchive()
-        # Восстанавливаем все связанные PatientDepartmentStatus (включая архивированные)
-        from departments.models import PatientDepartmentStatus
-        for dept_status in PatientDepartmentStatus.all_objects.filter(source_encounter=self):
-            if getattr(dept_status, 'is_archived', False):
-                dept_status.unarchive()
-        super().unarchive()
+    def _restore_related_records(self, user):
+        """Восстанавливает связанные записи при восстановлении Encounter"""
+        # Восстанавливаем все связанные диагнозы
+        for diagnosis in self.diagnoses.all():
+            if hasattr(diagnosis, 'restore') and diagnosis.is_archived:
+                diagnosis.restore(user=user)
+        
+        # Восстанавливаем все связанные документы
+        for document in self.clinical_documents.all():
+            if hasattr(document, 'restore') and document.is_archived:
+                document.restore(user=user)
+        
+        # Восстанавливаем все связанные записи о переводе в отделения
+        for dept_status in self.department_transfer_records.all():
+            if hasattr(dept_status, 'restore') and dept_status.is_archived:
+                dept_status.restore(user=user)
+        
+        # Восстанавливаем связанную запись о назначении
+        if hasattr(self, 'appointment') and self.appointment:
+            if hasattr(self.appointment, 'restore') and self.appointment.is_archived:
+                self.appointment.restore(user=user)
     
     # Методы для работы с диагнозами
     def get_main_diagnosis(self):

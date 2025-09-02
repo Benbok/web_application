@@ -28,8 +28,8 @@ class TreatmentPlanAdmin(admin.ModelAdmin):
     """
     Админ для планов лечения
     """
-    list_display = ['name', 'owner_display', 'created_at', 'medications_count']
-    list_filter = ['created_at', 'content_type']
+    list_display = ['name', 'owner_display', 'is_archived', 'created_at', 'medications_count']
+    list_filter = ['is_archived', 'created_at', 'content_type']
     search_fields = ['name', 'description']
     readonly_fields = ['created_at', 'updated_at']
     inlines = [TreatmentMedicationInline, TreatmentRecommendationInline]
@@ -40,6 +40,10 @@ class TreatmentPlanAdmin(admin.ModelAdmin):
         }),
         (_('Владелец'), {
             'fields': ('content_type', 'object_id'),
+            'classes': ('collapse',)
+        }),
+        (_('Архивирование'), {
+            'fields': ('is_archived', 'archived_at', 'archived_by', 'archive_reason'),
             'classes': ('collapse',)
         }),
         (_('Метаданные'), {
@@ -64,8 +68,8 @@ class TreatmentMedicationAdmin(admin.ModelAdmin):
     """
     Админ для лекарств в планах лечения
     """
-    list_display = ['medication_name', 'treatment_plan', 'dosage', 'frequency', 'route', 'created_at']
-    list_filter = ['route', 'created_at', 'treatment_plan__content_type']
+    list_display = ['medication_name', 'treatment_plan', 'dosage', 'frequency', 'route', 'is_archived', 'created_at']
+    list_filter = ['is_archived', 'route', 'created_at', 'treatment_plan__content_type']
     search_fields = ['medication__name', 'custom_medication', 'treatment_plan__name']
     readonly_fields = ['created_at', 'updated_at']
     
@@ -75,6 +79,10 @@ class TreatmentMedicationAdmin(admin.ModelAdmin):
         }),
         (_('Параметры назначения'), {
             'fields': ('dosage', 'frequency', 'route', 'duration', 'instructions')
+        }),
+        (_('Архивирование'), {
+            'fields': ('is_archived', 'archived_at', 'archived_by', 'archive_reason'),
+            'classes': ('collapse',)
         }),
         (_('Метаданные'), {
             'fields': ('created_at', 'updated_at'),
@@ -93,14 +101,18 @@ class TreatmentRecommendationAdmin(admin.ModelAdmin):
     """
     Админ для рекомендаций в планах лечения
     """
-    list_display = ['text_preview', 'treatment_plan', 'created_at']
-    list_filter = ['created_at', 'treatment_plan__content_type']
+    list_display = ['text_preview', 'treatment_plan', 'is_archived', 'created_at']
+    list_filter = ['is_archived', 'created_at', 'treatment_plan__content_type']
     search_fields = ['text', 'treatment_plan__name']
     readonly_fields = ['created_at', 'updated_at']
     
     fieldsets = (
         (_('Основная информация'), {
             'fields': ('treatment_plan', 'text')
+        }),
+        (_('Архивирование'), {
+            'fields': ('is_archived', 'archived_at', 'archived_by', 'archive_reason'),
+            'classes': ('collapse',)
         }),
         (_('Метаданные'), {
             'fields': ('created_at', 'updated_at'),

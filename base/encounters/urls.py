@@ -20,5 +20,6 @@ urlpatterns = [
     # Действия с обращениями
     path('<int:pk>/close/', views.EncounterCloseView.as_view(), name='encounter_close'),
     path('<int:pk>/reopen/', views.EncounterReopenView.as_view(), name='encounter_reopen'),
-    path('<int:pk>/delete/', views.EncounterDeleteView.as_view(), name='encounter_delete'),
+    path('<int:pk>/archive/', views.EncounterArchiveView.as_view(), name='encounter_archive'),
+    path('<int:pk>/restore/', views.EncounterRestoreView.as_view(), name='encounter_restore'),
 ]

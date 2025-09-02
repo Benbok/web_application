@@ -8,7 +8,14 @@
 
 <div class="card mt-4">
     <div class="card-body">
-        <h4 class="card-title mb-4"><i class="fas fa-user-injured me-2"></i>{{ patient.full_name }}</h4>
+        <h4 class="card-title mb-4">
+            <i class="fas fa-user-injured me-2"></i>{{ patient.full_name }}
+            {% if patient.is_archived %}
+            <span class="badge bg-danger ms-2">
+                <i class="fas fa-archive me-1"></i>Архивирован
+            </span>
+            {% endif %}
+        </h4>
         <div class="row">
             <div class="col-md-3">
                 <div class="nav flex-column nav-pills me-3" id="patientTab" role="tablist" aria-orientation="vertical">
@@ -27,6 +34,18 @@
                             <li class="list-group-item"><strong>ФИО:</strong> {{ patient.full_name }}</li>
                             <li class="list-group-item"><strong>Дата рождения:</strong> {{ patient.birth_date|date:"d.m.Y" }}</li>
                             <li class="list-group-item"><strong>Пол:</strong> {{ patient.get_gender_display }}</li>
+                            {% if patient.is_archived %}
+                            <li class="list-group-item">
+                                <strong>Архивировано:</strong> 
+                                {{ patient.archived_at|date:'d.m.Y H:i' }} 
+                                {% if patient.archived_by %}
+                                пользователем {{ patient.archived_by.get_full_name|default:patient.archived_by.username }}
+                                {% endif %}
+                                {% if patient.archive_reason %}
+                                <br><small class="text-muted">Причина: {{ patient.archive_reason }}</small>
+                                {% endif %}
+                            </li>
+                            {% endif %}
                         </ul>
                     </div>
 
@@ -145,9 +164,19 @@
                 </ul>
             </div>
             {% endif %}
-            <a href="{% url 'patients:patient_delete' patient.pk %}" class="btn btn-outline-danger">
-                <i class="fas fa-trash-alt me-1"></i> Удалить
+            {% if not patient.is_archived %}
+            <a href="{% url 'patients:patient_archive' patient.pk %}" class="btn btn-outline-warning">
+                <i class="fas fa-archive me-1"></i> Архивировать
             </a>
+            {% else %}
+            <form method="post" action="{% url 'patients:patient_restore' patient.pk %}" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-success" 
+                        onclick="return confirm('Вы уверены, что хотите восстановить этого пациента? Это действие восстановит все связанные записи.');">
+                    <i class="fas fa-undo me-1"></i> Восстановить
+                </button>
+            </form>
+            {% endif %}
             <a href="{% url 'patients:patient_list' %}" class="btn btn-outline-secondary ms-auto">
                 <i class="fas fa-arrow-left me-1"></i> Назад к списку
             </a>

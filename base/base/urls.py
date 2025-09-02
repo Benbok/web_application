@@ -19,9 +19,14 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from appointments.views import AppointmentEventViewSet
+from . import views
+
+app_name = 'base'
+
 urlpatterns = [
+    # Основные URL-адреса приложений
     path('admin/', admin.site.urls),
-    path('select2/', include('django_select2.urls')), # Добавляем URL-адреса django-select2
+    path('select2/', include('django_select2.urls')),  # Добавляем URL-адреса django-select2
     path('auth/', include('authentication.urls')),  # URL-адреса для аутентификации
     path('', include('patients.urls')),  # ← Вот это подключает страницу с Vue
     path('encounters/', include('encounters.urls')),
@@ -37,6 +42,23 @@ urlpatterns = [
     path('examination/', include('examination_management.urls')),  # Добавляем URL-адреса examination_management
     path('scheduling/', include('clinical_scheduling.urls')),  # Добавляем URL-адреса clinical_scheduling
     path('signatures/', include('document_signatures.urls')),  # URL-адреса document_signatures
+    
+    # Система архивирования - добавляем после основных приложений
+    path('archive/<str:app_label>/<str:model_name>/<int:pk>/', 
+         views.archive_record, name='archive_record'),
+    path('restore/<str:app_label>/<str:model_name>/<int:pk>/', 
+         views.restore_record, name='restore_record'),
+    path('bulk-archive/<str:app_label>/<str:model_name>/', 
+         views.bulk_archive, name='bulk_archive'),
+    path('archive-list/<str:app_label>/<str:model_name>/', 
+         views.archive_list, name='archive_list'),
+    
+    # Логи и конфигурация архивирования
+    path('archive-logs/', views.archive_logs, name='archive_logs'),
+    path('archive-configuration/', views.archive_configuration, name='archive_configuration'),
+    
+    # AJAX API для архивирования
+    path('archive-ajax/', views.archive_ajax, name='archive_ajax'),
 ]
 
 if settings.DEBUG:

@@ -52,7 +52,9 @@
       {% endif %}
       <li class="list-group-item d-flex justify-content-start align-items-center">
         <strong>Статус:</strong>
-        {% if encounter.is_active %}
+        {% if encounter.is_archived %}
+        <span class="badge bg-danger">Архивирован</span>
+        {% elif encounter.is_active %}
         <span class="badge bg-success">Активен</span>
         {% else %}
         <span class="badge bg-secondary">Завершён</span>
@@ -66,6 +68,18 @@
             {{ encounter.doctor.get_full_name|default:encounter.doctor.username }}
         {% endif %}
       </li>
+      {% if encounter.is_archived %}
+      <li class="list-group-item">
+        <strong>Архивировано:</strong> 
+        {{ encounter.archived_at|date:'d.m.Y H:i' }} 
+        {% if encounter.archived_by %}
+        пользователем {{ encounter.archived_by.get_full_name|default:encounter.archived_by.username }}
+        {% endif %}
+        {% if encounter.archive_reason %}
+        <br><small class="text-muted">Причина: {{ encounter.archive_reason }}</small>
+        {% endif %}
+      </li>
+      {% endif %}
       <li class="list-group-item">
         <strong>Диагнозы:</strong> 
         {% if main_diagnosis or complications or comorbidities %}
@@ -189,11 +203,28 @@
             {% endif %}
             {% if perms.encounters.delete_encounter %}
             <li><hr class="dropdown-divider"></li>
+            {% if not encounter.is_archived %}
             <li>
-              <a class="dropdown-item text-danger" href="{% url 'encounters:encounter_delete' encounter.pk %}">
-                <i class="fas fa-trash-alt me-2"></i>Удалить
-              </a>
+              <form method="post" action="{% url 'encounters:encounter_archive' encounter.pk %}" 
+                    onsubmit="return confirm('Вы уверены, что хотите архивировать этот случай обращения? Это действие архивирует все связанные записи.');">
+                {% csrf_token %}
+                <input type="hidden" name="reason" value="Архивирование по запросу пользователя">
+                <button type="submit" class="dropdown-item text-warning">
+                  <i class="fas fa-archive me-2"></i>Архивировать
+                </button>
+              </form>
             </li>
+            {% else %}
+            <li>
+              <form method="post" action="{% url 'encounters:encounter_restore' encounter.pk %}"
+                    onsubmit="return confirm('Вы уверены, что хотите восстановить этот случай обращения? Это действие восстановит все связанные записи.');">
+                {% csrf_token %}
+                <button type="submit" class="dropdown-item text-success">
+                  <i class="fas fa-undo me-2"></i>Восстановить
+                </button>
+              </form>
+            </li>
+            {% endif %}
             {% endif %}
           </ul>
         </div>

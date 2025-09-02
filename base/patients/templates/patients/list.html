@@ -24,7 +24,10 @@
                         <th scope="col">ФИО</th>
                         <th scope="col">Дата рождения</th>
                         <th scope="col">Пол</th>
-                        <th scope="col">Родители</th> <th scope="col">Дети</th>   <th scope="col">Телефон</th>
+                        <th scope="col">Статус</th>
+                        <th scope="col">Родители</th>
+                        <th scope="col">Дети</th>
+                        <th scope="col">Телефон</th>
                         <th scope="col" class="text-end">Действия</th>
                     </tr>
                 </thead>
@@ -37,7 +40,17 @@
                         </td>
                         <td>{{ patient.birth_date|date:"d.m.Y" }}</td>
                         <td>{{ patient.get_gender_display }}</td>
-
+                        <td>
+                            {% if patient.is_archived %}
+                            <span class="badge bg-danger">
+                                <i class="fas fa-archive me-1"></i>Архивирован
+                            </span>
+                            {% else %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-user me-1"></i>Активен
+                            </span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% with parents=patient.parents.all %}
                                 {% if parents %}
@@ -68,7 +81,17 @@
                         <td>{{ patient.phone|default:"—" }}</td>
                         <td class="text-end">
                             <a href="{% url 'patients:patient_update' patient.pk %}" class="btn btn-sm btn-outline-primary" title="Редактировать"><i class="fas fa-edit"></i></a>
-<!--                            <a href="{% url 'patients:patient_delete' patient.pk %}" class="btn btn-sm btn-outline-danger" title="Удалить"><i class="fas fa-trash-alt"></i></a>-->
+                            {% if not patient.is_archived %}
+                            <a href="{% url 'patients:patient_archive' patient.pk %}" class="btn btn-sm btn-outline-warning" title="Архивировать"><i class="fas fa-archive"></i></a>
+                            {% else %}
+                            <form method="post" action="{% url 'patients:patient_restore' patient.pk %}" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-success" title="Восстановить"
+                                        onclick="return confirm('Восстановить пациента {{ patient.full_name }}?');">
+                                    <i class="fas fa-undo"></i>
+                                </button>
+                            </form>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}

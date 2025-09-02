@@ -136,8 +136,10 @@ class BaseTreatmentPlan(models.Model):
 
 
 from .mixins import SoftDeleteMixin
+from base.models import ArchivableModel
+from base.services import ArchiveManager
 
-class TreatmentPlan(BaseTreatmentPlan, SoftDeleteMixin):
+class TreatmentPlan(ArchivableModel, BaseTreatmentPlan, SoftDeleteMixin):
     """План лечения с поддержкой двух типов связей и мягкого удаления"""
     
     class Meta:
@@ -167,9 +169,61 @@ class TreatmentPlan(BaseTreatmentPlan, SoftDeleteMixin):
     def get_owner_model_name(self):
         """Возвращает имя модели владельца для использования в шаблонах"""
         return super().get_owner_model_name()
+    
+    # Менеджеры для архивирования
+    objects = ArchiveManager()
+    all_objects = models.Manager()
+    
+    def _archive_related_records(self, user, reason):
+        """Архивирует связанные записи при архивировании TreatmentPlan"""
+        # Архивируем связанные лекарства
+        for medication in self.medications.all():
+            if not medication.is_archived:
+                if hasattr(medication, 'archive'):
+                    medication.archive(user=user, reason=f"Архивирование связанного плана лечения: {reason}")
+        
+        # Архивируем связанные рекомендации
+        for recommendation in self.recommendations.all():
+            if not recommendation.is_archived:
+                if hasattr(recommendation, 'archive'):
+                    recommendation.archive(user=user, reason=f"Архивирование связанного плана лечения: {reason}")
+        
+        # Архивируем связанный статус в отделении
+        if self.patient_department_status and not self.patient_department_status.is_archived:
+            if hasattr(self.patient_department_status, 'archive'):
+                self.patient_department_status.archive(user=user, reason=f"Архивирование связанного плана лечения: {reason}")
+        
+        # Архивируем связанный случай обращения
+        if self.encounter and not self.encounter.is_archived:
+            if hasattr(self.encounter, 'archive'):
+                self.encounter.archive(user=user, reason=f"Архивирование связанного плана лечения: {reason}")
+
+    def _restore_related_records(self, user):
+        """Восстанавливает связанные записи при восстановлении TreatmentPlan"""
+        # Восстанавливаем связанные лекарства
+        for medication in self.medications.all():
+            if medication.is_archived:
+                if hasattr(medication, 'restore'):
+                    medication.restore(user=user)
+        
+        # Восстанавливаем связанные рекомендации
+        for recommendation in self.recommendations.all():
+            if recommendation.is_archived:
+                if hasattr(recommendation, 'restore'):
+                    recommendation.restore(user=user)
+        
+        # Восстанавливаем связанный статус в отделении
+        if self.patient_department_status and self.patient_department_status.is_archived:
+            if hasattr(self.patient_department_status, 'restore'):
+                self.patient_department_status.restore(user=user)
+        
+        # Восстанавливаем связанный случай обращения
+        if self.encounter and self.encounter.is_archived:
+            if hasattr(self.encounter, 'restore'):
+                self.encounter.restore(user=user)
 
 
-class TreatmentMedication(SoftDeleteMixin):
+class TreatmentMedication(ArchivableModel, SoftDeleteMixin):
     """
     Лекарство в плане лечения с поддержкой мягкого удаления
     """
@@ -257,9 +311,27 @@ class TreatmentMedication(SoftDeleteMixin):
         if self.medication and hasattr(self.medication, 'medication_form'):
             return self.medication.medication_form
         return None
+    
+    # Менеджеры для архивирования
+    objects = ArchiveManager()
+    all_objects = models.Manager()
+    
+    def _archive_related_records(self, user, reason):
+        """Архивирует связанные записи при архивировании TreatmentMedication"""
+        # Архивируем связанный план лечения
+        if self.treatment_plan and not self.treatment_plan.is_archived:
+            if hasattr(self.treatment_plan, 'archive'):
+                self.treatment_plan.archive(user=user, reason=f"Архивирование связанного лекарства: {reason}")
+
+    def _restore_related_records(self, user):
+        """Восстанавливает связанные записи при восстановлении TreatmentMedication"""
+        # Восстанавливаем связанный план лечения
+        if self.treatment_plan and self.treatment_plan.is_archived:
+            if hasattr(self.treatment_plan, 'restore'):
+                self.treatment_plan.restore(user=user)
 
 
-class TreatmentRecommendation(SoftDeleteMixin):
+class TreatmentRecommendation(ArchivableModel, SoftDeleteMixin):
     """
     Рекомендации в плане лечения с поддержкой мягкого удаления
     """
@@ -281,3 +353,21 @@ class TreatmentRecommendation(SoftDeleteMixin):
     
     def __str__(self):
         return f"{self.text[:50]}..." if len(self.text) > 50 else self.text
+    
+    # Менеджеры для архивирования
+    objects = ArchiveManager()
+    all_objects = models.Manager()
+    
+    def _archive_related_records(self, user, reason):
+        """Архивирует связанные записи при архивировании TreatmentRecommendation"""
+        # Архивируем связанный план лечения
+        if self.treatment_plan and not self.treatment_plan.is_archived:
+            if hasattr(self.treatment_plan, 'archive'):
+                self.treatment_plan.archive(user=user, reason=f"Архивирование связанной рекомендации: {reason}")
+
+    def _restore_related_records(self, user):
+        """Восстанавливает связанные записи при восстановлении TreatmentRecommendation"""
+        # Восстанавливаем связанный план лечения
+        if self.treatment_plan and self.treatment_plan.is_archived:
+            if hasattr(self.treatment_plan, 'restore'):
+                self.treatment_plan.restore(user=user)

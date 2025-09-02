@@ -7,7 +7,8 @@ from django.utils.text import slugify
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.contrib.contenttypes.fields import GenericRelation
-from base.models import ArchivableModel, NotArchivedManager
+from base.models import ArchivableModel
+from base.services import ArchiveManager
 
 class Department(models.Model):
     name = models.CharField("Наименование отделения", max_length=255)
@@ -54,7 +55,7 @@ class PatientDepartmentStatus(ArchivableModel, models.Model):
         verbose_name="Случай обращения-источник перевода"
     )
     
-    objects = NotArchivedManager()
+    objects = ArchiveManager()
     all_objects = models.Manager()
 
     class Meta:
@@ -102,6 +103,20 @@ class PatientDepartmentStatus(ArchivableModel, models.Model):
             self.save()
             return True
         return False
+
+    def _archive_related_records(self, user, reason):
+        """Архивирует связанные записи при архивировании PatientDepartmentStatus"""
+        # Архивируем связанный случай обращения
+        if self.source_encounter and not self.source_encounter.is_archived:
+            if hasattr(self.source_encounter, 'archive'):
+                self.source_encounter.archive(user=user, reason=f"Архивирование связанного статуса в отделении: {reason}")
+
+    def _restore_related_records(self, user):
+        """Восстанавливает связанные записи при восстановлении PatientDepartmentStatus"""
+        # Восстанавливаем связанный случай обращения
+        if self.source_encounter and self.source_encounter.is_archived:
+            if hasattr(self.source_encounter, 'restore'):
+                self.source_encounter.restore(user=user)
 
     def unarchive(self):
         # Не делаем каскадное разархивирование source_encounter, 

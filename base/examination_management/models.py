@@ -298,11 +298,12 @@ class ExaminationPlan(BaseExaminationPlan, SoftDeleteMixin):
         return None
 
 
-from treatment_management.mixins import SoftDeleteMixin
+from base.models import ArchivableModel
+from base.services import ArchiveManager
 
-class ExaminationLabTest(SoftDeleteMixin):
+class ExaminationLabTest(ArchivableModel, models.Model):
     """
-    Лабораторное исследование в плане обследования с поддержкой мягкого удаления
+    Лабораторное исследование в плане обследования с поддержкой архивирования
     """
     examination_plan = models.ForeignKey(
         ExaminationPlan, 
@@ -337,6 +338,24 @@ class ExaminationLabTest(SoftDeleteMixin):
         """Получить название лабораторного исследования"""
         return self.lab_test.name
     
+    # Менеджеры для архивирования
+    objects = ArchiveManager()
+    all_objects = models.Manager()
+    
+    def _archive_related_records(self, user, reason):
+        """Архивирует связанные записи при архивировании ExaminationLabTest"""
+        # Архивируем связанный план обследования
+        if self.examination_plan and not self.examination_plan.is_archived:
+            if hasattr(self.examination_plan, 'archive'):
+                self.examination_plan.archive(user=user, reason=f"Архивирование связанного лабораторного исследования: {reason}")
+
+    def _restore_related_records(self, user):
+        """Восстанавливает связанные записи при восстановлении ExaminationLabTest"""
+        # Восстанавливаем связанный план обследования
+        if self.examination_plan and self.examination_plan.is_archived:
+            if hasattr(self.examination_plan, 'restore'):
+                self.examination_plan.restore(user=user)
+    
     def can_be_deleted(self):
         """
         Проверяет, можно ли удалить назначение лабораторного исследования.
@@ -361,9 +380,9 @@ class ExaminationLabTest(SoftDeleteMixin):
             return True
 
 
-class ExaminationInstrumental(SoftDeleteMixin):
+class ExaminationInstrumental(ArchivableModel, models.Model):
     """
-    Инструментальное исследование в плане обследования с поддержкой мягкого удаления
+    Инструментальное исследование в плане обследования с поддержкой архивирования
     """
     examination_plan = models.ForeignKey(
         ExaminationPlan, 
@@ -397,6 +416,24 @@ class ExaminationInstrumental(SoftDeleteMixin):
     def get_procedure_name(self):
         """Получить название процедуры"""
         return self.instrumental_procedure.name
+    
+    # Менеджеры для архивирования
+    objects = ArchiveManager()
+    all_objects = models.Manager()
+    
+    def _archive_related_records(self, user, reason):
+        """Архивирует связанные записи при архивировании ExaminationInstrumental"""
+        # Архивируем связанный план обследования
+        if self.examination_plan and not self.examination_plan.is_archived:
+            if hasattr(self.examination_plan, 'archive'):
+                self.examination_plan.archive(user=user, reason=f"Архивирование связанного инструментального исследования: {reason}")
+
+    def _restore_related_records(self, user):
+        """Восстанавливает связанные записи при восстановлении ExaminationInstrumental"""
+        # Восстанавливаем связанный план обследования
+        if self.examination_plan and self.examination_plan.is_archived:
+            if hasattr(self.examination_plan, 'restore'):
+                self.examination_plan.restore(user=user)
     
     def can_be_deleted(self):
         """

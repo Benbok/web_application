@@ -1,11 +1,14 @@
 from django.db import models
 from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from typing import Optional
 import datetime
+from base.models import ArchivableModel
+from base.services import ArchiveManager
 
 
-class Patient(models.Model):
+class Patient(ArchivableModel):
     class PatientType(models.TextChoices):
         ADULT = 'adult', 'Взрослый'
         NEWBORN = 'newborn', 'Новорожденный'
@@ -45,6 +48,11 @@ class Patient(models.Model):
         verbose_name = "Пациент"
         verbose_name_plural = "Пациенты"
         ordering = ["last_name", "first_name", "birth_date"]
+        indexes = [
+            models.Index(fields=['last_name', 'first_name']),
+            models.Index(fields=['birth_date']),
+            models.Index(fields=['is_archived']),
+        ]
 
     def clean(self):
         if self.birth_date and self.birth_date > datetime.date.today():
@@ -87,16 +95,118 @@ class Patient(models.Model):
         """Возвращает URL для возврата к детальному просмотру пациента"""
         from django.urls import reverse
         return reverse('patients:patient_detail', kwargs={'pk': self.pk})
+    
+    # Менеджер для архивирования
+    objects = ArchiveManager()
+    
+    def _archive_related_records(self, user, reason):
+        """
+        Архивирует связанные записи пациента
+        """
+        print(f"Начинаем архивирование связанных записей для пациента {self.pk}")
+        
+        # Архивируем контакты пациента
+        try:
+            # Проверяем, существует ли контакт пациента
+            print(f"Проверяем контакт для пациента {self.pk}")
+            
+            # Используем правильную проверку для OneToOneField
+            from django.core.exceptions import ObjectDoesNotExist
+            try:
+                contact = self.contact
+                if contact and not contact.is_archived:
+                    print(f"Архивируем контакт {contact.pk}")
+                    contact.archive(user, f"Каскадное архивирование пациента: {reason}")
+                    print(f"Контакт {contact.pk} успешно архивирован")
+                elif contact and contact.is_archived:
+                    print(f"Контакт {contact.pk} уже архивирован")
+                else:
+                    print("Контакт не существует (None)")
+            except ObjectDoesNotExist:
+                print("У пациента нет связанного контакта")
+                
+        except Exception as e:
+            # Если контакт не существует или есть другие проблемы, пропускаем
+            print(f"Ошибка при архивировании контакта пациента {self.pk}: {e}")
+            import traceback
+            traceback.print_exc()
+            pass
+        
+        # Архивируем встречи пациента
+        from encounters.models import Encounter
+        encounters = Encounter.objects.filter(patient=self, is_archived=False)
+        for encounter in encounters:
+            encounter.archive(user, f"Каскадное архивирование пациента: {reason}")
+        
+        # Архивируем документы пациента
+        from documents.models import ClinicalDocument
+        documents = ClinicalDocument.objects.filter(
+            Q(encounter__patient=self) | Q(patient_department_status__patient=self),
+            is_archived=False
+        )
+        for document in documents:
+            document.archive(user, f"Каскадное архивирование пациента: {reason}")
+        
+        # Архивируем назначения пациента
+        from appointments.models import AppointmentEvent
+        appointments = AppointmentEvent.objects.filter(patient=self, is_archived=False)
+        for appointment in appointments:
+            appointment.archive(user, f"Каскадное архивирование пациента: {reason}")
+    
+    def _restore_related_records(self, user):
+        """
+        Восстанавливает связанные записи пациента
+        """
+        # Восстанавливаем контакты пациента
+        try:
+            # Проверяем, существует ли контакт пациента
+            from django.core.exceptions import ObjectDoesNotExist
+            try:
+                contact = self.contact
+                if contact and contact.is_archived:
+                    contact.restore(user)
+                    print(f"Контакт {contact.pk} успешно восстановлен")
+            except ObjectDoesNotExist:
+                print("У пациента нет связанного контакта для восстановления")
+        except Exception as e:
+            # Если контакт не существует или есть другие проблемы, пропускаем
+            print(f"Ошибка при восстановлении контакта пациента {self.pk}: {e}")
+            pass
+        
+        # Восстанавливаем встречи пациента
+        from encounters.models import Encounter
+        encounters = Encounter.objects.filter(patient=self, is_archived=True)
+        for encounter in encounters:
+            encounter.restore(user)
+        
+        # Восстанавливаем документы пациента
+        from documents.models import ClinicalDocument
+        documents = ClinicalDocument.objects.filter(
+            Q(encounter__patient=self) | Q(patient_department_status__patient=self),
+            is_archived=True
+        )
+        for document in documents:
+            document.restore(user)
+        
+        # Восстанавливаем назначения пациента
+        from appointments.models import AppointmentEvent
+        appointments = AppointmentEvent.objects.filter(patient=self, is_archived=True)
+        for appointment in appointments:
+            appointment.restore(user)
 
 
 # FHIR: contact (представитель пациента)
-class PatientContact(models.Model):
+class PatientContact(ArchivableModel):
     patient = models.OneToOneField(Patient, on_delete=models.CASCADE, related_name='contact')
     phone = models.CharField("Телефон", max_length=20, blank=True)
     email = models.EmailField("Email", blank=True)
     legal_representative_full_name = models.CharField("ФИО представителя", max_length=200, blank=True)
     legal_representative_relation = models.CharField("Родство / статус", max_length=100, blank=True)
     legal_representative_contacts = models.CharField("Контакты представителя", max_length=100, blank=True)
+
+    # Менеджеры для архивирования
+    objects = ArchiveManager()
+    all_objects = models.Manager()
 
     class Meta:
         verbose_name = "Контакт пациента"

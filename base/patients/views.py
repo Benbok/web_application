@@ -294,9 +294,54 @@ def patient_update(request, pk):
 
 
 @login_required
-def patient_delete(request, pk):
+def patient_archive(request, pk):
     patient = get_object_or_404(Patient, pk=pk)
+    
+    if patient.is_archived:
+        from django.contrib import messages
+        messages.warning(request, 'Этот пациент уже архивирован')
+        return redirect('patients:patient_detail', pk=pk)
+    
     if request.method == "POST":
-        patient.delete()
+        reason = request.POST.get('reason', '')
+        
+        try:
+            # Архивируем пациента напрямую (обход проблемы с ArchiveService)
+            patient.archive(
+                user=request.user,
+                reason=reason
+            )
+            
+            from django.contrib import messages
+            messages.success(request, f"Пациент {patient.get_full_name_with_age()} успешно архивирован.")
+                
+        except Exception as e:
+            from django.contrib import messages
+            messages.error(request, f"Ошибка при архивировании пациента: {str(e)}")
+        
         return redirect('patients:patient_list')
-    return render(request, 'patients/confirm_delete.html', {'patient': patient})
+    
+    return render(request, 'patients/confirm_archive.html', {'patient': patient})
+
+
+@login_required
+def patient_restore(request, pk):
+    patient = get_object_or_404(Patient, pk=pk)
+    
+    if not patient.is_archived:
+        from django.contrib import messages
+        messages.warning(request, 'Этот пациент не архивирован')
+        return redirect('patients:patient_detail', pk=pk)
+    
+    try:
+        # Восстанавливаем пациента напрямую
+        patient.restore(user=request.user)
+        
+        from django.contrib import messages
+        messages.success(request, f"Пациент {patient.get_full_name_with_age()} успешно восстановлен.")
+            
+    except Exception as e:
+        from django.contrib import messages
+        messages.error(request, f"Ошибка при восстановлении пациента: {str(e)}")
+    
+    return redirect('patients:patient_detail', pk=pk)
