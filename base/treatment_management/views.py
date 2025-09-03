@@ -363,7 +363,7 @@ class TreatmentMedicationUpdateView(LoginRequiredMixin, UpdateView):
     Редактирование лекарства в плане лечения
     """
     model = TreatmentMedication
-    form_class = TreatmentMedicationForm
+    form_class = TreatmentMedicationWithScheduleForm
     template_name = 'treatment_management/medication_form.html'
     
     def get_owner_from_plan(self, plan):
@@ -381,6 +381,52 @@ class TreatmentMedicationUpdateView(LoginRequiredMixin, UpdateView):
         elif hasattr(owner, 'get_patient'):
             return owner.get_patient()
         return None
+    
+    def form_valid(self, form):
+        response = super().form_valid(form)  # Сохраняем TreatmentMedication
+        
+        # Обновляем расписание, если оно включено
+        if form.cleaned_data.get('enable_schedule'):
+            try:
+                # Сначала удаляем существующие записи расписания
+                from clinical_scheduling.models import ScheduledAppointment
+                from django.contrib.contenttypes.models import ContentType
+                
+                content_type = ContentType.objects.get_for_model(form.instance)
+                ScheduledAppointment.objects.filter(
+                    content_type=content_type,
+                    object_id=form.instance.pk
+                ).delete()
+                
+                # Затем создаем новое расписание
+                from clinical_scheduling.services import ClinicalSchedulingService
+                ClinicalSchedulingService.create_schedule_for_assignment(
+                    assignment=form.instance,
+                    user=self.request.user,
+                    start_date=form.cleaned_data['start_date'],
+                    first_time=form.cleaned_data['first_time'],
+                    times_per_day=form.cleaned_data['times_per_day'],
+                    duration_days=form.cleaned_data['duration_days']
+                )
+                messages.success(self.request, _('Лекарство и расписание успешно обновлены.'))
+            except Exception as e:
+                messages.warning(self.request, _('Лекарство обновлено, но возникла ошибка при обновлении расписания: {}').format(str(e)))
+        else:
+            # Если расписание отключено, удаляем существующие записи
+            try:
+                from clinical_scheduling.models import ScheduledAppointment
+                from django.contrib.contenttypes.models import ContentType
+                
+                content_type = ContentType.objects.get_for_model(form.instance)
+                ScheduledAppointment.objects.filter(
+                    content_type=content_type,
+                    object_id=form.instance.pk
+                ).delete()
+                messages.success(self.request, _('Лекарство обновлено, расписание отключено.'))
+            except Exception as e:
+                messages.warning(self.request, _('Лекарство обновлено, но возникла ошибка при отключении расписания: {}').format(str(e)))
+        
+        return response
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -941,6 +987,7 @@ class TreatmentRecommendationCreateView(LoginRequiredMixin, CreateView):
             context['encounter'] = self.treatment_plan.encounter
         
         context['title'] = _('Добавить рекомендацию')
+        
         return context
     
     def get_success_url(self):
@@ -1026,6 +1073,7 @@ class TreatmentRecommendationUpdateView(LoginRequiredMixin, UpdateView):
             context['encounter'] = self.object.treatment_plan.encounter
         
         context['title'] = _('Редактировать рекомендацию')
+        
         return context
     
     def form_valid(self, form):
@@ -1270,3 +1318,6 @@ class TreatmentPlanQuickCreateView(LoginRequiredMixin, View):
 			created_by=request.user,
 		)
 		return redirect('treatment_management:plan_detail', owner_model='encounter', owner_id=encounter.pk, pk=plan.pk)
+
+
+

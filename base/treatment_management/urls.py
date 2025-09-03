@@ -73,4 +73,6 @@ urlpatterns = [
     path('api/trade-name-info/<int:trade_name_id>/', 
          views.TradeNameInfoView.as_view(), 
          name='trade_name_info'),
+    
+
 ] 

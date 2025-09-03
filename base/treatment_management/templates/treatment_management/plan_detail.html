@@ -111,16 +111,28 @@
                                 <strong>Дозировка:</strong> {{ medication.dosage }}
                             </div>
                             <div class="mb-2">
-                                <strong>Частота:</strong> {{ medication.frequency }}
+                                <strong>Частота:</strong> 
+                                {% if medication.get_schedule_frequency_display %}
+                                    {{ medication.get_schedule_frequency_display }}
+                                {% elif medication.frequency %}
+                                    {{ medication.frequency }}
+                                {% else %}
+                                    Не указана
+                                {% endif %}
                             </div>
                             <div class="mb-2">
                                 <strong>Способ:</strong> {{ medication.get_route_display_name }}
                             </div>
-                            {% if medication.duration %}
                             <div class="mb-2">
-                                <strong>Длительность:</strong> {{ medication.duration }}
+                                <strong>Длительность:</strong> 
+                                {% if medication.get_schedule_duration_display %}
+                                    {{ medication.get_schedule_duration_display }}
+                                {% elif medication.duration %}
+                                    {{ medication.duration }}
+                                {% else %}
+                                    Не указана
+                                {% endif %}
                             </div>
-                            {% endif %}
                             {% if medication.get_medication_form %}
                             <div class="mb-2">
                                 <span class="badge bg-secondary">{{ medication.get_medication_form }}</span>

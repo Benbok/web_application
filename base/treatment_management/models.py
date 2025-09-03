@@ -312,6 +312,111 @@ class TreatmentMedication(ArchivableModel, SoftDeleteMixin):
             return self.medication.medication_form
         return None
     
+    def get_schedule_frequency_display(self):
+        """
+        Возвращает частоту приема в часах на основе расписания
+        Формула: 24 / количество раз в день
+        """
+        try:
+            from clinical_scheduling.models import ScheduledAppointment
+            from django.contrib.contenttypes.models import ContentType
+            
+            content_type = ContentType.objects.get_for_model(self)
+            appointments = ScheduledAppointment.objects.filter(
+                content_type=content_type,
+                object_id=self.pk
+            ).order_by('-scheduled_date', 'scheduled_time')
+            
+            if appointments.exists():
+                # Группируем по дате и считаем количество записей для каждой даты
+                from django.db.models import Count
+                daily_counts = appointments.values('scheduled_date').annotate(
+                    count=Count('id')
+                ).order_by('scheduled_date')
+                
+                if daily_counts.exists():
+                    # Находим режим (наиболее частое значение)
+                    count_frequency = {}
+                    for daily_count in daily_counts:
+                        count = daily_count['count']
+                        count_frequency[count] = count_frequency.get(count, 0) + 1
+                    
+                    # Берем значение с максимальной частотой
+                    most_common_count = max(count_frequency.items(), key=lambda x: x[1])[0]
+                    
+                    if most_common_count > 0:
+                        hours_interval = 24 // most_common_count
+                        if hours_interval == 24:
+                            return f"1 раз в день"
+                        elif hours_interval == 12:
+                            return f"2 раза в день"
+                        elif hours_interval == 8:
+                            return f"3 раза в день"
+                        elif hours_interval == 6:
+                            return f"4 раза в день"
+                        else:
+                            return f"каждые {hours_interval} часов"
+            
+            # Если расписание не найдено, возвращаем базовую частоту
+            return self.frequency if self.frequency else "Не указана"
+            
+        except Exception:
+            return self.frequency if self.frequency else "Не указана"
+    
+    def get_schedule_duration_display(self):
+        """
+        Возвращает длительность курса в днях на основе расписания
+        Рассчитывается как количество уникальных дат в ScheduledAppointment
+        """
+        try:
+            from clinical_scheduling.models import ScheduledAppointment
+            from django.contrib.contenttypes.models import ContentType
+            
+            content_type = ContentType.objects.get_for_model(self)
+            appointments = ScheduledAppointment.objects.filter(
+                content_type=content_type,
+                object_id=self.pk
+            ).order_by('scheduled_date')
+            
+            if appointments.exists():
+                # Получаем уникальные даты
+                unique_dates = appointments.values_list('scheduled_date', flat=True).distinct()
+                duration_days = len(unique_dates)
+                
+                if duration_days > 0:
+                    return f"{duration_days} дней"
+            
+            # Если расписание не найдено, возвращаем статичное значение
+            return self.duration if self.duration else "Не указана"
+            
+        except Exception:
+            return self.duration if self.duration else "Не указана"
+    
+    def get_schedule_start_datetime(self):
+        """
+        Возвращает дату и время начала расписания
+        """
+        try:
+            from clinical_scheduling.models import ScheduledAppointment
+            from django.contrib.contenttypes.models import ContentType
+            
+            content_type = ContentType.objects.get_for_model(self)
+            appointment = ScheduledAppointment.objects.filter(
+                content_type=content_type,
+                object_id=self.pk
+            ).order_by('-scheduled_date', 'scheduled_time').first()
+            
+            if appointment:
+                from django.utils import timezone
+                return timezone.make_aware(
+                    timezone.datetime.combine(appointment.scheduled_date, appointment.scheduled_time or timezone.now().time())
+                )
+            
+            return None
+            
+        except Exception:
+            return None
+    
     # Менеджеры для архивирования
     objects = ArchiveManager()
     all_objects = models.Manager()
@@ -371,3 +476,28 @@ class TreatmentRecommendation(ArchivableModel, SoftDeleteMixin):
         if self.treatment_plan and self.treatment_plan.is_archived:
             if hasattr(self.treatment_plan, 'restore'):
                 self.treatment_plan.restore(user=user)
+    
+    def get_schedule_start_datetime(self):
+        """
+        Возвращает дату и время начала расписания
+        """
+        try:
+            from clinical_scheduling.models import ScheduledAppointment
+            from django.contrib.contenttypes.models import ContentType
+            
+            content_type = ContentType.objects.get_for_model(self)
+            appointment = ScheduledAppointment.objects.filter(
+                content_type=content_type,
+                object_id=self.pk
+            ).order_by('-scheduled_date', 'scheduled_time').first()
+            
+            if appointment:
+                from django.utils import timezone
+                return timezone.make_aware(
+                    timezone.datetime.combine(appointment.scheduled_date, appointment.scheduled_time or timezone.now().time())
+                )
+            
+            return None
+            
+        except Exception:
+            return None

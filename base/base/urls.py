@@ -59,6 +59,9 @@ urlpatterns = [
     
     # AJAX API для архивирования
     path('archive-ajax/', views.archive_ajax, name='archive_ajax'),
+    
+    # REST API для системы архивирования
+    path('', include('base.api_urls')),
 ]
 
 if settings.DEBUG:

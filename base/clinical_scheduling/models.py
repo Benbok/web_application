@@ -96,7 +96,7 @@ class ScheduledAppointment(models.Model):
     class Meta:
         verbose_name = _('Запланированное клиническое событие')
         verbose_name_plural = _('Запланированные клинические события')
-        ordering = ['scheduled_date', 'scheduled_time']
+        ordering = ['-scheduled_date', 'scheduled_time']
         indexes = [
             models.Index(fields=['scheduled_date', 'execution_status']),
             models.Index(fields=['content_type', 'object_id']),

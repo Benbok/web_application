@@ -379,6 +379,9 @@ function applyFilters() {
     const dateFrom = document.getElementById('dateFrom').value;
     const dateTo = document.getElementById('dateTo').value;
     
+    // Создаем массив строк для сортировки
+    const rowsArray = Array.from(rows);
+    
     rows.forEach(row => {
         let showRow = true;
         
@@ -423,6 +426,24 @@ function applyFilters() {
         
         row.style.display = showRow ? '' : 'none';
     });
+    
+    // Сортировка для фильтра "Сегодня"
+    if (currentDateFilter === 'today') {
+        const tbody = document.querySelector('tbody');
+        const visibleRows = Array.from(rowsArray).filter(row => row.style.display !== 'none');
+        
+        // Сортируем по времени (возрастание)
+        visibleRows.sort((a, b) => {
+            const timeA = a.querySelector('td:nth-child(2) .badge').textContent.trim();
+            const timeB = b.querySelector('td:nth-child(2) .badge').textContent.trim();
+            return timeA.localeCompare(timeB);
+        });
+        
+        // Переставляем строки в DOM
+        visibleRows.forEach(row => {
+            tbody.appendChild(row);
+        });
+    }
     
     updateCounter();
 }

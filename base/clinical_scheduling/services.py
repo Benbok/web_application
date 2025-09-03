@@ -426,7 +426,7 @@ class ClinicalSchedulingService:
         if department:
             queryset = queryset.filter(created_department=department)
         
-        return queryset.order_by('scheduled_date', 'scheduled_time')
+        return queryset.order_by('-scheduled_date', 'scheduled_time')
     
     @staticmethod
     def get_patient_schedule(patient, start_date=None, end_date=None):
@@ -441,7 +441,7 @@ class ClinicalSchedulingService:
         
         return queryset.select_related(
             'executed_by', 'rejected_by', 'created_department'
-        ).order_by('scheduled_date', 'scheduled_time')
+        ).order_by('-scheduled_date', 'scheduled_time')
     
     @staticmethod
     def create_schedule_for_recommendation(recommendation, patient, department, start_date, first_time, times_per_day, duration_days, encounter=None):

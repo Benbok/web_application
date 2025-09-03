@@ -42,7 +42,16 @@ def dashboard(request):
     # Базовый queryset
     queryset = ScheduledAppointment.objects.select_related(
         'patient', 'created_department', 'encounter', 'executed_by', 'rejected_by'
-    ).order_by('-scheduled_date', '-scheduled_time')
+    )
+    
+    # Проверяем, есть ли фильтр по дате
+    date_filter = request.GET.get('date_filter')
+    if date_filter == 'today':
+        # Для фильтра "Сегодня" сортируем только по времени
+        queryset = queryset.order_by('scheduled_time')
+    else:
+        # Для остальных случаев сортируем по дате и времени
+        queryset = queryset.order_by('-scheduled_date', 'scheduled_time')
     
     # Применяем фильтры
     if patient_id:

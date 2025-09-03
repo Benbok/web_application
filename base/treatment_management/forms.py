@@ -5,6 +5,47 @@ from .models import TreatmentPlan, TreatmentMedication, TreatmentRecommendation
 from pharmacy.widgets import MedicationSelect2Widget
 
 
+def validate_and_adjust_times_per_day(times_per_day):
+    """
+    Проверяет, делится ли 24 на количество раз в день без остатка.
+    Если нет, возвращает ошибку валидации с рекомендацией.
+    
+    Args:
+        times_per_day (int): Количество раз в день
+        
+    Returns:
+        tuple: (None, ошибка_валидации_или_None)
+    """
+    if times_per_day is None:
+        return None, None
+    
+    # Проверяем, делится ли 24 на количество раз в день
+    if 24 % times_per_day == 0:
+        return None, None
+    
+    # Ищем ближайшее меньшее значение, которое делится на 24
+    adjusted_value = None
+    for i in range(times_per_day - 1, 0, -1):
+        if 24 % i == 0:
+            adjusted_value = i
+            break
+    
+    if adjusted_value:
+        error = _(
+            f'Количество раз в день "{times_per_day}" не позволяет равномерно распределить приемы в течение дня. '
+            f'Рекомендуется использовать "{adjusted_value}" раз(а) в день '
+            f'(каждые {24 // adjusted_value} часов).'
+        )
+        return None, error
+    
+    # Если не найдено подходящее значение
+    error = _(
+        f'Количество раз в день "{times_per_day}" не позволяет равномерно распределить приемы. '
+        f'Рекомендуется использовать значения, которые делят 24 без остатка (1, 2, 3, 4, 6, 8, 12, 24).'
+    )
+    return None, error
+
+
 class ScheduleFieldsMixin:
     """
     Миксин для добавления полей расписания к формам
@@ -230,6 +271,7 @@ class TreatmentMedicationWithScheduleForm(ScheduleFieldsMixin, TreatmentMedicati
     def _initialize_schedule_fields(self):
         """
         Инициализирует поля расписания из существующих данных
+        При редактировании поля остаются пустыми для ввода врачом
         """
         try:
             from clinical_scheduling.models import ScheduledAppointment
@@ -239,43 +281,13 @@ class TreatmentMedicationWithScheduleForm(ScheduleFieldsMixin, TreatmentMedicati
             appointments = ScheduledAppointment.objects.filter(
                 content_type=content_type,
                 object_id=self.instance.pk
-            ).order_by('scheduled_date', 'scheduled_time')
+            ).order_by('-scheduled_date', 'scheduled_time')
             
             if appointments.exists():
-                # Получаем самую раннюю запись для даты и времени начала
-                earliest_appointment = appointments.first()
-                if 'start_date' in self.fields:
-                    self.fields['start_date'].initial = earliest_appointment.scheduled_date
-                if 'first_time' in self.fields:
-                    self.fields['first_time'].initial = earliest_appointment.scheduled_time
+                # При редактировании НЕ заполняем поля автоматически
+                # Врач должен ввести значения вручную
                 
-                # Более точный подсчет количества раз в день
-                # Группируем по дате и считаем количество записей для каждой даты
-                from django.db.models import Count
-                daily_counts = appointments.values('scheduled_date').annotate(
-                    count=Count('id')
-                ).order_by('scheduled_date')
-                
-                # Берем наиболее частое количество раз в день
-                if daily_counts.exists():
-                    # Находим режим (наиболее частое значение)
-                    count_frequency = {}
-                    for daily_count in daily_counts:
-                        count = daily_count['count']
-                        count_frequency[count] = count_frequency.get(count, 0) + 1
-                    
-                    # Берем значение с максимальной частотой
-                    most_common_count = max(count_frequency.items(), key=lambda x: x[1])[0]
-                    if 'times_per_day' in self.fields:
-                        self.fields['times_per_day'].initial = most_common_count
-                
-                # Более точный подсчет длительности в днях
-                # Считаем количество уникальных дат в расписании
-                unique_dates = appointments.values_list('scheduled_date', flat=True).distinct().count()
-                if 'duration_days' in self.fields:
-                    self.fields['duration_days'].initial = unique_dates
-                
-                # Включаем расписание
+                # Включаем расписание, если оно существует
                 if 'enable_schedule' in self.fields:
                     self.fields['enable_schedule'].initial = True
                     
@@ -298,6 +310,13 @@ class TreatmentMedicationWithScheduleForm(ScheduleFieldsMixin, TreatmentMedicati
                 raise forms.ValidationError(
                     _('При включении расписания все поля расписания должны быть заполнены')
                 )
+            
+            # Проверяем количество раз в день
+            if times_per_day:
+                _, error = validate_and_adjust_times_per_day(times_per_day)
+                if error:
+                    # Показываем ошибку валидации
+                    raise forms.ValidationError(error)
             
             # Проверяем разумность параметров
             if times_per_day and duration_days:
@@ -361,6 +380,13 @@ class QuickAddMedicationForm(ScheduleFieldsMixin, TreatmentMedicationForm):
                 raise forms.ValidationError(
                     _('При включении расписания все поля расписания должны быть заполнены')
                 )
+            
+            # Проверяем количество раз в день
+            if times_per_day:
+                _, error = validate_and_adjust_times_per_day(times_per_day)
+                if error:
+                    # Показываем ошибку валидации
+                    raise forms.ValidationError(error)
             
             # Проверяем разумность параметров
             if times_per_day and duration_days:
@@ -426,6 +452,13 @@ class TreatmentRecommendationForm(ScheduleFieldsMixin, forms.ModelForm):
                 raise forms.ValidationError(
                     _('При включении расписания все поля расписания должны быть заполнены')
                 )
+            
+            # Проверяем количество раз в день
+            if times_per_day:
+                _, error = validate_and_adjust_times_per_day(times_per_day)
+                if error:
+                    # Показываем ошибку валидации
+                    raise forms.ValidationError(error)
             
             # Проверяем разумность параметров
             if times_per_day and duration_days:
