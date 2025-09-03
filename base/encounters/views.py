@@ -439,9 +439,22 @@ class EncounterCloseView(LoginRequiredMixin, View):
             # Показываем общее уведомление об ошибках
             messages.error(request, "Пожалуйста, исправьте ошибки в форме закрытия случая")
         
+        # Вычисляем порядковый номер обращения для данного пациента
+        patient_encounters = Encounter.objects.filter(
+            patient=encounter.patient
+        ).order_by('date_start')
+        
+        # Находим позицию текущего обращения в списке обращений пациента
+        encounter_position = 1
+        for i, patient_encounter in enumerate(patient_encounters):
+            if patient_encounter.pk == encounter.pk:
+                encounter_position = i + 1
+                break
+        
         return render(request, 'encounters/close_form.html', {
             'form': form,
             'encounter': encounter,
+            'encounter_number': encounter_position,
             'encounter_service': EncounterService(encounter),
             'main_diagnosis': encounter.diagnoses.filter(diagnosis_type='main').first(),
             'title': 'Закрыть случай'

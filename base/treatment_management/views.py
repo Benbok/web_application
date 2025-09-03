@@ -457,7 +457,7 @@ class TreatmentMedicationDeleteView(LoginRequiredMixin, DeleteView):
 
 class QuickAddMedicationView(LoginRequiredMixin, OwnerContextMixin, CreateView):
     """
-    Быстрое добавление рекомендованного лекарства
+    Быстрое добавление рекомендованного лекарства с поддержкой расписания
     """
     model = TreatmentMedication
     form_class = QuickAddMedicationForm
@@ -484,6 +484,40 @@ class QuickAddMedicationView(LoginRequiredMixin, OwnerContextMixin, CreateView):
     
     def form_valid(self, form):
         form.instance.treatment_plan = self.treatment_plan
+        
+        # Сохраняем лекарство
+        medication = form.save()
+        
+        # Проверяем, включено ли расписание
+        enable_schedule = form.cleaned_data.get('enable_schedule', False)
+        
+        if enable_schedule:
+            # Получаем данные расписания
+            start_date = form.cleaned_data.get('start_date')
+            first_time = form.cleaned_data.get('first_time')
+            times_per_day = form.cleaned_data.get('times_per_day')
+            duration_days = form.cleaned_data.get('duration_days')
+            
+            if all([start_date, first_time, times_per_day, duration_days]):
+                try:
+                    # Создаем расписание сразу
+                    from clinical_scheduling.services import ClinicalSchedulingService
+                    ClinicalSchedulingService.create_schedule_for_assignment(
+                        assignment=medication,
+                        user=self.request.user,
+                        start_date=start_date,
+                        first_time=first_time,
+                        times_per_day=times_per_day,
+                        duration_days=duration_days
+                    )
+                    messages.success(self.request, _('Лекарство и расписание успешно созданы.'))
+                except Exception as e:
+                    messages.warning(self.request, _('Лекарство создано, но возникла ошибка при создании расписания: {}').format(str(e)))
+            else:
+                messages.warning(self.request, _('Лекарство создано, но не все поля расписания заполнены.'))
+        else:
+            messages.success(self.request, _('Лекарство успешно добавлено в план лечения.'))
+        
         return super().form_valid(form)
     
     def get_context_data(self, **kwargs):

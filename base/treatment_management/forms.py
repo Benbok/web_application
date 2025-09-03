@@ -249,9 +249,9 @@ class TreatmentMedicationWithScheduleForm(ScheduleFieldsMixin, TreatmentMedicati
         return cleaned_data
 
 
-class QuickAddMedicationForm(TreatmentMedicationForm):
+class QuickAddMedicationForm(ScheduleFieldsMixin, TreatmentMedicationForm):
     """
-    Форма для быстрого добавления рекомендованного лекарства
+    Форма для быстрого добавления рекомендованного лекарства с поддержкой расписания
     """
     
     def __init__(self, *args, **kwargs):
@@ -275,6 +275,41 @@ class QuickAddMedicationForm(TreatmentMedicationForm):
                 except:
                     # В случае ошибки заполняем как собственное
                     self.fields['custom_medication'].initial = recommended_medication.name
+        
+        # Настраиваем поля расписания для быстрого добавления лекарств
+        if 'start_date' in self.fields:
+            self.fields['start_date'].help_text = _('С какой даты начинать прием лекарства')
+        if 'first_time' in self.fields:
+            self.fields['first_time'].help_text = _('Время первого приема в день')
+        if 'times_per_day' in self.fields:
+            self.fields['times_per_day'].help_text = _('Сколько раз в день принимать лекарство')
+        if 'duration_days' in self.fields:
+            self.fields['duration_days'].help_text = _('На сколько дней планируется курс лечения')
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        enable_schedule = cleaned_data.get('enable_schedule')
+        
+        if enable_schedule:
+            # Проверяем обязательные поля расписания
+            start_date = cleaned_data.get('start_date')
+            first_time = cleaned_data.get('first_time')
+            times_per_day = cleaned_data.get('times_per_day')
+            duration_days = cleaned_data.get('duration_days')
+            
+            if not all([start_date, first_time, times_per_day, duration_days]):
+                raise forms.ValidationError(
+                    _('При включении расписания все поля расписания должны быть заполнены')
+                )
+            
+            # Проверяем разумность параметров
+            if times_per_day and duration_days:
+                if times_per_day * duration_days > 1000:
+                    raise forms.ValidationError(
+                        _('Слишком много записей в расписании. Уменьшите количество приемов в день или длительность курса.')
+                    )
+        
+        return cleaned_data
 
 
 class TreatmentRecommendationForm(ScheduleFieldsMixin, forms.ModelForm):
