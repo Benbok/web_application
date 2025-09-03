@@ -1,0 +1,190 @@
+<div class="accordion-item">
+    <h2 class="accordion-header" id="planHeading{{ object.pk }}">
+        <button class="accordion-button collapsed"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#planCollapse{{ object.pk }}"
+                aria-expanded="false"
+                aria-controls="planCollapse{{ object.pk }}">
+            <div class="d-flex align-items-center justify-content-between w-100">
+                <div class="d-flex align-items-center">
+                    <strong>{{ object.name }}</strong>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="text-muted small me-2">
+                        {{ object.created_at|date:'d.m.Y H:i' }}
+                    </span>
+                    {% if object.is_archived %}
+                        <i class="fas fa-archive text-warning" title="Архивирован"></i>
+                    {% endif %}
+                </div>
+            </div>
+        </button>
+    </h2>
+    <div id="planCollapse{{ object.pk }}"
+         class="accordion-collapse collapse"
+         aria-labelledby="planHeading{{ object.pk }}">
+        <div class="accordion-body">
+            <!-- Список назначений -->
+            {% if object.medications.all %}
+                <h6 class="mb-3">
+                    <i class="fas fa-pills me-2"></i>Назначения ({{ object.medications.count }})
+                </h6>
+                <div class="list-group list-group-flush">
+                    {% for medication in object.medications.all %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">
+                                        {% if medication.medication %}
+                                            {{ medication.medication.name }}
+                                        {% else %}
+                                            {{ medication.custom_medication }}
+                                        {% endif %}
+                                    </h6>
+                                    <div class="row text-muted small">
+                                        {% if medication.dosage %}
+                                            <div class="col-md-3">
+                                                <i class="fas fa-calculator me-1"></i>Доза: {{ medication.dosage }}
+                                            </div>
+                                        {% endif %}
+                                        <div class="col-md-3">
+                                            <i class="fas fa-clock me-1"></i>Частота: 
+                                            {% if medication.get_schedule_frequency_display %}
+                                                {{ medication.get_schedule_frequency_display }}
+                                            {% elif medication.frequency %}
+                                                {{ medication.frequency }}
+                                            {% else %}
+                                                Не указана
+                                            {% endif %}
+                                        </div>
+                                        {% if medication.route %}
+                                            <div class="col-md-3">
+                                                <i class="fas fa-route me-1"></i>Путь: {{ medication.route }}
+                                            </div>
+                                        {% endif %}
+                                        <div class="col-md-3">
+                                            <i class="fas fa-calendar-alt me-1"></i>Курс: 
+                                            {% if medication.get_schedule_duration_display %}
+                                                {{ medication.get_schedule_duration_display }}
+                                            {% elif medication.duration %}
+                                                {{ medication.duration }}
+                                            {% else %}
+                                                Не указан
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="row text-muted small mt-2">
+                                        <div class="col-md-6">
+                                            <i class="fas fa-calendar-plus me-1"></i>Назначено: 
+                                            {% if medication.get_schedule_start_datetime %}
+                                                {{ medication.get_schedule_start_datetime|date:'d.m.Y H:i' }}
+                                            {% else %}
+                                                {{ medication.created_at|date:'d.m.Y H:i' }}
+                                            {% endif %}
+                                        </div>
+                                        {% if medication.completed_at %}
+                                            <div class="col-md-6">
+                                                <i class="fas fa-calendar-check me-1"></i>Завершено: {{ medication.completed_at|date:'d.m.Y H:i' }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    {% if medication.instructions %}
+                                        <div class="mt-2">
+                                            <small class="text-muted">
+                                                <i class="fas fa-sticky-note me-1"></i>{{ medication.instructions }}
+                                            </small>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="ms-3">
+                                    <div class="btn-group-vertical btn-group-sm">
+                                        <a href="{% url 'treatment_management:medication_update' pk=medication.pk %}" 
+                                           class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'treatment_management:medication_delete' pk=medication.pk %}" 
+                                           class="btn btn-outline-danger btn-sm"
+                                           onclick="return confirm('Удалить назначение?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-pills fa-2x mb-3"></i>
+                    <p>Назначения отсутствуют</p>
+                </div>
+            {% endif %}
+
+            <!-- Список рекомендаций -->
+            {% if object.recommendations.all %}
+                <h6 class="mb-3 mt-4">
+                    <i class="fas fa-clipboard-list me-2"></i>Рекомендации ({{ object.recommendations.count }})
+                </h6>
+                <div class="list-group list-group-flush">
+                    {% for recommendation in object.recommendations.all %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="mb-2">
+                                        {{ recommendation.text|linebreaksbr }}
+                                    </div>
+                                    <div class="row text-muted small">
+                                        <div class="col-md-6">
+                                            <i class="fas fa-calendar-plus me-1"></i>Назначено: 
+                                            {% if recommendation.get_schedule_start_datetime %}
+                                                {{ recommendation.get_schedule_start_datetime|date:'d.m.Y H:i' }}
+                                            {% else %}
+                                                {{ recommendation.created_at|date:'d.m.Y H:i' }}
+                                            {% endif %}
+                                        </div>
+                                        {% if recommendation.completed_at %}
+                                            <div class="col-md-6">
+                                                <i class="fas fa-calendar-check me-1"></i>Завершено: {{ recommendation.completed_at|date:'d.m.Y H:i' }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="ms-3">
+                                    <div class="btn-group-vertical btn-group-sm">
+                                        <a href="{% url 'treatment_management:recommendation_update' pk=recommendation.pk %}" 
+                                           class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'treatment_management:recommendation_delete' pk=recommendation.pk %}" 
+                                           class="btn btn-outline-danger btn-sm"
+                                           onclick="return confirm('Удалить рекомендацию?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-clipboard-list fa-2x mb-3"></i>
+                    <p>Рекомендации отсутствуют</p>
+                </div>
+            {% endif %}
+
+            <!-- Кнопки действий -->
+            <div class="d-flex gap-2 mt-4">
+                <a href="{% url 'treatment_management:medication_create' plan_pk=object.pk %}" 
+                   class="btn btn-success btn-sm">
+                    <i class="fas fa-plus me-1"></i>Добавить назначение
+                </a>
+                <a href="{% url 'treatment_management:recommendation_create' plan_pk=object.pk %}" 
+                   class="btn btn-info btn-sm text-dark">
+                    <i class="fas fa-plus me-1"></i>Добавить рекомендацию
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

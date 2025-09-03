@@ -1,12 +1,9 @@
 {% extends 'patients/base.html' %}
 {% load static %}
+{% load widget_tweaks %}
 
-{% block title %}
-    {{ title }}
-{% endblock %}
-{% block page_title %}
-    {{ title }}
-{% endblock %}
+{% block title %}История пациента {{ patient_status.patient.get_full_name_with_age }} | МедКарт{% endblock %}
+{% block page_title %}История пациента{% endblock %}
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'departments/css/patient_history_redesign.css' %}">
@@ -15,9 +12,9 @@
 {% block extra_js %}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Получаем все ссылки навигации
-            const navLinks = document.querySelectorAll('.side-nav .list-group-item');
-            const sections = document.querySelectorAll('[id$="-notes"], [id$="-assignments"], [id$="-plans"]');
+                         // Получаем все ссылки навигации
+             const navLinks = document.querySelectorAll('.side-nav .list-group-item');
+             const sections = document.querySelectorAll('#documents, #treatment-plans, #examination-plans');
             
             // Функция для определения активной секции
             function updateActiveNav() {
@@ -104,1038 +101,771 @@
 {% endblock %}
 
 {% block content %}
-    <div class="container-fluid mt-4">
-        <!-- Шапка страницы (закрепленная) -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card shadow-sm">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="fas fa-user me-2"></i>Характеристики пациента
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h3 class="mb-0">{{ title }}</h3>
-                            <div>
-                                <a href="{% url 'clinical_scheduling:dashboard' %}?patient_id={{ patient_status.patient.pk }}&department_id={{ patient_status.department.pk }}"
-                                   class="btn btn-info me-2">
-                                    <i class="fas fa-calendar-alt me-1"></i> Лист назначений
-                                </a>
-                                <a href="{% url 'departments:department_detail' patient_status.department.pk %}"
-                                   class="btn btn-outline-secondary">
-                                    <i class="fas fa-arrow-left me-1"></i> К отделению
-                                </a>
-                            </div>
-                        </div>
-
-                        <!-- Основные сведения о размещении -->
-                        <div class="row">
-                            <div class="col-12">
-                                <ul class="list-group list-group-flush">
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <strong>Пациент:</strong>
-                                            <a href="{% url 'patients:patient_detail' patient_status.patient.pk %}">{{ patient_status.patient.get_full_name_with_age }}</a>
-                                        </div>
-                                    </li>
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <strong>Отделение:</strong> {{ patient_status.department.name }}
-                                        </div>
-                                    </li>
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <strong>Дата поступления:</strong>
-                                            {% if patient_status.acceptance_date %}
-                                                {{ patient_status.acceptance_date|date:'d.m.Y H:i' }}
-                                            {% else %}
-                                                <span class="text-muted">—</span>
-                                            {% endif %}
-                                        </div>
-                                        <a href="{% url 'departments:patient_accept_form' pk=patient_status.pk %}?next={{ request.get_full_path|urlencode }}" 
-                                           class="btn btn-sm btn-outline-secondary" title="Редактировать дату принятия">
-                                            <i class="fas fa-calendar-alt"></i>
-                                        </a>
-                                    </li>
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <strong>Дата выписки:</strong>
-                                            {% if patient_status.discharge_date %}
-                                                {{ patient_status.discharge_date|date:'d.m.Y H:i' }}
-                                            {% else %}
-                                                <span class="text-muted">—</span>
-                                            {% endif %}
-                                        </div>
-                                    </li>
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <strong>Статус:</strong> {{ patient_status.get_status_display }}
-                                        </div>
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
+<div class="history-container">
+    <!-- Шапка страницы с информацией о пациенте -->
+    <div class="card mt-4" style="z-index: 2;">
+        <div class="card-body position-relative">
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h4 class="card-title mb-2">
+                        <i class="fas fa-user me-2"></i>{{ patient_status.patient.get_full_name_with_age }}
+                    </h4>
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-hospital me-2"></i>{{ patient_status.department.name }}
+                    </p>
                 </div>
-            </div>
-        </div>
-
-        <!-- Сворачиваемая панель фильтров -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-light">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0">
-                                <i class="fas fa-filter me-2"></i>Фильтры
-                                {% if request.GET.start_date or request.GET.end_date or request.GET.author or request.GET.document_type or request.GET.search_query %}
-                                    <span class="filter-indicator"></span>
-                                    <span class="filter-badge">Фильтр</span>
-                                {% endif %}
-                            </h6>
-                            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
-                                <i class="fas fa-chevron-down"></i>
-                            </button>
-                        </div>
+                <div class="btn-toolbar" role="toolbar">
+                    <div class="btn-group me-2" role="group">
+                        <a href="{% url 'clinical_scheduling:dashboard' %}?patient_id={{ patient_status.patient.pk }}&department_id={{ patient_status.department.pk }}"
+                           class="btn btn-primary">
+                            <i class="fas fa-calendar-alt me-1"></i>Лист назначений
+                        </a>
                     </div>
-                    <div class="collapse" id="filterCollapse">
-                        <div class="card-body">
-                            <form method="get" class="row g-3">
-                                <div class="col-md-2">
-                                    <label for="{{ filter_form.start_date.id_for_label }}" class="form-label">{{ filter_form.start_date.label }}</label>
-                                    {{ filter_form.start_date }}
-                                </div>
-                                <div class="col-md-2">
-                                    <label for="{{ filter_form.end_date.id_for_label }}" class="form-label">{{ filter_form.end_date.label }}</label>
-                                    {{ filter_form.end_date }}
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="{{ filter_form.author.id_for_label }}" class="form-label">{{ filter_form.author.label }}</label>
-                                    {{ filter_form.author }}
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="{{ filter_form.document_type.id_for_label }}" class="form-label">{{ filter_form.document_type.label }}</label>
-                                    {{ filter_form.document_type }}
-                                </div>
-                                <div class="col-md-2">
-                                    <label for="{{ filter_form.search_query.id_for_label }}" class="form-label">{{ filter_form.search_query.label }}</label>
-                                    {{ filter_form.search_query }}
-                                </div>
-                                <div class="col-12">
-                                    <button type="submit" class="btn btn-primary me-2">
-                                        <i class="fas fa-search me-1"></i>Применить фильтр
-                                    </button>
-                                    <a href="{% url 'departments:patient_history' patient_status.pk %}" class="btn btn-secondary">
-                                        <i class="fas fa-times me-1"></i>Сбросить
-                                    </a>
-                                </div>
-                            </form>
-                            
-                            <!-- Сводка активных фильтров -->
-                            {% if request.GET.start_date or request.GET.end_date or request.GET.author or request.GET.document_type or request.GET.search_query %}
-                                <div class="filter-summary">
-                                    <h6 class="mb-2"><i class="fas fa-info-circle me-1"></i>Активные фильтры:</h6>
-                                    {% if request.GET.start_date %}
-                                        <span class="badge bg-primary">
-                                            <i class="fas fa-calendar me-1"></i>От: {{ request.GET.start_date }}
-                                            <a href="?{% for key, value in request.GET.items %}{% if key != 'start_date' %}{{ key }}={{ value }}{% if not forloop.last %}&{% endif %}{% endif %}{% endfor %}" class="remove-filter" title="Убрать фильтр">
-                                                <i class="fas fa-times"></i>
-                                            </a>
-                                        </span>
-                                    {% endif %}
-                                    {% if request.GET.end_date %}
-                                        <span class="badge bg-primary">
-                                            <i class="fas fa-calendar me-1"></i>До: {{ request.GET.end_date }}
-                                            <a href="?{% for key, value in request.GET.items %}{% if key != 'end_date' %}{{ key }}={{ value }}{% if not forloop.last %}&{% endif %}{% endif %}{% endfor %}" class="remove-filter" title="Убрать фильтр">
-                                                <i class="fas fa-times"></i>
-                                            </a>
-                                        </span>
-                                    {% endif %}
-                                    {% if request.GET.author %}
-                                        <span class="badge bg-success">
-                                            <i class="fas fa-user me-1"></i>Автор: {{ request.GET.author }}
-                                            <a href="?{% for key, value in request.GET.items %}{% if key != 'author' %}{{ key }}={{ value }}{% if not forloop.last %}&{% endif %}{% endif %}{% endfor %}" class="remove-filter" title="Убрать фильтр">
-                                                <i class="fas fa-times"></i>
-                                            </a>
-                                        </span>
-                                    {% endif %}
-                                    {% if request.GET.document_type %}
-                                        <span class="badge bg-info">
-                                            <i class="fas fa-file me-1"></i>Тип: {{ request.GET.document_type }}
-                                            <a href="?{% for key, value in request.GET.items %}{% if key != 'document_type' %}{{ key }}={{ value }}{% if not forloop.last %}&{% endif %}{% endif %}{% endfor %}" class="remove-filter" title="Убрать фильтр">
-                                                <i class="fas fa-times"></i>
-                                            </a>
-                                        </span>
-                                    {% endif %}
-                                    {% if request.GET.search_query %}
-                                        <span class="badge bg-warning text-dark">
-                                            <i class="fas fa-search me-1"></i>Поиск: "{{ request.GET.search_query }}"
-                                            <a href="?{% for key, value in request.GET.items %}{% if key != 'search_query' %}{{ key }}={{ value }}{% if not forloop.last %}&{% endif %}{% endif %}{% endfor %}" class="remove-filter" title="Убрать фильтр">
-                                                <i class="fas fa-times"></i>
-                                            </a>
-                                        </span>
-                                    {% endif %}
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Боковое меню быстрых ссылок -->
-        <div class="row">
-            <div class="col-md-3">
-                <div class="card shadow-sm sticky-top" style="top: 2rem;">
-                    <div class="section-title">
-                        <h6 class="mb-0">
-                            <i class="fas fa-list me-2"></i>Быстрая навигация
-                            {% if request.GET.start_date or request.GET.end_date or request.GET.author or request.GET.document_type or request.GET.search_query %}
-                                <span class="filter-badge">Фильтр</span>
-                            {% endif %}
-                        </h6>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="list-group side-nav list-group-flush">
-                            <a href="#daily-notes" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" 
-                               data-section="daily-notes" title="Перейти к дневниковым записям">
-                                <span class="d-flex align-items-center">
-                                    <i class="fas fa-sticky-note"></i>
-                                    <span class="ms-2">Дневниковые записи</span>
-                                </span>
-                                {% if documents_page_obj %}
-                                    <span class="badge bg-primary rounded-pill">{{ documents_page_obj.paginator.count }}</span>
-                                {% else %}
-                                    <span class="badge bg-secondary rounded-pill">0</span>
-                                {% endif %}
-                            </a>
-                            <a href="#medication-assignments" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-                               data-section="medication-assignments" title="Перейти к назначениям препаратов">
-                                <span class="d-flex align-items-center">
-                                    <i class="fas fa-pills"></i>
-                                    <span class="ms-2">Назначения: Препараты</span>
-                                </span>
-                                {% if treatment_medications_page_obj %}
-                                    <span class="badge bg-success rounded-pill">{{ treatment_medications_page_obj.paginator.count }}</span>
-                                {% else %}
-                                    <span class="badge bg-secondary rounded-pill">0</span>
-                                {% endif %}
-                            </a>
-                            <a href="#treatment-plans" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-                               data-section="treatment-plans" title="Перейти к планам лечения">
-                                <span class="d-flex align-items-center">
-                                    <i class="fas fa-clipboard-list"></i>
-                                    <span class="ms-2">Планы лечения</span>
-                                </span>
-                                {% if treatment_plans_page_obj %}
-                                    <span class="badge bg-purple rounded-pill">{{ treatment_plans_page_obj.paginator.count }}</span>
-                                {% else %}
-                                    <span class="badge bg-secondary rounded-pill">0</span>
-                                {% endif %}
-                            </a>
-                            <a href="#examination-plans" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-                               data-section="examination-plans" title="Перейти к планам обследования">
-                                <span class="d-flex align-items-center">
-                                    <i class="fas fa-stethoscope"></i>
-                                    <span class="ms-2">Планы обследования</span>
-                                </span>
-                                {% if examination_plans_page_obj %}
-                                    <span class="badge bg-warning rounded-pill">{{ examination_plans_page_obj.paginator.count }}</span>
-                                {% else %}
-                                    <span class="badge bg-secondary rounded-pill">0</span>
-                                {% endif %}
-                            </a>
-                            <a href="#general-assignments" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-                               data-section="general-assignments" title="Перейти к общим назначениям">
-                                <span class="d-flex align-items-center">
-                                    <i class="fas fa-tasks"></i>
-                                    <span class="ms-2">Назначения: Общие</span>
-                                </span>
-                                {% if general_treatment_assignments_page_obj %}
-                                    <span class="badge bg-info rounded-pill">{{ general_treatment_assignments_page_obj.paginator.count }}</span>
-                                {% else %}
-                                    <span class="badge bg-secondary rounded-pill">0</span>
-                                {% endif %}
-                            </a>
-                            <a href="#lab-assignments" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-                               data-section="lab-assignments" title="Перейти к лабораторным назначениям">
-                                <span class="d-flex align-items-center">
-                                    <i class="fas fa-flask"></i>
-                                    <span class="ms-2">Назначения: Лабораторные</span>
-                                </span>
-                                {% if lab_test_assignments_page_obj %}
-                                    <span class="badge bg-orange rounded-pill">{{ lab_test_assignments_page_obj.paginator.count }}</span>
-                                {% else %}
-                                    <span class="badge bg-secondary rounded-pill">0</span>
-                                {% endif %}
-                            </a>
-                            <a href="#instrumental-assignments" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-                               data-section="instrumental-assignments" title="Перейти к инструментальным назначениям">
-                                <span class="d-flex align-items-center">
-                                    <i class="fas fa-x-ray"></i>
-                                    <span class="ms-2">Назначения: Инструментальные</span>
-                                </span>
-                                {% if instrumental_procedure_assignments_page_obj %}
-                                    <span class="badge bg-cyan rounded-pill">{{ instrumental_procedure_assignments_page_obj.paginator.count }}</span>
-                                {% else %}
-                                    <span class="badge bg-secondary rounded-pill">0</span>
-                                {% endif %}
-                            </a>
-                        </div>
-                        
-                        <!-- Информация о фильтрах -->
-                        {% if request.GET.start_date or request.GET.end_date or request.GET.author or request.GET.document_type or request.GET.search_query %}
-                            <div class="p-3 border-top">
-                                <small class="text-muted">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    <strong>Внимание:</strong> Отображаются отфильтрованные данные
-                                </small>
-                                <div class="mt-2">
-                                    <a href="{% url 'departments:patient_history' patient_status.pk %}" class="btn btn-sm btn-outline-warning w-100">
-                                        <i class="fas fa-times me-1"></i>Сбросить фильтры
-                                    </a>
-                                </div>
-                            </div>
-                        {% endif %}
+                    <div class="btn-group" role="group">
+                        <a href="{% url 'departments:department_detail' patient_status.department.pk %}"
+                           class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>К отделению
+                        </a>
                     </div>
                 </div>
             </div>
 
-            <!-- Основная лента истории -->
-            <div class="col-md-9">
-                <!-- Дневниковые записи -->
-                <div id="daily-notes" class="card mb-4 shadow-sm">
-                    <div class="card-header">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">
-                                <i class="fas fa-sticky-note me-2"></i>Дневниковые записи
-                            </h5>
-                            <div class="d-flex gap-2">
-                                <a href="{% url 'documents:document_type_selection' model_name='patientdepartmentstatus' object_id=patient_status.pk %}?department_slug={{ patient_status.department.slug }}&next={{ request.get_full_path|urlencode }}" class="btn btn-light btn-sm">
-                                    <i class="fas fa-plus me-1"></i>Создать запись
-                                </a>
-                                <span class="badge bg-primary">{{ documents_page_obj.paginator.count }}</span>
-                            </div>
+            <!-- Информация о размещении -->
+            <div class="form-section">
+                <h5 class="section-title">
+                    <i class="fas fa-info-circle me-2"></i>Информация о размещении
+                </h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="info-item">
+                            <span class="info-label">Пациент:</span>
+                            <a href="{% url 'patients:patient_detail' patient_status.patient.pk %}" class="text-decoration-none">
+                                {{ patient_status.patient.get_full_name_with_age }}
+                            </a>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Отделение:</span>
+                            <span class="badge bg-primary">{{ patient_status.department.name }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Статус:</span>
+                            <span class="badge bg-success">{{ patient_status.get_status_display }}</span>
                         </div>
                     </div>
-                    <div class="card-body">
-                        {% if documents_page_obj %}
-                            <div class="accordion" id="dailyNotesAccordion">
-                                {% for doc in documents_page_obj %}
-                                    {% include 'departments/partials/note_accordion_item.html' with object=doc %}
-                                {% endfor %}
-                            </div>
-
-                            <!-- Пагинация -->
-                            <nav aria-label="Навигация по дневникам" class="mt-3">
-                                <ul class="pagination justify-content-center">
-                                    {% if documents_page_obj.has_previous %}
-                                        <li class="page-item">
-                                            <a class="page-link" href="?documents_page={{ documents_page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'documents_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                                <i class="fas fa-chevron-left me-1"></i>Предыдущая
-                                            </a>
-                                        </li>
-                                    {% else %}
-                                        <li class="page-item disabled">
-                                            <span class="page-link">Предыдущая</span>
-                                        </li>
-                                    {% endif %}
-
-                                    {% for i in documents_page_obj.paginator.page_range %}
-                                        {% if documents_page_obj.number == i %}
-                                            <li class="page-item active">
-                                                <span class="page-link">{{ i }}</span>
-                                            </li>
-                                        {% else %}
-                                            <li class="page-item">
-                                                <a class="page-link" href="?documents_page={{ i }}{% for key, value in request.GET.items %}{% if key != 'documents_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                                    {{ i }}
-                                                </a>
-                                            </li>
-                                        {% endif %}
-                                    {% endfor %}
-
-                                    {% if documents_page_obj.has_next %}
-                                        <li class="page-item">
-                                            <a class="page-link" href="?documents_page={{ documents_page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'documents_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                                Следующая<i class="fas fa-chevron-right ms-1"></i>
-                                            </a>
-                                        </li>
-                                    {% else %}
-                                        <li class="page-item disabled">
-                                            <span class="page-link">Следующая</span>
-                                        </li>
-                                    {% endif %}
-                                </ul>
-                            </nav>
-                        {% else %}
-                            <div class="text-center py-4">
-                                <i class="fas fa-sticky-note fa-3x text-muted mb-3"></i>
-                                <p class="text-muted">Нет дневниковых записей для отображения по заданным фильтрам.</p>
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <hr class="my-5">
-
-                <!-- Назначения: Препараты -->
-                <div id="medication-assignments" class="card mb-4 shadow-sm">
-                    <div class="card-header">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">
-                                <i class="fas fa-pills me-2"></i>Назначения: Препараты (из планов лечения)
-                            </h5>
-                            <div class="d-flex gap-2">
-                                <a href="{% url 'treatment_management:plan_create' owner_model='patientdepartmentstatus' owner_id=patient_status.pk %}" class="btn btn-light btn-sm">
-                                    <i class="fas fa-plus me-1"></i>Создать план лечения
-                                </a>
-                                <a href="{% url 'treatment_management:plan_list' owner_model='patientdepartmentstatus' owner_id=patient_status.pk %}" class="btn btn-outline-light btn-sm">
-                                    <i class="fas fa-list me-1"></i>Все планы
-                                </a>
-                                <span class="badge bg-primary">{{ treatment_medications_page_obj.paginator.count }}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <!-- Препараты из планов лечения -->
-                        {% if treatment_medications_page_obj %}
-                            <div class="mb-4">
-                                <h6 class="text-success mb-3">
-                                    <i class="fas fa-clipboard-list me-2"></i>Препараты из планов лечения
-                                    {% if treatment_medications_page_obj %}
-                                        <span class="badge bg-success text-white ms-2">{{ treatment_medications_page_obj.paginator.count }}</span>
-                                    {% endif %}
-                                </h6>
-                                <div class="row">
-                                    {% for medication_data in treatment_medications_page_obj %}
-                                        <div class="col-md-6 col-lg-4 mb-3">
-                                            <div class="card border-success h-100">
-                                                <div class="card-header py-2">
-                                                    <h6 class="mb-0">
-                                                        {% if medication_data.medication.medication %}
-                                                            {{ medication_data.medication.medication.name }}
-                                                        {% else %}
-                                                            {{ medication_data.medication.custom_medication }}
-                                                        {% endif %}
-                                                    </h6>
-                                                </div>
-                                                <div class="card-body py-2">
-                                                    <div class="row g-2">
-                                                        <div class="col-6">
-                                                            <small class="text-muted">Дозировка:</small><br>
-                                                            <strong>{{ medication_data.medication.dosage|default:"-" }}</strong>
-                                                        </div>
-                                                        <div class="col-6">
-                                                            <small class="text-muted">Частота:</small><br>
-                                                            <strong>{{ medication_data.medication.frequency|default:"-" }}</strong>
-                                                        </div>
-                                                        <div class="col-6">
-                                                            <small class="text-muted">Способ:</small><br>
-                                                            <strong>{{ medication_data.medication.get_route_display_name|default:"-" }}</strong>
-                                                        </div>
-                                                        <div class="col-6">
-                                                            <small class="text-muted">Длительность:</small><br>
-                                                            <strong>{{ medication_data.medication.duration|default:"-" }}</strong>
-                                                        </div>
-                                                    </div>
-                                                    {% if medication_data.medication.instructions %}
-                                                        <div class="mt-2">
-                                                            <small class="text-muted">Особые указания:</small><br>
-                                                            <small>{{ medication_data.medication.instructions|linebreaksbr }}</small>
-                                                        </div>
-                                                    {% endif %}
-                                                </div>
-                                                <div class="card-footer bg-light py-2">
-                                                    <small class="text-muted">
-                                                        План: {{ medication_data.plan.name }}
-                                                    </small>
-                                                    <div class="mt-1">
-                                                        <a href="{% url 'treatment_management:plan_detail' 'patientdepartmentstatus' patient_status.pk medication_data.plan.pk %}" 
-                                                           class="btn btn-sm btn-outline-success">
-                                                            <i class="fas fa-eye me-1"></i> Просмотр плана
-                                                        </a>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    {% endfor %}
-                                </div>
-                                
-                                <!-- Пагинация для препаратов из планов лечения -->
-                                {% if treatment_medications_page_obj.has_other_pages %}
-                                    <nav aria-label="Навигация по препаратам из планов лечения" class="mt-3">
-                                        <ul class="pagination justify-content-center">
-                                            {% if treatment_medications_page_obj.has_previous %}
-                                                <li class="page-item">
-                                                    <a class="page-link" href="?treatment_medications_page={{ treatment_medications_page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'treatment_medications_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                                        <i class="fas fa-chevron-left me-1"></i>Предыдущая
-                                                    </a>
-                                                </li>
-                                            {% else %}
-                                                <li class="page-item disabled">
-                                                    <span class="page-link">Предыдущая</span>
-                                                </li>
-                                            {% endif %}
-
-                                            {% for i in treatment_medications_page_obj.paginator.page_range %}
-                                                {% if treatment_medications_page_obj.number == i %}
-                                                    <li class="page-item active">
-                                                        <span class="page-link">{{ i }}</span>
-                                                    </li>
-                                                {% else %}
-                                                    <li class="page-item">
-                                                        <a class="page-link" href="?treatment_medications_page={{ i }}{% for key, value in request.GET.items %}{% if key != 'treatment_medications_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                                            {{ i }}
-                                                        </a>
-                                                    </li>
-                                                {% endif %}
-                                            {% endfor %}
-
-                                            {% if treatment_medications_page_obj.has_next %}
-                                                <li class="page-item">
-                                                    <a class="page-link" href="?treatment_medications_page={{ treatment_medications_page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'treatment_medications_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                                        Следующая<i class="fas fa-chevron-right ms-1"></i>
-                                                    </a>
-                                                </li>
-                                            {% else %}
-                                                <li class="page-item disabled">
-                                                    <span class="page-link">Следующая</span>
-                                                </li>
-                                            {% endif %}
-                                        </ul>
-                                    </nav>
-                                {% endif %}
-                            </div>
-                        {% endif %}
-
-                        <!-- Сообщение если нет назначений -->
-                        {% if not treatment_medications_page_obj %}
-                            <div class="text-center py-4">
-                                <i class="fas fa-pills fa-3x text-muted mb-3"></i>
-                                <p class="text-muted">Нет назначений препаратов для отображения по заданным фильтрам.</p>
-                                <div class="mt-3">
-                                    <a href="{% url 'treatment_management:plan_create' 'patientdepartmentstatus' patient_status.pk %}" 
-                                       class="btn btn-success me-2">
-                                        <i class="fas fa-clipboard-list me-1"></i> Создать план лечения
-                                    </a>
-                                    <a href="{% url 'treatment_management:plan_list' 'patientdepartmentstatus' patient_status.pk %}" 
-                                       class="btn btn-primary">
-                                        <i class="fas fa-list me-1"></i> Просмотреть планы
-                                    </a>
-                                </div>
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <hr class="my-5">
-
-                                 <!-- Планы лечения -->
-                 <div class="card shadow-sm mb-4">
-                     <div class="card-header">
-                         <div class="d-flex justify-content-between align-items-center">
-                             <h5 class="mb-0">
-                                 <i class="fas fa-clipboard-list me-2"></i>Планы лечения
-                             </h5>
-                             <div class="d-flex gap-2">
-                                 <a href="{% url 'treatment_management:plan_create' owner_model='patientdepartmentstatus' owner_id=patient_status.pk %}" class="btn btn-light btn-sm">
-                                     <i class="fas fa-plus me-1"></i>Создать план
-                                 </a>
-                                 <a href="{% url 'treatment_management:plan_list' owner_model='patientdepartmentstatus' owner_id=patient_status.pk %}" class="btn btn-outline-light btn-sm">
-                                     <i class="fas fa-list me-1"></i>Все планы
-                                 </a>
-                                 <span class="badge bg-primary">{{ treatment_plans_page_obj.paginator.count }}</span>
-                             </div>
-                         </div>
-                     </div>
-                    <div class="card-body">
-                        {% if treatment_plans_page_obj %}
-                            <div class="list-group list-group-flush">
-                                {% for plan in treatment_plans_page_obj %}
-                                <div class="list-group-item d-flex justify-content-between align-items-start">
-                                    <div class="flex-grow-1">
-                                        <h6 class="mb-1">
-                                            <a href="{% url 'treatment_management:plan_detail' owner_model='patientdepartmentstatus' owner_id=patient_status.pk pk=plan.pk %}" class="text-decoration-none">
-                                                {{ plan.name }}
-                                            </a>
-                                        </h6>
-                                        {% if plan.description %}
-                                            <p class="mb-1 text-muted small">{{ plan.description|truncatewords:20 }}</p>
-                                        {% endif %}
-                                        <small class="text-muted">
-                                            <i class="fas fa-calendar me-1"></i>{{ plan.created_at|date:"d.m.Y H:i" }}
-                                            {% if plan.medications.exists %}
-                                                | <i class="fas fa-pills me-1"></i>{{ plan.medications.count }} препаратов
-                                            {% endif %}
-                                        </small>
-                                    </div>
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <a href="{% url 'treatment_management:plan_detail' owner_model='patientdepartmentstatus' owner_id=patient_status.pk pk=plan.pk %}" class="btn btn-outline-primary btn-sm">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <a href="{% url 'treatment_management:plan_update' owner_model='patientdepartmentstatus' owner_id=patient_status.pk pk=plan.pk %}" class="btn btn-outline-warning btn-sm">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            </div>
-                            
-                            <!-- Пагинация для планов лечения -->
-                            {% if treatment_plans_page_obj.has_other_pages %}
-                                <nav aria-label="Пагинация планов лечения" class="mt-3">
-                                    <ul class="pagination pagination-sm justify-content-center">
-                                        {% if treatment_plans_page_obj.has_previous %}
-                                            <li class="page-item">
-                                                <a class="page-link" href="?treatment_plans_page={{ treatment_plans_page_obj.previous_page_number }}&{{ request.GET.urlencode|cut:'treatment_plans_page='|cut:'&' }}">Предыдущая</a>
-                                            </li>
-                                        {% endif %}
-                                        
-                                        {% for num in treatment_plans_page_obj.paginator.page_range %}
-                                            {% if treatment_plans_page_obj.number == num %}
-                                                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                                            {% elif num > treatment_plans_page_obj.number|add:'-3' and num < treatment_plans_page_obj.number|add:'3' %}
-                                                <li class="page-item">
-                                                    <a class="page-link" href="?treatment_plans_page={{ num }}&{{ request.GET.urlencode|cut:'treatment_plans_page='|cut:'&' }}">{{ num }}</a>
-                                                </li>
-                                            {% endif %}
-                                        {% endfor %}
-                                        
-                                        {% if treatment_plans_page_obj.has_next %}
-                                            <li class="page-item">
-                                                <a class="page-link" href="?treatment_plans_page={{ treatment_plans_page_obj.next_page_number }}&{{ request.GET.urlencode|cut:'treatment_plans_page='|cut:'&' }}">Следующая</a>
-                                            </li>
-                                        {% endif %}
-                                    </ul>
-                                </nav>
+                    <div class="col-md-6">
+                        <div class="info-item">
+                            <span class="info-label">Дата поступления:</span>
+                            {% if patient_status.acceptance_date %}
+                                {{ patient_status.acceptance_date|date:'d.m.Y H:i' }}
+                            {% else %}
+                                <span class="text-muted">Не указана</span>
                             {% endif %}
-                        {% else %}
-                            <div class="text-center py-4">
-                                <i class="fas fa-clipboard-list fa-2x text-muted mb-2"></i>
-                                <h6 class="text-muted">Планы лечения не найдены</h6>
-                                <p class="text-muted small">Создайте первый план лечения для пациента</p>
-                                <a href="{% url 'treatment_management:plan_create' owner_model='patientdepartmentstatus' owner_id=patient_status.pk %}" class="btn btn-info btn-sm">
-                                    <i class="fas fa-plus me-1"></i>Создать план лечения
-                                </a>
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                                 <!-- Планы обследования -->
-                 <div id="examination-plans" class="card shadow-sm mb-4">
-                     <div class="card-header">
-                         <div class="d-flex justify-content-between align-items-center">
-                             <h5 class="mb-0">
-                                 <i class="fas fa-microscope me-2"></i>Планы обследования
-                             </h5>
-                             <div class="d-flex gap-2">
-                                 <a href="{% url 'examination_management:plan_create' owner_model='patientdepartmentstatus' owner_id=patient_status.pk %}" class="btn btn-light btn-sm">
-                                     <i class="fas fa-plus me-1"></i>Создать план
-                                 </a>
-                                 <a href="{% url 'examination_management:plan_list' owner_model='patientdepartmentstatus' owner_id=patient_status.pk %}" class="btn btn-outline-dark btn-sm">
-                                     <i class="fas fa-list me-1"></i>Все планы
-                                 </a>
-                                 <span class="badge bg-primary">{{ examination_plans_page_obj.paginator.count }}</span>
-                             </div>
-                         </div>
-                     </div>
-                    <div class="card-body">
-                        {% if examination_plans_page_obj %}
-                            <div class="list-group list-group-flush">
-                                {% for plan in examination_plans_page_obj %}
-                                <div class="list-group-item d-flex justify-content-between align-items-start">
-                                    <div class="flex-grow-1">
-                                        <h6 class="mb-1">
-                                            <a href="{% url 'examination_management:plan_detail' owner_model='patientdepartmentstatus' owner_id=patient_status.pk pk=plan.pk %}" class="text-decoration-none">
-                                                {{ plan.name }}
-                                            </a>
-                                        </h6>
-                                        {% if plan.description %}
-                                            <p class="mb-1 text-muted small">{{ plan.description|truncatewords:20 }}</p>
-                                        {% endif %}
-                                        <small class="text-muted">
-                                            <i class="fas fa-calendar me-1"></i>{{ plan.created_at|date:"d.m.Y H:i" }}
-                                            {% if plan.lab_tests.exists %}
-                                                | <i class="fas fa-flask me-1"></i>{{ plan.lab_tests.count }} лабораторных
-                                            {% endif %}
-                                            {% if plan.instrumental_procedures.exists %}
-                                                | <i class="fas fa-stethoscope me-1"></i>{{ plan.instrumental_procedures.count }} инструментальных
-                                            {% endif %}
-                                        </small>
-                                    </div>
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <a href="{% url 'examination_management:plan_detail' owner_model='patientdepartmentstatus' owner_id=patient_status.pk pk=plan.pk %}" class="btn btn-outline-primary btn-sm">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            </div>
-                            
-                            <!-- Пагинация для планов обследования -->
-                            {% if examination_plans_page_obj.has_other_pages %}
-                                <nav aria-label="Пагинация планов обследования" class="mt-3">
-                                    <ul class="pagination pagination-sm justify-content-center">
-                                        {% if examination_plans_page_obj.has_previous %}
-                                            <li class="page-item">
-                                                <a class="page-link" href="?examination_plans_page={{ examination_plans_page_obj.previous_page_number }}&{{ request.GET.urlencode|cut:'examination_plans_page='|cut:'&' }}">Предыдущая</a>
-                                            </li>
-                                        {% endif %}
-                                        
-                                        {% for num in examination_plans_page_obj.paginator.page_range %}
-                                            {% if examination_plans_page_obj.number == num %}
-                                                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                                            {% elif num > examination_plans_page_obj.number|add:'-3' and num < examination_plans_page_obj.number|add:'3' %}
-                                                <li class="page-item">
-                                                    <a class="page-link" href="?examination_plans_page={{ num }}&{{ request.GET.urlencode|cut:'examination_plans_page='|cut:'&' }}">{{ num }}</a>
-                                                </li>
-                                            {% endif %}
-                                        {% endfor %}
-                                        
-                                        {% if examination_plans_page_obj.has_next %}
-                                            <li class="page-item">
-                                                <a class="page-link" href="?examination_plans_page={{ examination_plans_page_obj.next_page_number }}&{{ request.GET.urlencode|cut:'examination_plans_page='|cut:'&' }}">Следующая</a>
-                                            </li>
-                                        {% endif %}
-                                    </ul>
-                                </nav>
+                            <a href="{% url 'departments:patient_accept_form' pk=patient_status.pk %}?next={{ request.get_full_path|urlencode }}" 
+                               class="btn btn-sm btn-outline-secondary ms-2" title="Редактировать дату принятия">
+                                <i class="fas fa-calendar-alt"></i>
+                            </a>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Дата выписки:</span>
+                            {% if patient_status.discharge_date %}
+                                {{ patient_status.discharge_date|date:'d.m.Y H:i' }}
+                            {% else %}
+                                <span class="text-muted">Не указана</span>
                             {% endif %}
-                        {% else %}
-                            <div class="text-center py-4">
-                                <i class="fas fa-stethoscope fa-2x text-muted mb-2"></i>
-                                <h6 class="text-muted">Планы обследования не найдены</h6>
-                                <p class="text-muted small">Создайте первый план обследования для пациента</p>
-                                <a href="{% url 'examination_management:plan_create' owner_model='patientdepartmentstatus' owner_id=patient_status.pk %}" class="btn btn-warning btn-sm">
-                                    <i class="fas fa-plus me-1"></i>Создать план обследования
-                                </a>
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <hr class="my-5">
-
-                <!-- Общие назначения -->
-                <div id="general-treatment-assignments" class="card mb-4 shadow-sm">
-                    <div class="card-header">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">
-                                <i class="fas fa-procedures me-2"></i>Общие назначения
-                            </h5>
                         </div>
-                    </div>
-                    <div class="card-body">
-                        {% if general_treatment_assignments_page_obj %}
-                            <div class="accordion" id="generalAssignmentsAccordion">
-                                {% for assignment in general_treatment_assignments_page_obj %}
-                                    {% include 'departments/partials/assignment_accordion_item.html' with object=assignment accordion_id='generalAssignmentsAccordion' %}
-                                {% endfor %}
-                            </div>
-
-                            <!-- Пагинация -->
-                            <nav aria-label="Навигация по общим назначениям" class="mt-3">
-                                <ul class="pagination justify-content-center">
-                                    {% if general_treatment_assignments_page_obj.has_previous %}
-                                        <li class="page-item">
-                                            <a class="page-link" href="?general_treatment_assignments_page={{ general_treatment_assignments_page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'general_treatment_assignments_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                                <i class="fas fa-chevron-left me-1"></i>Предыдущая
-                                            </a>
-                                        </li>
-                                    {% else %}
-                                        <li class="page-item disabled">
-                                            <span class="page-link">Предыдущая</span>
-                                        </li>
-                                    {% endif %}
-
-                                    {% for i in general_treatment_assignments_page_obj.paginator.page_range %}
-                                        {% if general_treatment_assignments_page_obj.number == i %}
-                                            <li class="page-item active">
-                                                <span class="page-link">{{ i }}</span>
-                                            </li>
-                                        {% else %}
-                                            <li class="page-item">
-                                                <a class="page-link" href="?general_treatment_assignments_page={{ i }}{% for key, value in request.GET.items %}{% if key != 'general_treatment_assignments_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                                    {{ i }}
-                                                </a>
-                                            </li>
-                                        {% endif %}
-                                    {% endfor %}
-
-                                    {% if general_treatment_assignments_page_obj.has_next %}
-                                        <li class="page-item">
-                                            <a class="page-link" href="?general_treatment_assignments_page={{ general_treatment_assignments_page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'general_treatment_assignments_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                                Следующая<i class="fas fa-chevron-right ms-1"></i>
-                                            </a>
-                                        </li>
-                                    {% else %}
-                                        <li class="page-item disabled">
-                                            <span class="page-link">Следующая</span>
-                                        </li>
-                                    {% endif %}
-                                </ul>
-                            </nav>
-                        {% else %}
-                            <div class="text-center py-4">
-                                <i class="fas fa-tasks fa-3x text-muted mb-3"></i>
-                                <p class="text-muted">Нет общих назначений для отображения по заданным фильтрам.</p>
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <hr class="my-5">
-
-                <!-- Назначения: Лабораторные исследования -->
-                <div id="lab-assignments" class="card mb-4 shadow-sm">
-                    <div class="card-header">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">
-                                <i class="fas fa-flask me-2"></i>Назначения: Лабораторные исследования
-                            </h5>
-                            <div class="d-flex gap-2">
-                                <a href="{% url 'examination_management:lab_test_create' plan_pk=patient_status.pk %}?next={{ request.get_full_path|urlencode }}"
-                                   class="btn btn-light btn-sm">
-                                    <i class="fas fa-plus me-1"></i> Добавить
-                                </a>
-                                <span class="badge bg-primary">{{ lab_test_assignments_page_obj.paginator.count }}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        {% if lab_test_assignments_page_obj %}
-                            <div class="accordion" id="labAssignmentsAccordion">
-                                {% for assignment in lab_test_assignments_page_obj %}
-                                    {% include 'departments/partials/assignment_accordion_item.html' with object=assignment accordion_id='labAssignmentsAccordion' %}
-                                {% endfor %}
-                            </div>
-
-                            <!-- Пагинация -->
-                            <nav aria-label="Навигация по лабораторным исследованиям" class="mt-3">
-                                <ul class="pagination justify-content-center">
-                                    {% if lab_test_assignments_page_obj.has_previous %}
-                                        <li class="page-item">
-                                            <a class="page-link" href="?lab_test_assignments_page={{ lab_test_assignments_page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'lab_test_assignments_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                                <i class="fas fa-chevron-left me-1"></i>Предыдущая
-                                            </a>
-                                        </li>
-                                    {% else %}
-                                        <li class="page-item disabled">
-                                            <span class="page-link">Предыдущая</span>
-                                        </li>
-                                    {% endif %}
-
-                                    {% for i in lab_test_assignments_page_obj.paginator.page_range %}
-                                        {% if lab_test_assignments_page_obj.number == i %}
-                                            <li class="page-item active">
-                                                <span class="page-link">{{ i }}</span>
-                                            </li>
-                                        {% else %}
-                                            <li class="page-item">
-                                                <a class="page-link" href="?lab_test_assignments_page={{ i }}{% for key, value in request.GET.items %}{% if key != 'lab_test_assignments_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                                    {{ i }}
-                                                </a>
-                                            </li>
-                                        {% endif %}
-                                    {% endfor %}
-
-                                    {% if lab_test_assignments_page_obj.has_next %}
-                                        <li class="page-item">
-                                            <a class="page-link" href="?lab_test_assignments_page={{ lab_test_assignments_page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'lab_test_assignments_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                                Следующая<i class="fas fa-chevron-right ms-1"></i>
-                                            </a>
-                                        </li>
-                                    {% else %}
-                                        <li class="page-item disabled">
-                                            <span class="page-link">Следующая</span>
-                                        </li>
-                                    {% endif %}
-                                </ul>
-                            </nav>
-                        {% else %}
-                            <div class="text-center py-4">
-                                <i class="fas fa-flask fa-3x text-muted mb-3"></i>
-                                <p class="text-muted">Нет назначений лабораторных исследований для отображения по заданным фильтрам.</p>
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <hr class="my-5">
-
-                <!-- Назначения: Инструментальные исследования -->
-                <div id="instrumental-assignments" class="card mb-4 shadow-sm">
-                    <div class="section-title">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">
-                                <i class="fas fa-x-ray me-2"></i>Назначения: Инструментальные исследования
-                            </h5>
-                            <div class="d-flex gap-2">
-                                <a href="{% url 'examination_management:instrumental_create' plan_pk=patient_status.pk %}?next={{ request.get_full_path|urlencode }}"
-                                   class="btn btn-primary btn-sm">
-                                    <i class="fas fa-plus me-1"></i> Добавить
-                                </a>
-                                <span class="badge badge-count">{{ instrumental_procedure_assignments_page_obj.paginator.count }}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        {% if instrumental_procedure_assignments_page_obj %}
-                            <div class="accordion" id="instrumentalAssignmentsAccordion">
-                                {% for assignment in instrumental_procedure_assignments_page_obj %}
-                                    {% include 'departments/partials/assignment_accordion_item.html' with object=assignment accordion_id='instrumentalAssignmentsAccordion' %}
-                                {% endfor %}
-                            </div>
-
-                            <!-- Пагинация -->
-                            <nav aria-label="Навигация по инструментальным исследованиям" class="mt-3">
-                                <ul class="pagination justify-content-center">
-                                    {% if instrumental_procedure_assignments_page_obj.has_previous %}
-                                        <li class="page-item">
-                                            <a class="page-link" href="?instrumental_procedure_assignments_page={{ instrumental_procedure_assignments_page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'instrumental_procedure_assignments_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                                <i class="fas fa-chevron-left me-1"></i>Предыдущая
-                                            </a>
-                                        </li>
-                                    {% else %}
-                                        <li class="page-item disabled">
-                                            <span class="page-link">Предыдущая</span>
-                                        </li>
-                                    {% endif %}
-
-                                    {% for i in instrumental_procedure_assignments_page_obj.paginator.page_range %}
-                                        {% if instrumental_procedure_assignments_page_obj.number == i %}
-                                            <li class="page-item active">
-                                                <span class="page-link">{{ i }}</span>
-                                            </li>
-                                        {% else %}
-                                            <li class="page-item">
-                                                <a class="page-link" href="?instrumental_procedure_assignments_page={{ i }}{% for key, value in request.GET.items %}{% if key != 'instrumental_procedure_assignments_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                                    {{ i }}
-                                                </a>
-                                            </li>
-                                        {% endif %}
-                                    {% endfor %}
-
-                                    {% if instrumental_procedure_assignments_page_obj.has_next %}
-                                        <li class="page-item">
-                                            <a class="page-link" href="?instrumental_procedure_assignments_page={{ instrumental_procedure_assignments_page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'instrumental_procedure_assignments_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                                Следующая<i class="fas fa-chevron-right ms-1"></i>
-                                            </a>
-                                        </li>
-                                    {% else %}
-                                        <li class="page-item disabled">
-                                            <span class="page-link">Следующая</span>
-                                        </li>
-                                    {% endif %}
-                                </ul>
-                            </nav>
-                        {% else %}
-                            <div class="text-center py-4">
-                                <i class="fas fa-x-ray fa-3x text-muted mb-3"></i>
-                                <p class="text-muted">Нет назначений инструментальных исследований для отображения по заданным фильтрам.</p>
-                            </div>
-                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- JavaScript для плавной прокрутки к разделам -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Плавная прокрутка к разделам при клике на ссылки в боковом меню
-            const navLinks = document.querySelectorAll('.list-group-item[href^="#"]');
-            
-            navLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const targetId = this.getAttribute('href');
-                    const targetElement = document.querySelector(targetId);
-                    
-                    if (targetElement) {
-                        targetElement.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'start'
-                        });
-                    }
-                });
-            });
+    <!-- Панель фильтров -->
+    <div class="card mt-4" style="z-index: 2;">
+        <div class="card-header bg-light">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="section-title mb-0">
+                    <i class="fas fa-filter me-2"></i>Фильтры
+                    {% if request.GET.start_date or request.GET.end_date or request.GET.author or request.GET.document_type or request.GET.search_query %}
+                        <span class="badge bg-warning ms-2">Активен</span>
+                    {% endif %}
+                </h5>
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+            </div>
+        </div>
+        <div class="collapse" id="filterCollapse">
+            <div class="card-body">
+                <form method="get" class="medical-form">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="{{ filter_form.start_date.id_for_label }}" class="form-label">
+                                    <strong>{{ filter_form.start_date.label }}</strong>
+                                </label>
+                                {{ filter_form.start_date|add_class:"form-control" }}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="{{ filter_form.end_date.id_for_label }}" class="form-label">
+                                    <strong>{{ filter_form.end_date.label }}</strong>
+                                </label>
+                                {{ filter_form.end_date|add_class:"form-control" }}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="{{ filter_form.author.id_for_label }}" class="form-label">
+                                    <strong>{{ filter_form.author.label }}</strong>
+                                </label>
+                                {{ filter_form.author|add_class:"form-select" }}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="{{ filter_form.document_type.id_for_label }}" class="form-label">
+                                    <strong>{{ filter_form.document_type.label }}</strong>
+                                </label>
+                                {{ filter_form.document_type|add_class:"form-select" }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ filter_form.search_query.id_for_label }}" class="form-label">
+                                    <strong>{{ filter_form.search_query.label }}</strong>
+                                </label>
+                                {{ filter_form.search_query|add_class:"form-control" }}
+                            </div>
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="btn-toolbar" role="toolbar">
+                                <div class="btn-group me-2" role="group">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-search me-1"></i>Применить
+                                    </button>
+                                </div>
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'departments:patient_history' patient_status.pk %}" class="btn btn-outline-secondary">
+                                        <i class="fas fa-times me-1"></i>Сбросить
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
-            // Подсветка активного раздела при прокрутке
-            const sections = document.querySelectorAll('[id^="daily-notes"], [id^="medication-assignments"], [id^="general-assignments"], [id^="lab-assignments"], [id^="instrumental-assignments"]');
-            const navItems = document.querySelectorAll('.list-group-item[href^="#"]');
+    <!-- Боковая навигация и основной контент -->
+    <div class="row mt-4">
+        <!-- Боковая навигация -->
+        <div class="col-lg-3">
+            <div class="card" style="position: sticky; top: 20px; z-index: 1;">
+                <div class="card-header">
+                    <h5 class="section-title mb-0">
+                        <i class="fas fa-list me-2"></i>Навигация
+                    </h5>
+                </div>
+                                 <div class="list-group list-group-flush side-nav">
+                     <a href="#documents" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                         <span><i class="fas fa-file-medical me-2"></i>Документация</span>
+                         {% if general_notes_page_obj %}
+                             <span class="badge bg-info rounded-pill">{{ general_notes_page_obj.paginator.count }}</span>
+                         {% endif %}
+                     </a>
+                     <a href="#treatment-plans" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                         <span><i class="fas fa-notes-medical me-2"></i>План лечения</span>
+                         {% if treatment_plans_page_obj %}
+                             <span class="badge bg-info rounded-pill">{{ treatment_plans_page_obj.paginator.count }}</span>
+                         {% endif %}
+                     </a>
+                     <a href="#examination-plans" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                         <span><i class="fas fa-stethoscope me-2"></i>План обследования</span>
+                         {% if lab_test_assignments_page_obj or instrumental_procedure_assignments_page_obj %}
+                             <span class="badge bg-info rounded-pill">{{ lab_test_assignments_page_obj.paginator.count|default:0|add:instrumental_procedure_assignments_page_obj.paginator.count|default:0 }}</span>
+                         {% endif %}
+                     </a>
+                 </div>
+            </div>
+        </div>
+
+                 <!-- Основной контент -->
+         <div class="col-lg-9">
+             <!-- Документация -->
+             <div id="documents" class="card mb-4" style="z-index: 2;">
+                 <div class="card-header">
+                     <div class="d-flex justify-content-between align-items-center">
+                         <h5 class="section-title mb-0">
+                             <i class="fas fa-file-medical me-2"></i>Документация
+                         </h5>
+                         <div class="btn-toolbar" role="toolbar">
+                             <div class="btn-group" role="group">
+                                 <a href="{% url 'documents:document_type_selection' model_name='patientdepartmentstatus' object_id=patient_status.pk %}?next={{ request.get_full_path|urlencode }}"
+                                    class="btn btn-primary btn-sm">
+                                     <i class="fas fa-plus me-1"></i>Добавить документ
+                                 </a>
+                             </div>
+                         </div>
+                     </div>
+                 </div>
+                 <div class="card-body">
+                     {% if general_notes_page_obj %}
+                         <div class="accordion" id="documentsAccordion">
+                             {% for note in general_notes_page_obj %}
+                                 {% include 'departments/partials/note_accordion_item.html' with object=note accordion_id='documentsAccordion' %}
+                             {% endfor %}
+                         </div>
+
+                         <!-- Пагинация -->
+                         <nav aria-label="Навигация по документам" class="mt-3">
+                             <ul class="pagination justify-content-center">
+                                 {% if general_notes_page_obj.has_previous %}
+                                     <li class="page-item">
+                                         <a class="page-link" href="?general_notes_page={{ general_notes_page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'general_notes_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                             <i class="fas fa-chevron-left me-1"></i>Предыдущая
+                                         </a>
+                                     </li>
+                                 {% else %}
+                                     <li class="page-item disabled">
+                                         <span class="page-link">Предыдущая</span>
+                                     </li>
+                                 {% endif %}
+
+                                 {% for i in general_notes_page_obj.paginator.page_range %}
+                                     {% if general_notes_page_obj.number == i %}
+                                         <li class="page-item active">
+                                             <span class="page-link">{{ i }}</span>
+                                         </li>
+                                     {% else %}
+                                         <li class="page-item">
+                                             <a class="page-link" href="?general_notes_page={{ i }}{% for key, value in request.GET.items %}{% if key != 'general_notes_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                                 {{ i }}
+                                             </a>
+                                         </li>
+                                     {% endif %}
+                                 {% endfor %}
+
+                                 {% if general_notes_page_obj.has_next %}
+                                     <li class="page-item">
+                                         <a class="page-link" href="?general_notes_page={{ general_notes_page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'general_notes_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                             Следующая<i class="fas fa-chevron-right ms-1"></i>
+                                         </a>
+                                     </li>
+                                 {% else %}
+                                     <li class="page-item disabled">
+                                         <span class="page-link">Следующая</span>
+                                     </li>
+                                 {% endif %}
+                             </ul>
+                         </nav>
+                     {% else %}
+                         <div class="text-center py-4">
+                             <i class="fas fa-file-medical fa-3x text-muted mb-3"></i>
+                             <p class="text-muted">Нет документов для отображения по заданным фильтрам.</p>
+                         </div>
+                     {% endif %}
+                 </div>
+             </div>
+
+             <!-- План лечения -->
+             <div id="treatment-plans" class="card mb-4" style="z-index: 2;">
+                 <div class="card-header">
+                     <div class="d-flex justify-content-between align-items-center">
+                         <h5 class="section-title mb-0">
+                             <i class="fas fa-notes-medical me-2"></i>План лечения
+                         </h5>
+                         <div class="btn-toolbar" role="toolbar">
+                             <div class="btn-group me-2" role="group">
+                                 <a href="{% url 'treatment_management:plan_create' owner_model='patientdepartmentstatus' owner_id=patient_status.pk %}?next={{ request.get_full_path|urlencode }}"
+                                    class="btn btn-primary btn-sm">
+                                     <i class="fas fa-plus me-1"></i>Создать план
+                                 </a>
+                             </div>
+                             {% if treatment_plans_page_obj %}
+                                 <div class="btn-group" role="group">
+                                     <a href="{% url 'treatment_management:plan_detail' owner_model='patientdepartmentstatus' owner_id=patient_status.pk pk=treatment_plans_page_obj.0.pk %}?next={{ request.get_full_path|urlencode }}"
+                                        class="btn btn-outline-primary btn-sm">
+                                         <i class="fas fa-eye me-1"></i>Просмотр
+                                     </a>
+                                 </div>
+                             {% endif %}
+                         </div>
+                     </div>
+                 </div>
+                 <div class="card-body">
+                     {% if treatment_plans_page_obj %}
+                         <div class="accordion" id="treatmentPlansAccordion">
+                             {% for plan in treatment_plans_page_obj %}
+                                 {% include 'departments/partials/plan_accordion_item.html' with object=plan accordion_id='treatmentPlansAccordion' %}
+                             {% endfor %}
+                         </div>
+
+                         <!-- Пагинация -->
+                         <nav aria-label="Навигация по планам лечения" class="mt-3">
+                             <ul class="pagination justify-content-center">
+                                 {% if treatment_plans_page_obj.has_previous %}
+                                     <li class="page-item">
+                                         <a class="page-link" href="?treatment_plans_page={{ treatment_plans_page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'treatment_plans_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                             <i class="fas fa-chevron-left me-1"></i>Предыдущая
+                                         </a>
+                                     </li>
+                                 {% else %}
+                                     <li class="page-item disabled">
+                                         <span class="page-link">Предыдущая</span>
+                                     </li>
+                                 {% endif %}
+
+                                 {% for i in treatment_plans_page_obj.paginator.page_range %}
+                                     {% if treatment_plans_page_obj.number == i %}
+                                         <li class="page-item active">
+                                             <span class="page-link">{{ i }}</span>
+                                         </li>
+                                     {% else %}
+                                         <li class="page-item">
+                                             <a class="page-link" href="?treatment_plans_page={{ i }}{% for key, value in request.GET.items %}{% if key != 'treatment_plans_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                                 {{ i }}
+                                             </a>
+                                         </li>
+                                     {% endif %}
+                                 {% endfor %}
+
+                                 {% if treatment_plans_page_obj.has_next %}
+                                     <li class="page-item">
+                                         <a class="page-link" href="?treatment_plans_page={{ treatment_plans_page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'treatment_plans_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                             Следующая<i class="fas fa-chevron-right ms-1"></i>
+                                         </a>
+                                     </li>
+                                 {% else %}
+                                     <li class="page-item disabled">
+                                         <span class="page-link">Следующая</span>
+                                     </li>
+                                 {% endif %}
+                             </ul>
+                         </nav>
+                     {% else %}
+                         <div class="text-center py-4">
+                             <i class="fas fa-notes-medical fa-3x text-muted mb-3"></i>
+                             <p class="text-muted">Нет планов лечения для отображения по заданным фильтрам.</p>
+                         </div>
+                     {% endif %}
+                 </div>
+             </div>
+
+             <!-- План обследования -->
+             <div id="examination-plans" class="card mb-4" style="z-index: 2;">
+                 <div class="card-header">
+                     <div class="d-flex justify-content-between align-items-center">
+                         <h5 class="section-title mb-0">
+                             <i class="fas fa-stethoscope me-2"></i>План обследования
+                         </h5>
+                         <div class="btn-toolbar" role="toolbar">
+                             <div class="btn-group me-2" role="group">
+                                 <a href="{% url 'examination_management:plan_create' owner_model='patientdepartmentstatus' owner_id=patient_status.pk %}?next={{ request.get_full_path|urlencode }}"
+                                    class="btn btn-primary btn-sm">
+                                     <i class="fas fa-plus me-1"></i>Создать план
+                                 </a>
+                             </div>
+                             {% if examination_plans_page_obj %}
+                                 <div class="btn-group" role="group">
+                                     <a href="{% url 'examination_management:plan_detail' owner_model='patientdepartmentstatus' owner_id=patient_status.pk pk=examination_plans_page_obj.0.pk %}?next={{ request.get_full_path|urlencode }}"
+                                        class="btn btn-outline-primary btn-sm">
+                                         <i class="fas fa-eye me-1"></i>Просмотр
+                                     </a>
+                                 </div>
+                             {% endif %}
+                         </div>
+                     </div>
+                 </div>
+                 <div class="card-body">
+                     {% if examination_plans_page_obj %}
+                         <div class="accordion" id="examinationPlansAccordion">
+                             {% for plan in examination_plans_page_obj %}
+                                 {% include 'departments/partials/examination_accordion_item.html' with object=plan accordion_id='examinationPlansAccordion' %}
+                             {% endfor %}
+                         </div>
+
+                         <!-- Пагинация -->
+                         <nav aria-label="Навигация по планам обследования" class="mt-3">
+                             <ul class="pagination justify-content-center">
+                                 {% if examination_plans_page_obj.has_previous %}
+                                     <li class="page-item">
+                                         <a class="page-link" href="?examination_plans_page={{ examination_plans_page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'examination_plans_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                             <i class="fas fa-chevron-left me-1"></i>Предыдущая
+                                         </a>
+                                     </li>
+                                 {% else %}
+                                     <li class="page-item disabled">
+                                         <span class="page-link">Предыдущая</span>
+                                     </li>
+                                 {% endif %}
+
+                                 {% for i in examination_plans_page_obj.paginator.page_range %}
+                                     {% if examination_plans_page_obj.number == i %}
+                                         <li class="page-item active">
+                                             <span class="page-link">{{ i }}</span>
+                                         </li>
+                                     {% else %}
+                                         <li class="page-item">
+                                             <a class="page-link" href="?examination_plans_page={{ i }}{% for key, value in request.GET.items %}{% if key != 'examination_plans_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                                 {{ i }}
+                                             </a>
+                                         </li>
+                                     {% endif %}
+                                 {% endfor %}
+
+                                 {% if examination_plans_page_obj.has_next %}
+                                     <li class="page-item">
+                                         <a class="page-link" href="?examination_plans_page={{ examination_plans_page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'examination_plans_page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                             Следующая<i class="fas fa-chevron-right ms-1"></i>
+                                         </a>
+                                     </li>
+                                 {% else %}
+                                     <li class="page-item disabled">
+                                         <span class="page-link">Следующая</span>
+                                     </li>
+                                 {% endif %}
+                             </ul>
+                         </nav>
+                     {% else %}
+                         <div class="text-center py-4">
+                             <i class="fas fa-stethoscope fa-3x text-muted mb-3"></i>
+                             <p class="text-muted">Нет планов обследования для отображения по заданным фильтрам.</p>
+                         </div>
+                     {% endif %}
+                 </div>
+             </div>
+         </div>
+    </div>
+</div>
+
+<style>
+/* Контейнер истории */
+.history-container {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* Карточки */
+.history-container .card {
+    background-color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+}
+
+.history-container .card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* Заголовки карточек */
+.history-container .card-title {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 1rem;
+    font-size: 1.25rem;
+}
+
+/* Секции формы */
+.form-section {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border-left: 3px solid #4361ee;
+}
+
+.section-title {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+}
+
+.section-title i {
+    color: #4361ee;
+}
+
+/* Информационные элементы */
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    font-weight: 600;
+    color: #495057;
+    display: flex;
+    align-items: center;
+}
+
+/* Группы полей */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-label {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.form-label strong {
+    color: #2c3e50;
+}
+
+/* Поля ввода */
+.form-control, .form-select {
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    background-color: #ffffff;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #4895ef;
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+    outline: none;
+}
+
+/* Кнопки */
+.btn {
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.btn-primary {
+    background-color: #4361ee;
+    border-color: #4361ee;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #3f37c9;
+    border-color: #3f37c9;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-outline-secondary {
+    color: #6c757d;
+    border-color: #ced4da;
+    background-color: transparent;
+}
+
+.btn-outline-secondary:hover {
+    background-color: #f8f9fa;
+    border-color: #6c757d;
+    color: #495057;
+}
+
+/* Боковая навигация */
+.side-nav .list-group-item {
+    border: none;
+    border-radius: 0;
+    padding: 0.75rem 1rem;
+    color: #495057;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+}
+
+.side-nav .list-group-item:hover {
+    background-color: #f8f9fa;
+    border-left-color: #4361ee;
+    color: #2c3e50;
+}
+
+.side-nav .list-group-item.active {
+    background-color: #4361ee;
+    color: white;
+    border-left-color: #4361ee;
+}
+
+.side-nav .list-group-item.active:hover {
+    background-color: #3f37c9;
+}
+
+/* Бейджи */
+.badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+/* Пагинация */
+.pagination .page-link {
+    border: 1px solid #ced4da;
+    color: #495057;
+    padding: 0.5rem 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.pagination .page-link:hover {
+    background-color: #f8f9fa;
+    border-color: #6c757d;
+    color: #2c3e50;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: #4361ee;
+    border-color: #4361ee;
+    color: white;
+}
+
+/* Адаптивность */
+@media (max-width: 992px) {
+    .history-container {
+        max-width: 100%;
+    }
+    
+    .side-nav {
+        position: static !important;
+        margin-bottom: 2rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .form-section {
+        padding: 1rem;
+    }
+    
+    .btn-toolbar {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .btn-group {
+        width: 100%;
+    }
+    
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .info-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Плавная прокрутка к разделам при клике на ссылки в боковом меню
+    const navLinks = document.querySelectorAll('.list-group-item[href^="#"]');
+    
+    navLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('href');
+            const targetElement = document.querySelector(targetId);
             
-            window.addEventListener('scroll', function() {
-                let current = '';
-                
-                sections.forEach(section => {
-                    const sectionTop = section.offsetTop;
-                    const sectionHeight = section.clientHeight;
-                    
-                    if (window.pageYOffset >= sectionTop - 200) {
-                        current = section.getAttribute('id');
-                    }
-                });
-                
-                navItems.forEach(item => {
-                    item.classList.remove('active');
-                    if (item.getAttribute('href') === '#' + current) {
-                        item.classList.add('active');
-                    }
-                });
-            });
-            
-            // Подсветка активных полей фильтров
-            function highlightActiveFilterFields() {
-                const filterFields = document.querySelectorAll('input[type="date"], select, input[type="text"]');
-                
-                filterFields.forEach(field => {
-                    // Убираем предыдущие классы
-                    field.classList.remove('filter-field-active');
-                    
-                    // Проверяем, заполнено ли поле
-                    if (field.value && field.value.trim() !== '') {
-                        field.classList.add('filter-field-active');
-                    }
-                });
-            }
-            
-            // Вызываем функцию при загрузке страницы
-            highlightActiveFilterFields();
-            
-            // Вызываем функцию при изменении полей
-            const filterForm = document.querySelector('form[method="get"]');
-            if (filterForm) {
-                filterForm.addEventListener('change', highlightActiveFilterFields);
-                filterForm.addEventListener('input', highlightActiveFilterFields);
-            }
-            
-            // Анимация для индикатора фильтров
-            const filterIndicator = document.querySelector('.filter-indicator');
-            if (filterIndicator) {
-                // Добавляем дополнительную анимацию при появлении
-                filterIndicator.style.animation = 'pulse 2s infinite, slideIn 0.5s ease-out';
-            }
-            
-            // Улучшенная обработка сворачивания/разворачивания фильтров
-            const filterCollapse = document.getElementById('filterCollapse');
-            const filterToggleBtn = document.querySelector('[data-bs-toggle="collapse"]');
-            
-            if (filterCollapse && filterToggleBtn) {
-                filterCollapse.addEventListener('show.bs.collapse', function() {
-                    filterToggleBtn.querySelector('i').classList.remove('fa-chevron-down');
-                    filterToggleBtn.querySelector('i').classList.add('fa-chevron-up');
-                });
-                
-                filterCollapse.addEventListener('hide.bs.collapse', function() {
-                    filterToggleBtn.querySelector('i').classList.remove('fa-chevron-up');
-                    filterToggleBtn.querySelector('i').classList.add('fa-chevron-down');
+            if (targetElement) {
+                targetElement.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
                 });
             }
         });
-    </script>
+    });
+
+         // Подсветка активного раздела при прокрутке
+     const sections = document.querySelectorAll('#documents, #treatment-plans, #examination-plans');
+     const navItems = document.querySelectorAll('.list-group-item[href^="#"]');
+    
+    window.addEventListener('scroll', function() {
+        let current = '';
+        
+        sections.forEach(section => {
+            const sectionTop = section.offsetTop;
+            const sectionHeight = section.clientHeight;
+            
+            if (window.pageYOffset >= sectionTop - 200) {
+                current = section.getAttribute('id');
+            }
+        });
+        
+        navItems.forEach(item => {
+            item.classList.remove('active');
+            if (item.getAttribute('href') === '#' + current) {
+                item.classList.add('active');
+            }
+        });
+    });
+    
+    // Подсветка активных полей фильтров
+    function highlightActiveFilterFields() {
+        const filterFields = document.querySelectorAll('input[type="date"], select, input[type="text"]');
+        
+        filterFields.forEach(field => {
+            // Убираем предыдущие классы
+            field.classList.remove('filter-field-active');
+            
+            // Проверяем, заполнено ли поле
+            if (field.value && field.value.trim() !== '') {
+                field.classList.add('filter-field-active');
+            }
+        });
+    }
+    
+    // Вызываем функцию при загрузке страницы
+    highlightActiveFilterFields();
+    
+    // Вызываем функцию при изменении полей
+    const filterForm = document.querySelector('form[method="get"]');
+    if (filterForm) {
+        filterForm.addEventListener('change', highlightActiveFilterFields);
+        filterForm.addEventListener('input', highlightActiveFilterFields);
+    }
+    
+    // Анимация для индикатора фильтров
+    const filterIndicator = document.querySelector('.filter-indicator');
+    if (filterIndicator) {
+        // Добавляем дополнительную анимацию при появлении
+        filterIndicator.style.animation = 'pulse 2s infinite, slideIn 0.5s ease-out';
+    }
+    
+    // Улучшенная обработка сворачивания/разворачивания фильтров
+    const filterCollapse = document.getElementById('filterCollapse');
+    const filterToggleBtn = document.querySelector('[data-bs-toggle="collapse"]');
+    
+    if (filterCollapse && filterToggleBtn) {
+        filterCollapse.addEventListener('show.bs.collapse', function() {
+            filterToggleBtn.querySelector('i').classList.remove('fa-chevron-down');
+            filterToggleBtn.querySelector('i').classList.add('fa-chevron-up');
+        });
+        
+        filterCollapse.addEventListener('hide.bs.collapse', function() {
+            filterToggleBtn.querySelector('i').classList.remove('fa-chevron-up');
+            filterToggleBtn.querySelector('i').classList.add('fa-chevron-down');
+        });
+    }
+});
+</script>
 {% endblock %}

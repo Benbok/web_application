@@ -222,6 +222,66 @@ class TreatmentMedicationWithScheduleForm(ScheduleFieldsMixin, TreatmentMedicati
             self.fields['times_per_day'].help_text = _('Сколько раз в день принимать лекарство')
         if 'duration_days' in self.fields:
             self.fields['duration_days'].help_text = _('На сколько дней планируется курс лечения')
+        
+        # Если это редактирование существующего объекта, инициализируем поля расписания
+        if self.instance and self.instance.pk:
+            self._initialize_schedule_fields()
+    
+    def _initialize_schedule_fields(self):
+        """
+        Инициализирует поля расписания из существующих данных
+        """
+        try:
+            from clinical_scheduling.models import ScheduledAppointment
+            from django.contrib.contenttypes.models import ContentType
+            
+            content_type = ContentType.objects.get_for_model(self.instance)
+            appointments = ScheduledAppointment.objects.filter(
+                content_type=content_type,
+                object_id=self.instance.pk
+            ).order_by('scheduled_date', 'scheduled_time')
+            
+            if appointments.exists():
+                # Получаем самую раннюю запись для даты и времени начала
+                earliest_appointment = appointments.first()
+                if 'start_date' in self.fields:
+                    self.fields['start_date'].initial = earliest_appointment.scheduled_date
+                if 'first_time' in self.fields:
+                    self.fields['first_time'].initial = earliest_appointment.scheduled_time
+                
+                # Более точный подсчет количества раз в день
+                # Группируем по дате и считаем количество записей для каждой даты
+                from django.db.models import Count
+                daily_counts = appointments.values('scheduled_date').annotate(
+                    count=Count('id')
+                ).order_by('scheduled_date')
+                
+                # Берем наиболее частое количество раз в день
+                if daily_counts.exists():
+                    # Находим режим (наиболее частое значение)
+                    count_frequency = {}
+                    for daily_count in daily_counts:
+                        count = daily_count['count']
+                        count_frequency[count] = count_frequency.get(count, 0) + 1
+                    
+                    # Берем значение с максимальной частотой
+                    most_common_count = max(count_frequency.items(), key=lambda x: x[1])[0]
+                    if 'times_per_day' in self.fields:
+                        self.fields['times_per_day'].initial = most_common_count
+                
+                # Более точный подсчет длительности в днях
+                # Считаем количество уникальных дат в расписании
+                unique_dates = appointments.values_list('scheduled_date', flat=True).distinct().count()
+                if 'duration_days' in self.fields:
+                    self.fields['duration_days'].initial = unique_dates
+                
+                # Включаем расписание
+                if 'enable_schedule' in self.fields:
+                    self.fields['enable_schedule'].initial = True
+                    
+        except Exception:
+            # В случае ошибки оставляем поля с значениями по умолчанию
+            pass
     
     def clean(self):
         cleaned_data = super().clean()

@@ -1,0 +1,163 @@
+<div class="accordion-item">
+    <h2 class="accordion-header" id="examinationPlanHeading{{ object.pk }}">
+        <button class="accordion-button collapsed"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#examinationPlanCollapse{{ object.pk }}"
+                aria-expanded="false"
+                aria-controls="examinationPlanCollapse{{ object.pk }}">
+            <div class="d-flex align-items-center justify-content-between w-100">
+                <div class="d-flex align-items-center">
+                    <strong>{{ object.name }}</strong>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="text-muted small me-2">
+                        {{ object.created_at|date:'d.m.Y H:i' }}
+                    </span>
+                    {% if object.is_archived %}
+                        <i class="fas fa-archive text-warning" title="Архивирован"></i>
+                    {% endif %}
+                </div>
+            </div>
+        </button>
+    </h2>
+    <div id="examinationPlanCollapse{{ object.pk }}"
+         class="accordion-collapse collapse"
+         aria-labelledby="examinationPlanHeading{{ object.pk }}">
+        <div class="accordion-body">
+            <!-- Список лабораторных исследований -->
+            {% if object.lab_tests.all %}
+                <h6 class="mb-3">
+                    <i class="fas fa-flask me-2"></i>Лабораторные исследования ({{ object.lab_tests.count }})
+                </h6>
+                <div class="list-group list-group-flush">
+                    {% for lab_test in object.lab_tests.all %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">
+                                        {% if lab_test.lab_test_definition %}
+                                            {{ lab_test.lab_test_definition.name }}
+                                        {% else %}
+                                            {{ lab_test.custom_name }}
+                                        {% endif %}
+                                    </h6>
+                                    <div class="row text-muted small">
+                                        {% if lab_test.instructions %}
+                                            <div class="col-md-6">
+                                                <i class="fas fa-info-circle me-1"></i>{{ lab_test.instructions }}
+                                            </div>
+                                        {% endif %}
+                                        <div class="col-md-6">
+                                            <i class="fas fa-calendar-plus me-1"></i>Назначено: {{ lab_test.created_at|date:'d.m.Y H:i' }}
+                                        </div>
+                                    </div>
+                                    {% if lab_test.results.all %}
+                                        <div class="mt-2">
+                                            <small class="text-success">
+                                                <i class="fas fa-check-circle me-1"></i>Результаты получены
+                                            </small>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="ms-3">
+                                    <div class="btn-group-vertical btn-group-sm">
+                                        {% if lab_test.results.all %}
+                                            <a href="{% url 'examination_management:lab_test_result_view' pk=lab_test.pk %}" 
+                                               class="btn btn-outline-success btn-sm">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        {% endif %}
+                                        <a href="{% url 'examination_management:lab_test_delete' pk=lab_test.pk %}" 
+                                           class="btn btn-outline-danger btn-sm"
+                                           onclick="return confirm('Удалить лабораторное исследование?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-flask fa-2x mb-3"></i>
+                    <p>Лабораторные исследования отсутствуют</p>
+                </div>
+            {% endif %}
+
+            <!-- Список инструментальных исследований -->
+            {% if object.instrumental_procedures.all %}
+                <h6 class="mb-3 mt-4">
+                    <i class="fas fa-stethoscope me-2"></i>Инструментальные исследования ({{ object.instrumental_procedures.count }})
+                </h6>
+                <div class="list-group list-group-flush">
+                    {% for instrumental in object.instrumental_procedures.all %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">
+                                        {% if instrumental.procedure_definition %}
+                                            {{ instrumental.procedure_definition.name }}
+                                        {% else %}
+                                            {{ instrumental.custom_name }}
+                                        {% endif %}
+                                    </h6>
+                                    <div class="row text-muted small">
+                                        {% if instrumental.instructions %}
+                                            <div class="col-md-6">
+                                                <i class="fas fa-info-circle me-1"></i>{{ instrumental.instructions }}
+                                            </div>
+                                        {% endif %}
+                                        <div class="col-md-6">
+                                            <i class="fas fa-calendar-plus me-1"></i>Назначено: {{ instrumental.created_at|date:'d.m.Y H:i' }}
+                                        </div>
+                                    </div>
+                                    {% if instrumental.results.all %}
+                                        <div class="mt-2">
+                                            <small class="text-success">
+                                                <i class="fas fa-check-circle me-1"></i>Результаты получены
+                                            </small>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="ms-3">
+                                    <div class="btn-group-vertical btn-group-sm">
+                                        {% if instrumental.results.all %}
+                                            <a href="{% url 'examination_management:instrumental_result_view' pk=instrumental.pk %}" 
+                                               class="btn btn-outline-success btn-sm">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        {% endif %}
+                                        <a href="{% url 'examination_management:instrumental_delete' pk=instrumental.pk %}" 
+                                           class="btn btn-outline-danger btn-sm"
+                                           onclick="return confirm('Удалить инструментальное исследование?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-stethoscope fa-2x mb-3"></i>
+                    <p>Инструментальные исследования отсутствуют</p>
+                </div>
+            {% endif %}
+
+            <!-- Кнопки действий -->
+            <div class="d-flex gap-2 mt-4">
+                <a href="{% url 'examination_management:lab_test_create' plan_pk=object.pk %}" 
+                   class="btn btn-success btn-sm">
+                    <i class="fas fa-plus me-1"></i>Добавить лабораторное
+                </a>
+                <a href="{% url 'examination_management:instrumental_create' plan_pk=object.pk %}" 
+                   class="btn btn-info btn-sm text-dark">
+                    <i class="fas fa-plus me-1"></i>Добавить инструментальное
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
