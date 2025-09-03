@@ -30,8 +30,10 @@
                 </h4>
                 <small class="text-muted">
                     {% if owner.patient %}
-                        Пациент: <a href="{% url 'patients:patient_detail' owner.patient.pk %}">{{ owner.patient.get_full_name_with_age }}</a> | 
-                        Случай: <a href="{% url 'encounters:encounter_detail' owner.id %}">{{ owner.date_start|date:"d.m.Y" }}</a>
+                        Пациент: <a href="{% url 'patients:patient_detail' owner.patient.pk %}">{{ owner.patient.get_full_name_with_age }}</a>
+                        {% if owner_model == 'encounter' %}
+                            | Случай: <a href="{% url 'encounters:encounter_detail' owner.id %}">{{ owner.date_start|date:"d.m.Y" }}</a>
+                        {% endif %}
                     {% else %}
                         {{ owner }}
                     {% endif %}

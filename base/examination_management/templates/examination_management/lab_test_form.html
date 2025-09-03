@@ -14,9 +14,11 @@
                         <i class="fas fa-flask"></i> {{ title }}
                     </h4>
                     <small class="text-muted">
-                        Пациент: {{ patient.full_name }} | 
-                        Случай: {{ encounter.date_start|date:"d.m.Y H:i" }} | 
-                        План: {{ examination_plan.name }}
+                        Пациент: {{ patient.full_name }}
+                        {% if owner_model == 'encounter' %}
+                            | Случай: {{ encounter.date_start|date:"d.m.Y H:i" }}
+                        {% endif %}
+                        | План: {{ examination_plan.name }}
                     </small>
                 </div>
                 <div class="card-body">
@@ -161,13 +163,35 @@
                             </div>
                         </div>
                         
+                        <!-- Встроенный JavaScript для установки даты -->
+                        <script>
+                            (function() {
+                                function setDate() {
+                                    const field = document.querySelector('input[name="start_date"]');
+                                    if (field) {
+                                        const today = new Date();
+                                        const year = today.getFullYear();
+                                        const month = String(today.getMonth() + 1).padStart(2, '0');
+                                        const day = String(today.getDate()).padStart(2, '0');
+                                        const russianDate = `${day}.${month}.${year}`;
+                                        field.value = russianDate;
+                                    }
+                                }
+                                
+                                // Запускаем сразу и с задержкой для надежности
+                                setDate();
+                                setTimeout(setDate, 100);
+                                setTimeout(setDate, 500);
+                            })();
+                        </script>
+                        
                         <div class="d-flex gap-2 mt-4">
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-save"></i> 
                                 {% if object %}Сохранить изменения{% else %}Добавить исследование{% endif %}
                             </button>
                             
-                            <a href="{% url 'examination_management:examination_plan_detail' encounter_pk=encounter.pk pk=examination_plan.pk %}" class="btn btn-secondary">
+                            <a href="{% if owner_model == 'encounter' %}{% url 'examination_management:examination_plan_detail' encounter_pk=owner.pk pk=examination_plan.pk %}{% else %}{% url 'examination_management:plan_detail' owner_model=owner_model owner_id=owner.id pk=examination_plan.pk %}{% endif %}" class="btn btn-secondary">
                                 <i class="fas fa-arrow-left"></i> Отмена
                             </a>
                         </div>
@@ -181,20 +205,21 @@
 
 {% block extra_js %}
 <script>
-    // Устанавливаем текущую дату по умолчанию, если поле пустое
-    document.addEventListener('DOMContentLoaded', function() {
-        const startDateField = document.getElementById('{{ form.start_date.id_for_label }}');
-        if (startDateField) {
-            // Если поле пустое, устанавливаем сегодняшнюю дату
-            if (!startDateField.value) {
-                const today = new Date().toISOString().split('T')[0];
-                startDateField.value = today;
-            }
-            
-            // Устанавливаем минимальную дату как сегодня (нельзя выбрать прошедшую дату)
-            const today = new Date().toISOString().split('T')[0];
-            startDateField.setAttribute('min', today);
+    // Дополнительная установка даты для надежности
+    function setStartDate() {
+        const startDateField = document.querySelector('input[name="start_date"]');
+        if (startDateField && !startDateField.value) {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const russianDate = `${day}.${month}.${year}`;
+            startDateField.value = russianDate;
         }
-    });
+    }
+    
+    // Запускаем установку даты при загрузке DOM
+    document.addEventListener('DOMContentLoaded', setStartDate);
+    window.addEventListener('load', setStartDate);
 </script>
 {% endblock %} 

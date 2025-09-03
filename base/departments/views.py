@@ -91,7 +91,10 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
             'medications__medication',
             'medications__route'
         )
-        examination_plans = patient_status.examination_plans.all()
+        examination_plans = patient_status.examination_plans.all().prefetch_related(
+            'lab_tests__lab_test',
+            'instrumental_procedures__instrumental_procedure'
+        )
         
         # Назначения treatment_assignments удалены - больше не нужны
         general_treatment_assignments = []

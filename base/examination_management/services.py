@@ -230,6 +230,63 @@ class ExaminationStatusService:
         return None
     
     @staticmethod
+    def get_schedule_data(assignment):
+        """
+        Получает данные расписания для назначения
+        
+        Args:
+            assignment: ExaminationLabTest или ExaminationInstrumental
+            
+        Returns:
+            dict: Данные расписания или None
+        """
+        try:
+            from clinical_scheduling.models import ScheduledAppointment
+            from django.contrib.contenttypes.models import ContentType
+            
+            content_type = ContentType.objects.get_for_model(assignment.__class__)
+            appointments = ScheduledAppointment.objects.filter(
+                content_type=content_type,
+                object_id=assignment.pk
+            ).order_by('scheduled_date', 'scheduled_time')
+            
+            if appointments.exists():
+                # Берем первое назначение для получения базовых данных
+                first_appointment = appointments.first()
+                
+                # Подсчитываем общее количество назначений
+                total_appointments = appointments.count()
+                
+                # Вычисляем частоту (24 / количество раз в день)
+                times_per_day = 1  # По умолчанию
+                if total_appointments > 0:
+                    # Пытаемся вычислить количество раз в день
+                    # Для этого смотрим на интервал между первым и вторым назначением
+                    if appointments.count() > 1:
+                        second_appointment = appointments[1]
+                        time_diff = second_appointment.scheduled_time.hour - first_appointment.scheduled_time.hour
+                        if time_diff > 0:
+                            times_per_day = 24 // time_diff
+                        else:
+                            times_per_day = 1
+                
+                frequency_hours = 24 // times_per_day if times_per_day > 0 else 24
+                
+                return {
+                    'assigned_at': first_appointment.scheduled_date,
+                    'frequency': f'каждые {frequency_hours} часов',
+                    'duration_days': total_appointments,
+                    'times_per_day': times_per_day,
+                    'total_appointments': total_appointments
+                }
+            
+            return None
+            
+        except Exception as e:
+            print(f"Ошибка при получении данных расписания: {e}")
+            return None
+    
+    @staticmethod
     def _is_document_signed(result):
         """Проверяет, подписан ли документ"""
         try:

@@ -58,11 +58,11 @@ class ScheduleFieldsMixin:
         self.fields['start_date'] = forms.DateField(
             label=_('Дата начала'),
             widget=forms.DateInput(attrs={
-                'type': 'date',
-                'class': 'form-control'
+                'class': 'form-control',
+                'placeholder': 'дд.мм.гггг'
             }),
-            initial=date.today,
-            help_text=_('С какой даты начинать')
+            input_formats=['%d.%m.%Y', '%Y-%m-%d', '%d/%m/%Y'],
+            help_text=_('С какой даты начинать (формат: дд.мм.гггг)')
         )
         
         self.fields['first_time'] = forms.TimeField(

@@ -969,15 +969,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Устанавливаем текущую дату по умолчанию для поля start_date
     const startDateField = document.getElementById('{{ form.start_date.id_for_label }}');
     if (startDateField) {
-        // Если поле пустое, устанавливаем сегодняшнюю дату
-        if (!startDateField.value) {
-            const today = new Date().toISOString().split('T')[0];
-            startDateField.value = today;
-        }
-        
-        // Устанавливаем минимальную дату как сегодня (нельзя выбрать прошедшую дату)
-        const today = new Date().toISOString().split('T')[0];
-        startDateField.setAttribute('min', today);
+        // Всегда устанавливаем сегодняшнюю дату при открытии формы в российском формате (DD.MM.YYYY)
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const russianDate = `${day}.${month}.${year}`;
+        startDateField.value = russianDate;
     }
     
 

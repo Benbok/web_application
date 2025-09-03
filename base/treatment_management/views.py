@@ -119,9 +119,38 @@ class TreatmentPlanListView(LoginRequiredMixin, OwnerContextMixin, ListView):
     template_name = 'treatment_management/plan_list.html'
     context_object_name = 'treatment_plans'
     
+    def dispatch(self, request, *args, **kwargs):
+        # Проверяем, используем ли мы специальный URL для encounters
+        if 'encounter_pk' in self.kwargs:
+            from encounters.models import Encounter
+            self.encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
+            self.owner = self.encounter
+            self.owner_model = 'encounter'
+            self.patient = self.encounter.patient
+        else:
+            # Используем универсальный подход с OwnerContextMixin
+            self.setup_owner_context()
+        return super().dispatch(request, *args, **kwargs)
+    
+    def setup_owner_context(self):
+        """
+        Настраивает контекст владельца и пациента для универсальных URL
+        """
+        owner_model = self.kwargs.get('owner_model')
+        owner_id = self.kwargs.get('owner_id')
+        
+        if not owner_model or not owner_id:
+            raise ValueError("owner_model и owner_id должны быть указаны в URL")
+        
+        # Получаем ContentType для модели владельца
+        content_type = ContentType.objects.get(model=owner_model)
+        owner_class = content_type.model_class()
+        self.owner = get_object_or_404(owner_class, id=owner_id)
+        self.owner_model = owner_model
+        self.patient = self.get_patient_from_owner(self.owner)
+    
     def get_queryset(self):
-        # Настраиваем контекст владельца
-        self.setup_owner_context()
+        # Используем сервис для получения планов
         return TreatmentPlanService.get_treatment_plans(self.owner)
     
     def get_context_data(self, **kwargs):
@@ -201,16 +230,43 @@ class TreatmentPlanDetailView(LoginRequiredMixin, OwnerContextMixin, DetailView)
     template_name = 'treatment_management/plan_detail.html'
     context_object_name = 'treatment_plan'
     
+    def dispatch(self, request, *args, **kwargs):
+        # Проверяем, используем ли мы специальный URL для encounters
+        if 'encounter_pk' in self.kwargs:
+            from encounters.models import Encounter
+            self.encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
+            self.owner = self.encounter
+            self.owner_model = 'encounter'
+            self.patient = self.encounter.patient
+        else:
+            # Используем универсальный подход с OwnerContextMixin
+            self.setup_owner_context()
+        return super().dispatch(request, *args, **kwargs)
+    
+    def setup_owner_context(self):
+        """
+        Настраивает контекст владельца и пациента для универсальных URL
+        """
+        owner_model = self.kwargs.get('owner_model')
+        owner_id = self.kwargs.get('owner_id')
+        
+        if not owner_model or not owner_id:
+            raise ValueError("owner_model и owner_id должны быть указаны в URL")
+        
+        # Получаем ContentType для модели владельца
+        content_type = ContentType.objects.get(model=owner_model)
+        owner_class = content_type.model_class()
+        self.owner = get_object_or_404(owner_class, id=owner_id)
+        self.owner_model = owner_model
+        self.patient = self.get_patient_from_owner(self.owner)
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        owner = self.resolve_owner_from_plan(self.object)
-        context['owner'] = owner
-        context['owner_model'] = owner._meta.model_name if owner is not None else 'unknown'
+        context['owner'] = self.owner
+        context['owner_model'] = self.owner_model
         context['medications'] = self.object.medications.all()
         context['recommendations'] = self.object.recommendations.all()
-        
-        # Получаем пациента через миксин
-        context['patient'] = self.get_patient_from_owner(owner) if owner is not None else None
+        context['patient'] = self.patient
         
         return context
 

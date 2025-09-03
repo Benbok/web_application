@@ -8,6 +8,47 @@ from instrumental_procedures.models import InstrumentalProcedureDefinition
 from clinical_scheduling.forms import ScheduleSettingsForm
 
 
+def validate_and_adjust_times_per_day(times_per_day):
+    """
+    Проверяет, делится ли 24 на количество раз в день без остатка.
+    Если нет, возвращает ошибку валидации с рекомендацией.
+    
+    Args:
+        times_per_day (int): Количество раз в день
+        
+    Returns:
+        tuple: (None, ошибка_валидации_или_None)
+    """
+    if times_per_day is None:
+        return None, None
+    
+    # Проверяем, делится ли 24 на количество раз в день
+    if 24 % times_per_day == 0:
+        return None, None
+    
+    # Ищем ближайшее меньшее значение, которое делится на 24
+    adjusted_value = None
+    for i in range(times_per_day - 1, 0, -1):
+        if 24 % i == 0:
+            adjusted_value = i
+            break
+    
+    if adjusted_value:
+        error = _(
+            f'Количество раз в день "{times_per_day}" не позволяет равномерно распределить приемы в течение дня. '
+            f'Рекомендуется использовать "{adjusted_value}" раз(а) в день '
+            f'(каждые {24 // adjusted_value} часов).'
+        )
+        return None, error
+    
+    # Если не найдено подходящее значение
+    error = _(
+        f'Количество раз в день "{times_per_day}" не позволяет равномерно распределить приемы. '
+        f'Рекомендуется использовать значения, которые делят 24 без остатка (1, 2, 3, 4, 6, 8, 12, 24).'
+    )
+    return None, error
+
+
 class ExaminationLabTestForm(forms.ModelForm):
     """Форма для добавления лабораторного исследования в план обследования"""
     
@@ -27,11 +68,11 @@ class ExaminationLabTestWithScheduleForm(ExaminationLabTestForm):
     start_date = forms.DateField(
         label=_('Дата начала'),
         widget=forms.DateInput(attrs={
-            'type': 'date',
-            'class': 'form-control'
+            'class': 'form-control',
+            'placeholder': 'дд.мм.гггг'
         }),
-        initial=date.today,
-        help_text=_('С какой даты начинать расписание')
+        input_formats=['%d.%m.%Y', '%Y-%m-%d', '%d/%m/%Y'],
+        help_text=_('С какой даты начинать расписание (формат: дд.мм.гггг)')
     )
     
     first_time = forms.TimeField(
@@ -79,6 +120,13 @@ class ExaminationLabTestWithScheduleForm(ExaminationLabTestForm):
         times_per_day = cleaned_data.get('times_per_day')
         duration_days = cleaned_data.get('duration_days')
         
+        # Проверяем количество раз в день
+        if times_per_day:
+            _, error = validate_and_adjust_times_per_day(times_per_day)
+            if error:
+                # Показываем ошибку валидации
+                raise forms.ValidationError(error)
+        
         if times_per_day and duration_days:
             if times_per_day * duration_days > 1000:
                 raise forms.ValidationError(
@@ -107,11 +155,11 @@ class ExaminationInstrumentalWithScheduleForm(ExaminationInstrumentalForm):
     start_date = forms.DateField(
         label=_('Дата начала'),
         widget=forms.DateInput(attrs={
-            'type': 'date',
-            'class': 'form-control'
+            'class': 'form-control',
+            'placeholder': 'дд.мм.гггг'
         }),
-        initial=date.today,
-        help_text=_('С какой даты начинать расписание')
+        input_formats=['%d.%m.%Y', '%Y-%m-%d', '%d/%m/%Y'],
+        help_text=_('С какой даты начинать расписание (формат: дд.мм.гггг)')
     )
     
     first_time = forms.TimeField(
@@ -159,6 +207,13 @@ class ExaminationInstrumentalWithScheduleForm(ExaminationInstrumentalForm):
         times_per_day = cleaned_data.get('times_per_day')
         duration_days = cleaned_data.get('duration_days')
         
+        # Проверяем количество раз в день
+        if times_per_day:
+            _, error = validate_and_adjust_times_per_day(times_per_day)
+            if error:
+                # Показываем ошибку валидации
+                raise forms.ValidationError(error)
+        
         if times_per_day and duration_days:
             if times_per_day * duration_days > 1000:
                 raise forms.ValidationError(
@@ -171,10 +226,67 @@ class ExaminationInstrumentalWithScheduleForm(ExaminationInstrumentalForm):
 class ExaminationPlanForm(forms.ModelForm):
     """Форма для создания плана обследования"""
     
+    def __init__(self, *args, **kwargs):
+        self.owner = kwargs.pop('owner', None)
+        super().__init__(*args, **kwargs)
+        
+        # Скрываем поля владельца, так как они устанавливаются в view
+        if 'patient_department_status' in self.fields:
+            self.fields['patient_department_status'].widget = forms.HiddenInput()
+        if 'encounter' in self.fields:
+            self.fields['encounter'].widget = forms.HiddenInput()
+        if 'content_type' in self.fields:
+            self.fields['content_type'].widget = forms.HiddenInput()
+        if 'object_id' in self.fields:
+            self.fields['object_id'].widget = forms.HiddenInput()
+    
     class Meta:
         model = ExaminationPlan
-        fields = ['name', 'description']
+        fields = ['name', 'description', 'priority', 'patient_department_status', 'encounter', 'content_type', 'object_id']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-        } 
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': _('Введите название плана обследования')
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': _('Описание плана обследования (необязательно)')
+            }),
+            'priority': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'patient_department_status': forms.HiddenInput(),
+            'encounter': forms.HiddenInput(),
+            'content_type': forms.HiddenInput(),
+            'object_id': forms.HiddenInput(),
+        }
+        labels = {
+            'name': _('Название плана'),
+            'description': _('Описание'),
+            'priority': _('Приоритет')
+        }
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        
+        # Устанавливаем правильные поля владельца в зависимости от типа
+        if self.owner:
+            if hasattr(self.owner, 'patient'):  # Это PatientDepartmentStatus
+                cleaned_data['patient_department_status'] = self.owner
+                cleaned_data['encounter'] = None
+                cleaned_data['content_type'] = None
+                cleaned_data['object_id'] = None
+            elif hasattr(self.owner, 'date_start'):  # Это Encounter
+                cleaned_data['encounter'] = self.owner
+                cleaned_data['patient_department_status'] = None
+                cleaned_data['content_type'] = None
+                cleaned_data['object_id'] = None
+            else:  # Generic owner
+                from django.contrib.contenttypes.models import ContentType
+                cleaned_data['content_type'] = ContentType.objects.get_for_model(self.owner.__class__)
+                cleaned_data['object_id'] = self.owner.pk
+                cleaned_data['patient_department_status'] = None
+                cleaned_data['encounter'] = None
+        
+        return cleaned_data 

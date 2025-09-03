@@ -285,8 +285,8 @@
                      </a>
                      <a href="#examination-plans" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
                          <span><i class="fas fa-stethoscope me-2"></i>План обследования</span>
-                         {% if lab_test_assignments_page_obj or instrumental_procedure_assignments_page_obj %}
-                             <span class="badge bg-info rounded-pill">{{ lab_test_assignments_page_obj.paginator.count|default:0|add:instrumental_procedure_assignments_page_obj.paginator.count|default:0 }}</span>
+                         {% if examination_plans_page_obj %}
+                             <span class="badge bg-info rounded-pill">{{ examination_plans_page_obj.paginator.count }}</span>
                          {% endif %}
                      </a>
                  </div>
@@ -304,7 +304,7 @@
                          </h5>
                          <div class="btn-toolbar" role="toolbar">
                              <div class="btn-group" role="group">
-                                 <a href="{% url 'documents:document_type_selection' model_name='patientdepartmentstatus' object_id=patient_status.pk %}?next={{ request.get_full_path|urlencode }}"
+                                 <a href="{% url 'documents:document_type_selection' model_name='patientdepartmentstatus' object_id=patient_status.pk %}?department_slug={{ patient_status.department.slug }}&next={{ request.get_full_path|urlencode }}"
                                     class="btn btn-primary btn-sm">
                                      <i class="fas fa-plus me-1"></i>Добавить документ
                                  </a>

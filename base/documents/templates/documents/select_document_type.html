@@ -13,10 +13,11 @@
                 <input type="text" name="q" class="form-control" placeholder="Поиск по названию типа документа..." value="{{ search_query|default_if_none:'' }}">
                 <button class="btn btn-outline-secondary" type="submit">Поиск</button>
                 {% if search_query %}
-                    <a href="{% url 'documents:document_type_selection' model_name=model_name object_id=object_id %}?next={{ next_url }}" class="btn btn-outline-danger">Сбросить</a>
+                    <a href="{% url 'documents:document_type_selection' model_name=model_name object_id=object_id %}?department_slug={{ request.GET.department_slug }}&next={{ next_url }}" class="btn btn-outline-danger">Сбросить</a>
                 {% endif %}
             </div>
             <input type="hidden" name="next" value="{{ next_url }}">
+            <input type="hidden" name="department_slug" value="{{ request.GET.department_slug }}">
         </form>
 
         <div class="list-group">

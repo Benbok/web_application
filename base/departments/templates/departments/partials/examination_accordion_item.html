@@ -36,21 +36,26 @@
                             <div class="d-flex justify-content-between align-items-start">
                                 <div class="flex-grow-1">
                                     <h6 class="mb-1">
-                                        {% if lab_test.lab_test_definition %}
-                                            {{ lab_test.lab_test_definition.name }}
+                                        {% if lab_test.lab_test %}
+                                            {{ lab_test.lab_test.name }}
                                         {% else %}
                                             {{ lab_test.custom_name }}
                                         {% endif %}
                                     </h6>
                                     <div class="row text-muted small">
+                                        <div class="col-md-6">
+                                            <i class="fas fa-calendar-plus me-1"></i>Назначено: 
+                                            {% if lab_test.get_scheduled_datetime %}
+                                                {{ lab_test.get_scheduled_datetime|date:'d.m.Y H:i' }}
+                                            {% else %}
+                                                {{ lab_test.created_at|date:'d.m.Y H:i' }}
+                                            {% endif %}
+                                        </div>
                                         {% if lab_test.instructions %}
                                             <div class="col-md-6">
                                                 <i class="fas fa-info-circle me-1"></i>{{ lab_test.instructions }}
                                             </div>
                                         {% endif %}
-                                        <div class="col-md-6">
-                                            <i class="fas fa-calendar-plus me-1"></i>Назначено: {{ lab_test.created_at|date:'d.m.Y H:i' }}
-                                        </div>
                                     </div>
                                     {% if lab_test.results.all %}
                                         <div class="mt-2">
@@ -62,12 +67,10 @@
                                 </div>
                                 <div class="ms-3">
                                     <div class="btn-group-vertical btn-group-sm">
-                                        {% if lab_test.results.all %}
-                                            <a href="{% url 'examination_management:lab_test_result_view' pk=lab_test.pk %}" 
-                                               class="btn btn-outline-success btn-sm">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                        {% endif %}
+                                        <a href="{% url 'examination_management:lab_test_update' pk=lab_test.pk %}" 
+                                           class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
                                         <a href="{% url 'examination_management:lab_test_delete' pk=lab_test.pk %}" 
                                            class="btn btn-outline-danger btn-sm"
                                            onclick="return confirm('Удалить лабораторное исследование?')">
@@ -97,21 +100,26 @@
                             <div class="d-flex justify-content-between align-items-start">
                                 <div class="flex-grow-1">
                                     <h6 class="mb-1">
-                                        {% if instrumental.procedure_definition %}
-                                            {{ instrumental.procedure_definition.name }}
+                                        {% if instrumental.instrumental_procedure %}
+                                            {{ instrumental.instrumental_procedure.name }}
                                         {% else %}
                                             {{ instrumental.custom_name }}
                                         {% endif %}
                                     </h6>
                                     <div class="row text-muted small">
+                                        <div class="col-md-6">
+                                            <i class="fas fa-calendar-plus me-1"></i>Назначено: 
+                                            {% if instrumental.get_scheduled_datetime %}
+                                                {{ instrumental.get_scheduled_datetime|date:'d.m.Y H:i' }}
+                                            {% else %}
+                                                {{ instrumental.created_at|date:'d.m.Y H:i' }}
+                                            {% endif %}
+                                        </div>
                                         {% if instrumental.instructions %}
                                             <div class="col-md-6">
                                                 <i class="fas fa-info-circle me-1"></i>{{ instrumental.instructions }}
                                             </div>
                                         {% endif %}
-                                        <div class="col-md-6">
-                                            <i class="fas fa-calendar-plus me-1"></i>Назначено: {{ instrumental.created_at|date:'d.m.Y H:i' }}
-                                        </div>
                                     </div>
                                     {% if instrumental.results.all %}
                                         <div class="mt-2">
@@ -123,12 +131,10 @@
                                 </div>
                                 <div class="ms-3">
                                     <div class="btn-group-vertical btn-group-sm">
-                                        {% if instrumental.results.all %}
-                                            <a href="{% url 'examination_management:instrumental_result_view' pk=instrumental.pk %}" 
-                                               class="btn btn-outline-success btn-sm">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                        {% endif %}
+                                        <a href="{% url 'examination_management:instrumental_update' pk=instrumental.pk %}" 
+                                           class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
                                         <a href="{% url 'examination_management:instrumental_delete' pk=instrumental.pk %}" 
                                            class="btn btn-outline-danger btn-sm"
                                            onclick="return confirm('Удалить инструментальное исследование?')">

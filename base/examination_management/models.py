@@ -111,6 +111,16 @@ class BaseExaminationPlan(models.Model):
             return self.owner._meta.model_name
         return 'unknown'
     
+    def get_owner(self):
+        """Возвращает объект-владелец плана обследования"""
+        if self.patient_department_status:
+            return self.patient_department_status
+        elif self.encounter:
+            return self.encounter
+        elif self.owner:
+            return self.owner
+        return None
+    
     @classmethod
     def get_or_create_main_plan(cls, owner_type, owner_id, owner_model=None):
         """
@@ -338,6 +348,39 @@ class ExaminationLabTest(ArchivableModel, models.Model):
         """Получить название лабораторного исследования"""
         return self.lab_test.name
     
+    def get_scheduled_datetime(self):
+        """
+        Получить дату и время назначения из расписания
+        Возвращает datetime или None, если расписание не найдено
+        """
+        try:
+            from clinical_scheduling.models import ScheduledAppointment
+            from django.contrib.contenttypes.models import ContentType
+            
+            content_type = ContentType.objects.get_for_model(self)
+            appointment = ScheduledAppointment.objects.filter(
+                content_type=content_type,
+                object_id=self.pk
+            ).order_by('scheduled_date', 'scheduled_time').first()
+            
+            if appointment and appointment.scheduled_date:
+                from django.utils import timezone
+                # Комбинируем дату и время
+                if appointment.scheduled_time:
+                    return timezone.make_aware(
+                        timezone.datetime.combine(appointment.scheduled_date, appointment.scheduled_time)
+                    )
+                else:
+                    # Если время не указано, используем 00:00
+                    return timezone.make_aware(
+                        timezone.datetime.combine(appointment.scheduled_date, timezone.now().time().replace(hour=0, minute=0))
+                    )
+            
+            return None
+            
+        except Exception:
+            return None
+    
     # Менеджеры для архивирования
     objects = ArchiveManager()
     all_objects = models.Manager()
@@ -416,6 +459,39 @@ class ExaminationInstrumental(ArchivableModel, models.Model):
     def get_procedure_name(self):
         """Получить название процедуры"""
         return self.instrumental_procedure.name
+    
+    def get_scheduled_datetime(self):
+        """
+        Получить дату и время назначения из расписания
+        Возвращает datetime или None, если расписание не найдено
+        """
+        try:
+            from clinical_scheduling.models import ScheduledAppointment
+            from django.contrib.contenttypes.models import ContentType
+            
+            content_type = ContentType.objects.get_for_model(self)
+            appointment = ScheduledAppointment.objects.filter(
+                content_type=content_type,
+                object_id=self.pk
+            ).order_by('scheduled_date', 'scheduled_time').first()
+            
+            if appointment and appointment.scheduled_date:
+                from django.utils import timezone
+                # Комбинируем дату и время
+                if appointment.scheduled_time:
+                    return timezone.make_aware(
+                        timezone.datetime.combine(appointment.scheduled_date, appointment.scheduled_time)
+                    )
+                else:
+                    # Если время не указано, используем 00:00
+                    return timezone.make_aware(
+                        timezone.datetime.combine(appointment.scheduled_date, timezone.now().time().replace(hour=0, minute=0))
+                    )
+            
+            return None
+            
+        except Exception:
+            return None
     
     # Менеджеры для архивирования
     objects = ArchiveManager()

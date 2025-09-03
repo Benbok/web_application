@@ -29,11 +29,13 @@
                     <i class="fas fa-notes-medical"></i> {{ examination_plan.name }}
                 </h4>
                 <small class="text-muted">
-                    {% if encounter.patient %}
-                        Пациент: <a href="{% url 'patients:patient_detail' encounter.patient.pk %}">{{ encounter.patient.get_full_name_with_age }}</a> | 
-                        Случай: <a href="{% url 'encounters:encounter_detail' encounter.id %}">{{ encounter.date_start|date:"d.m.Y" }}</a>
+                    {% if owner.patient %}
+                        Пациент: <a href="{% url 'patients:patient_detail' owner.patient.pk %}">{{ owner.patient.get_full_name_with_age }}</a>
+                        {% if owner_model == 'encounter' %}
+                            | Случай: <a href="{% url 'encounters:encounter_detail' owner.id %}">{{ owner.date_start|date:"d.m.Y" }}</a>
+                        {% endif %}
                     {% else %}
-                        {{ encounter }}
+                        {{ owner }}
                     {% endif %}
                 </small>
             </div>
@@ -57,7 +59,7 @@
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
 
-                        <li><a class="dropdown-item text-danger" href="{% url 'examination_management:examination_plan_delete' encounter_pk=encounter.pk pk=examination_plan.pk %}">
+                        <li><a class="dropdown-item text-danger" href="{% if owner_model == 'encounter' %}{% url 'examination_management:examination_plan_delete' encounter_pk=owner.pk pk=examination_plan.pk %}{% else %}{% url 'examination_management:plan_delete' owner_model=owner_model owner_id=owner.id pk=examination_plan.pk %}{% endif %}">
                             <i class="fas fa-trash fa-fw me-2"></i>Удалить план
                         </a></li>
                     </ul>
@@ -170,7 +172,7 @@
         {% if lab_tests_with_status %}
             <div class="row">
                 {% for item in lab_tests_with_status %}
-                {% with lab_test=item.examination_lab_test status_info=item.status_info %}
+                {% with lab_test=item.examination_lab_test status_info=item.status_info schedule_data=item.schedule_data %}
                 <div class="col-md-6 col-lg-4 mb-3">
                     <div class="card h-100 {% if status_info.status == 'completed' %}border-success{% elif status_info.status == 'rejected' %}border-danger{% elif status_info.status == 'active' %}border-primary{% else %}border-secondary{% endif %}">
                         <div class="card-header bg-white p-3">
@@ -200,6 +202,31 @@
                             {% if lab_test.lab_test.description %}
                             <div class="mb-2">
                                 <small class="text-muted">{{ lab_test.lab_test.description|truncatewords:15 }}</small>
+                            </div>
+                            {% endif %}
+                            
+                            {% comment %} Данные из расписания {% endcomment %}
+                            {% if schedule_data %}
+                            <div class="mb-2">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <small class="text-muted">
+                                            <i class="fas fa-calendar me-1"></i>Назначено: {{ schedule_data.assigned_at|date:"d.m.Y" }}
+                                        </small>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">
+                                            <i class="fas fa-clock me-1"></i>Частота: {{ schedule_data.frequency }}
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="row mt-1">
+                                    <div class="col-6">
+                                        <small class="text-muted">
+                                            <i class="fas fa-calendar-day me-1"></i>Курс: {{ schedule_data.duration_days }} дн.
+                                        </small>
+                                    </div>
+                                </div>
                             </div>
                             {% endif %}
                             
@@ -312,7 +339,7 @@
             {% comment %} Компактный список инструментальных исследований с отображением статусов {% endcomment %}
             <ul class="list-group">
                 {% for item in instrumental_procedures_with_status %}
-                {% with instrumental=item.examination_instrumental status_info=item.status_info %}
+                {% with instrumental=item.examination_instrumental status_info=item.status_info schedule_data=item.schedule_data %}
                 <li class="list-group-item d-flex justify-content-between align-items-start">
                     <div class="flex-grow-1">
                         <div class="d-flex justify-content-between align-items-start">
@@ -331,6 +358,31 @@
                                 
                                 {% if instrumental.instructions %}
                                 <small class="text-muted">{{ instrumental.instructions|linebreaks }}</small>
+                                {% endif %}
+                                
+                                {% comment %} Данные из расписания {% endcomment %}
+                                {% if schedule_data %}
+                                <div class="mt-1">
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <small class="text-muted">
+                                                <i class="fas fa-calendar me-1"></i>Назначено: {{ schedule_data.assigned_at|date:"d.m.Y" }}
+                                            </small>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted">
+                                                <i class="fas fa-clock me-1"></i>Частота: {{ schedule_data.frequency }}
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-1">
+                                        <div class="col-6">
+                                            <small class="text-muted">
+                                                <i class="fas fa-calendar-day me-1"></i>Курс: {{ schedule_data.duration_days }} дн.
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
                                 {% endif %}
                                 
                                 {% comment %} Информация о статусе {% endcomment %}
@@ -421,12 +473,18 @@
 
 {% comment %} Навигационные кнопки внизу страницы. Логично сгруппированы. {% endcomment %}
 <div class="d-flex gap-2 mt-4">
-    <a href="{% url 'examination_management:examination_plan_list' encounter_pk=encounter.pk %}" class="btn btn-secondary">
+    <a href="{% if owner_model == 'encounter' %}{% url 'examination_management:examination_plan_list' encounter_pk=owner.pk %}{% else %}{% url 'examination_management:plan_list' owner_model=owner_model owner_id=owner.id %}{% endif %}" class="btn btn-secondary">
         <i class="fas fa-arrow-left me-1"></i> Все планы обследования
     </a>
-    <a href="{% url 'encounters:encounter_detail' pk=encounter.pk %}" class="btn btn-outline-secondary">
-        <i class="fas fa-user me-1"></i> Вернуться к случаю
-    </a>
+    {% if owner_model == 'encounter' %}
+        <a href="{% url 'encounters:encounter_detail' pk=owner.pk %}" class="btn btn-outline-secondary">
+            <i class="fas fa-user me-1"></i> Вернуться к случаю
+        </a>
+    {% elif owner_model == 'patientdepartmentstatus' %}
+        <a href="{% url 'departments:patient_history' pk=owner.id %}" class="btn btn-outline-secondary">
+            <i class="fas fa-history me-1"></i> Вернуться к истории
+        </a>
+    {% endif %}
 </div>
 
 {% endblock %} 
