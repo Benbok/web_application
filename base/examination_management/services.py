@@ -211,16 +211,16 @@ class ExaminationStatusService:
             if hasattr(assignment, 'lab_test'):
                 # Это ExaminationLabTest
                 from lab_tests.models import LabTestResult
+                # Используем прямую связь через examination_lab_test
                 return LabTestResult.objects.filter(
-                    examination_plan=assignment.examination_plan,
-                    procedure_definition=assignment.lab_test
+                    examination_lab_test=assignment
                 ).first()
             elif hasattr(assignment, 'instrumental_procedure'):
                 # Это ExaminationInstrumental
                 from instrumental_procedures.models import InstrumentalProcedureResult
+                # Используем прямую связь через examination_instrumental
                 return InstrumentalProcedureResult.objects.filter(
-                    examination_plan=assignment.examination_plan,
-                    procedure_definition=assignment.instrumental_procedure
+                    examination_instrumental=assignment
                 ).first()
         except Exception:
             pass

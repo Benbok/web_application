@@ -362,6 +362,7 @@ class ExaminationLabTest(ArchivableModel, models.Model):
         related_name='examination_lab_tests'
     )
     instructions = models.TextField(_('Особые указания'), blank=True)
+    scheduled_time = models.TimeField(_('Время выполнения'), null=True, blank=True, help_text=_('Время выполнения исследования'))
     created_at = models.DateTimeField(_('Создано'), auto_now_add=True)
     updated_at = models.DateTimeField(_('Обновлено'), auto_now=True)
     
@@ -397,7 +398,8 @@ class ExaminationLabTest(ArchivableModel, models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"{self.lab_test.name} в плане {self.examination_plan.name}"
+        time_str = f" ({self.scheduled_time.strftime('%H:%M')})" if self.scheduled_time else ""
+        return f"{self.lab_test.name} в плане {self.examination_plan.name}{time_str} [ID: {self.pk}]"
     
     def get_absolute_url(self):
         return reverse('examination_management:lab_test_detail', kwargs={'pk': self.pk})

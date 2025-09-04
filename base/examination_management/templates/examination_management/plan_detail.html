@@ -216,6 +216,10 @@
                                             <i class="fas fa-clock me-1"></i>{{ schedule_data.first_time|time:"H:i" }}
                                         {% endif %}
                                     </small>
+                                {% elif lab_test.scheduled_time %}
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>Время выполнения: {{ lab_test.scheduled_time|time:"H:i" }}
+                                    </small>
                                 {% endif %}
                             </div>
                             
@@ -269,7 +273,12 @@
                                             <i class="fas fa-ban me-1"></i>
                                             <strong>Отменено:</strong> {{ lab_test.cancelled_at|date:"d.m.Y H:i" }}
                                             {% if lab_test.cancelled_by %}
-                                                <br>Отменено: {{ lab_test.cancelled_by.get_full_name|default:lab_test.cancelled_by.username }}
+                                                <br>Отменено: 
+                                                {% if lab_test.cancelled_by.doctor_profile %}
+                                                    {{ lab_test.cancelled_by.doctor_profile.full_name }}
+                                                {% else %}
+                                                    {{ lab_test.cancelled_by.get_full_name|default:lab_test.cancelled_by.username }}
+                                                {% endif %}
                                             {% endif %}
                                             {% if lab_test.cancellation_reason %}
                                                 <br><strong>Причина:</strong> {{ lab_test.cancellation_reason|truncatechars:50 }}
@@ -433,7 +442,12 @@
                                         <i class="fas fa-ban me-1"></i>
                                         <strong>Отменено:</strong> {{ instrumental.cancelled_at|date:"d.m.Y H:i" }}
                                         {% if instrumental.cancelled_by %}
-                                            <br>Отменено: {{ instrumental.cancelled_by.get_full_name|default:instrumental.cancelled_by.username }}
+                                            <br>Отменено: 
+                                            {% if instrumental.cancelled_by.doctor_profile %}
+                                                {{ instrumental.cancelled_by.doctor_profile.full_name }}
+                                            {% else %}
+                                                {{ instrumental.cancelled_by.get_full_name|default:instrumental.cancelled_by.username }}
+                                            {% endif %}
                                         {% endif %}
                                         {% if instrumental.cancellation_reason %}
                                             <br><strong>Причина:</strong> {{ instrumental.cancellation_reason|truncatechars:50 }}

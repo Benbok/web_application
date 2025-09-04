@@ -100,8 +100,15 @@ def _find_examination_item(document):
     try:
         from examination_management.models import ExaminationLabTest, ExaminationInstrumental
         
+        # Используем прямые связи, если они есть
+        if hasattr(document, 'examination_lab_test') and document.examination_lab_test:
+            return document.examination_lab_test
+        
+        if hasattr(document, 'examination_instrumental') and document.examination_instrumental:
+            return document.examination_instrumental
+        
+        # Fallback на старую логику поиска по плану обследования
         if hasattr(document, 'examination_plan'):
-            # Ищем по плану обследования
             if hasattr(document, 'procedure_definition'):
                 # Определяем тип процедуры по модели
                 if document._meta.model_name == 'labtestresult':

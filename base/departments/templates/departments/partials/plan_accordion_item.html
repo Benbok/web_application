@@ -50,7 +50,16 @@
                                         <i class="fas fa-ban"></i>
                                     </a>
                                 {% else %}
-                                    <span class="text-muted small">Отменено {{ medication.cancelled_at|date:"d.m.Y H:i" }}</span>
+                                    <span class="text-muted small">
+                                        Отменено {{ medication.cancelled_at|date:"d.m.Y H:i" }}
+                                        {% if medication.cancelled_by %}
+                                            {% if medication.cancelled_by.doctor_profile %}
+                                                <br>{{ medication.cancelled_by.doctor_profile.full_name }}
+                                            {% else %}
+                                                <br>{{ medication.cancelled_by.get_full_name|default:medication.cancelled_by.username }}
+                                            {% endif %}
+                                        {% endif %}
+                                    </span>
                                 {% endif %}
                             </div>
                         </div>
@@ -147,7 +156,16 @@
                                         <i class="fas fa-ban"></i>
                                     </a>
                                 {% else %}
-                                    <span class="text-muted small">Отменено {{ recommendation.cancelled_at|date:"d.m.Y H:i" }}</span>
+                                    <span class="text-muted small">
+                                        Отменено {{ recommendation.cancelled_at|date:"d.m.Y H:i" }}
+                                        {% if recommendation.cancelled_by %}
+                                            {% if recommendation.cancelled_by.doctor_profile %}
+                                                <br>{{ recommendation.cancelled_by.doctor_profile.full_name }}
+                                            {% else %}
+                                                <br>{{ recommendation.cancelled_by.get_full_name|default:recommendation.cancelled_by.username }}
+                                            {% endif %}
+                                        {% endif %}
+                                    </span>
                                 {% endif %}
                             </div>
                         </div>

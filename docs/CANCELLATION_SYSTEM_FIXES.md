@@ -213,7 +213,7 @@ class ExaminationLabTestCancelView(LoginRequiredMixin, DetailView):
         # Отменяем назначение
         try:
             self.object.cancel(
-                reason="Отменено через веб-интерфейс",
+                reason="Отменено без указания причины",
                 cancelled_by=request.user
             )
             messages.success(request, _('Лабораторное исследование успешно отменено'))

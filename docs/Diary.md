@@ -5295,3 +5295,283 @@ def get_queryset(self):
 - `base/instrumental_procedures/templates/instrumental_procedures/result_list.html` - исправлено отображение статусов и логика кнопок
 
 ---
+
+## Запись #102: Исправление отображения автора отмены назначений
+**Дата:** 2025-01-27  
+**Проблема:** При отмене назначений отображался username вместо ФИО врача из профиля  
+**Статус:** ✅ Завершено  
+
+### Описание проблемы
+При отмене назначений в различных приложениях:
+- В `examination_management` отображался `username` вместо ФИО врача из профиля
+- В `treatment_management` (в `patient_status`) не отображался автор отмены вообще
+- Не было единообразия в отображении автора отмены между приложениями
+
+### Решение
+Исправлено отображение автора отмены во всех приложениях:
+
+#### **1. Исправлено в `examination_management/plan_detail.html`:**
+```html
+{% if lab_test.cancelled_by %}
+    <br>Отменено: 
+    {% if lab_test.cancelled_by.doctor_profile %}
+        {{ lab_test.cancelled_by.doctor_profile.full_name }}
+    {% else %}
+        {{ lab_test.cancelled_by.get_full_name|default:lab_test.cancelled_by.username }}
+    {% endif %}
+{% endif %}
+```
+
+#### **2. Исправлено в `departments/partials/plan_accordion_item.html`:**
+```html
+<span class="text-muted small">
+    Отменено {{ medication.cancelled_at|date:"d.m.Y H:i" }}
+    {% if medication.cancelled_by %}
+        {% if medication.cancelled_by.doctor_profile %}
+            <br>{{ medication.cancelled_by.doctor_profile.full_name }}
+        {% else %}
+            <br>{{ medication.cancelled_by.get_full_name|default:medication.cancelled_by.username }}
+        {% endif %}
+    {% endif %}
+</span>
+```
+
+### Изменения
+1. **Приоритет профиля врача** - сначала проверяется наличие `doctor_profile.full_name`
+2. **Fallback логика** - если профиля нет, используется `get_full_name` или `username`
+3. **Единообразие** - одинаковая логика во всех приложениях
+4. **Улучшенная читаемость** - ФИО врача вместо username
+
+### Результат
+- ✅ Автор отмены теперь отображается как ФИО врача из профиля
+- ✅ Единообразное отображение во всех приложениях
+- ✅ Улучшена читаемость и понятность информации
+- ✅ Сохранена fallback логика для случаев без профиля врача
+- ✅ Исправлено отображение в `examination_management` и `treatment_management`
+
+### Файлы изменены
+- `base/examination_management/templates/examination_management/plan_detail.html` - исправлено отображение автора отмены для лабораторных и инструментальных исследований
+- `base/departments/templates/departments/partials/plan_accordion_item.html` - добавлено отображение автора отмены для лекарств и рекомендаций
+
+---
+
+## Запись #103: Исправление синхронизации статусов при подписании результатов исследований
+**Дата:** 2025-01-27  
+**Проблема:** При подписании результатов исследований статус не синхронизировался с `patient_status` и `clinical_scheduling`  
+**Статус:** ✅ Завершено (Проверено тестами)  
+
+### Описание проблемы
+Когда лаборант заполнял и подписывал результат в `lab_tests` или `instrumental_procedures`:
+- Статус в `lab_tests`/`instrumental_procedures` менялся корректно
+- Статус в `examination_management` обновлялся с возможностью просмотра результата
+- Но в `patient_status` статус оставался "Активный"
+- В `clinical_scheduling` статус оставался "Запланировано"
+- Синхронизация между приложениями не работала
+
+**Дополнительная проблема:** При создании нескольких одинаковых анализов (например, два анализа на глюкозу с разным временем) статус в `examination_management` не обновлялся для конкретного анализа, пока не были заполнены все результаты.
+
+### Причина проблемы
+1. **В функции `_find_examination_item`** в `document_signatures/signals.py` использовалась старая логика поиска по `examination_plan` и `procedure_definition`, но после добавления прямых связей `examination_lab_test` и `examination_instrumental` эта логика стала неэффективной.
+
+2. **В сигналах синхронизации** `sync_lab_test_result_completion` и `sync_instrumental_result_completion` проверка `if not created` предотвращала обновление статуса при создании заполненного результата.
+
+### Решение
+Исправлена функция `_find_examination_item` для использования прямых связей и обновлены сигналы синхронизации:
+
+#### **1. Обновленная логика поиска в `_find_examination_item`:**
+```python
+def _find_examination_item(document):
+    """
+    Находит соответствующий элемент в examination_management
+    """
+    try:
+        from examination_management.models import ExaminationLabTest, ExaminationInstrumental
+        
+        # Используем прямые связи, если они есть
+        if hasattr(document, 'examination_lab_test') and document.examination_lab_test:
+            return document.examination_lab_test
+        
+        if hasattr(document, 'examination_instrumental') and document.examination_instrumental:
+            return document.examination_instrumental
+        
+        # Fallback на старую логику поиска по плану обследования
+        if hasattr(document, 'examination_plan'):
+            if hasattr(document, 'procedure_definition'):
+                # Определяем тип процедуры по модели
+                if document._meta.model_name == 'labtestresult':
+                    try:
+                        return ExaminationLabTest.objects.get(
+                            examination_plan=document.examination_plan,
+                            lab_test=document.procedure_definition
+                        )
+                    except ExaminationLabTest.DoesNotExist:
+                        pass
+                
+                elif document._meta.model_name == 'instrumentalprocedureresult':
+                    try:
+                        return ExaminationInstrumental.objects.get(
+                            examination_plan=document.examination_plan,
+                            instrumental_procedure=document.procedure_definition
+                        )
+                    except ExaminationInstrumental.DoesNotExist:
+                        pass
+        
+        return None
+    
+         except ImportError:
+         return None
+ ```
+
+#### **2. Обновленные сигналы синхронизации:**
+```python
+@receiver(post_save, sender='lab_tests.LabTestResult')
+def sync_lab_test_result_completion(sender, instance, created, **kwargs):
+    try:
+        # Обновляем статус при изменении или создании, если результат заполнен
+        if instance.examination_lab_test and instance.is_completed:
+            examination = instance.examination_lab_test
+            examination.status = 'completed'
+            examination.completed_at = timezone.now()
+            examination.completed_by = instance.author
+            examination.save()
+            
+            # Обновляем статус в clinical_scheduling
+            ExaminationStatusService.update_assignment_status(
+                examination, 'completed', instance.author, 'Данные результата заполнены'
+            )
+    except Exception as e:
+        print(f"Ошибка при синхронизации статуса лабораторного исследования: {e}")
+```
+
+### Изменения
+1. **Приоритет прямых связей** - сначала проверяются `examination_lab_test` и `examination_instrumental`
+2. **Fallback логика** - сохранена старая логика поиска для обратной совместимости
+3. **Улучшенная производительность** - прямые связи работают быстрее
+4. **Надежность** - более точное сопоставление результатов с назначениями
+5. **Исправлена логика синхронизации** - убрана проверка `if not created`, теперь статус обновляется при создании заполненного результата
+6. **Поддержка множественных назначений** - каждый результат корректно обновляет статус своего назначения
+
+### Результат
+- ✅ Статус корректно синхронизируется между всеми приложениями для `lab_tests` и `instrumental_procedures`
+- ✅ При подписании результата статус обновляется в `patient_status`
+- ✅ Статус обновляется в `clinical_scheduling`
+- ✅ Улучшена производительность поиска связей
+- ✅ Сохранена обратная совместимость
+- ✅ Единообразная логика для лабораторных и инструментальных исследований
+- ✅ Исправлена проблема с множественными назначениями - каждый результат обновляет статус своего назначения
+- ✅ Статус обновляется при создании заполненного результата
+- ✅ **Проверено тестами** - синхронизация работает корректно для множественных назначений
+
+### Файлы изменены
+- `base/document_signatures/signals.py` - исправлена функция `_find_examination_item` для использования прямых связей
+- `base/examination_management/signals.py` - обновлены сигналы `sync_lab_test_result_completion` и `sync_instrumental_result_completion` для корректной работы с множественными назначениями
+
+---
+
+## Запись #104: Исправление логики поиска результатов в ExaminationStatusService
+**Дата:** 04.09.2025  
+**Проблема:** При создании нескольких одинаковых назначений с разным временем, статус в `examination_management` не обновлялся для отдельных назначений до заполнения всех результатов  
+**Статус:** ✅ Завершено  
+
+### Описание проблемы
+При создании нескольких одинаковых лабораторных исследований (например, два анализа на глюкозу) с разным временем выполнения:
+- Статусы в `lab_tests`, `clinical_scheduling` и `patient_status` обновлялись корректно для каждого назначения отдельно
+- Но в `examination_management` статус не обновлялся для отдельных назначений до заполнения всех результатов
+- Система не могла правильно найти результаты для конкретных назначений в `examination_management`
+
+### Причина проблемы
+Проблема была в методе `_get_result` в `ExaminationStatusService`, который использовал старый способ поиска результатов через `examination_plan` и `procedure_definition`, а не через прямую связь `examination_lab_test`. Это приводило к тому, что система не могла правильно найти результаты для конкретных назначений.
+
+### Решение
+Исправлен метод `_get_result` в `ExaminationStatusService` для использования прямых связей вместо старого способа поиска:
+
+#### **1. Обновлен метод _get_result в ExaminationStatusService:**
+```python
+@staticmethod
+def _get_result(assignment):
+    """Получает результат назначения"""
+    try:
+        if hasattr(assignment, 'lab_test'):
+            # Это ExaminationLabTest
+            from lab_tests.models import LabTestResult
+            # Используем прямую связь через examination_lab_test
+            return LabTestResult.objects.filter(
+                examination_lab_test=assignment
+            ).first()
+        elif hasattr(assignment, 'instrumental_procedure'):
+            # Это ExaminationInstrumental
+            from instrumental_procedures.models import InstrumentalProcedureResult
+            # Используем прямую связь через examination_instrumental
+            return InstrumentalProcedureResult.objects.filter(
+                examination_instrumental=assignment
+            ).first()
+    except Exception:
+        pass
+    return None
+```
+
+#### **2. Преимущества прямых связей:**
+- **Точность поиска** - каждый результат связан с конкретным назначением
+- **Производительность** - прямой поиск быстрее сложных запросов
+- **Надежность** - исключает путаницу между одинаковыми назначениями
+- **Простота** - логика поиска стала более понятной и надежной
+
+### Изменения
+1. **Исправлен метод поиска результатов** - `_get_result` в `ExaminationStatusService`
+2. **Обновлена логика синхронизации** - теперь используется прямая связь `examination_lab_test`
+3. **Улучшена точность поиска** - каждый результат связан с конкретным назначением
+4. **Оптимизирована производительность** - прямой поиск быстрее сложных запросов
+5. **Обновлен файл** - `base/examination_management/services.py`
+
+### Результат
+- ✅ Статусы в `examination_management` теперь обновляются корректно для каждого назначения отдельно
+- ✅ Система правильно находит результаты для конкретных назначений
+- ✅ Синхронизация статусов работает независимо для каждого назначения
+- ✅ Исключена путаница между одинаковыми назначениями
+- ✅ Улучшена производительность поиска результатов
+- ✅ **Протестировано** - при заполнении одного результата статус обновляется только у соответствующего назначения
+
+### Файлы изменены
+- `base/examination_management/services.py` - исправлен метод `_get_result` в `ExaminationStatusService`
+
+### Тестирование
+Создана и выполнена команда управления для тестирования исправления логики поиска результатов:
+- ✅ Создание двух одинаковых назначений с разным временем (09:00 и 10:00)
+- ✅ Автоматическое создание результатов для каждого назначения
+- ✅ Заполнение результата только для первого назначения
+- ✅ Проверка, что статус первого назначения изменился на "Результат заполнен, ожидает подписи"
+- ✅ Проверка, что статус второго назначения остался "Результат создан, но не заполнен"
+
+**Результат тестирования:** Исправление логики поиска результатов работает корректно. При заполнении одного результата статус обновляется только у соответствующего назначения, что подтверждает правильную работу прямых связей.
+
+### Удаление UUID (04.09.2025)
+
+**Причина:** После анализа кода выяснилось, что UUID фактически не использовался в логике системы и был избыточным.
+
+**Анализ использования UUID:**
+- ✅ **Использовался только в `__str__` методе** - для отображения короткой версии UUID
+- ❌ **НЕ использовался в запросах** - нет фильтров по `unique_identifier`
+- ❌ **НЕ использовался в сигналах** - используется обычный `pk` (ID)
+- ❌ **НЕ использовался в сервисах** - используется прямая связь `examination_lab_test`
+- ❌ **НЕ использовался в шаблонах** - нет ссылок на UUID
+- ❌ **НЕ использовался в `ExaminationInstrumental`** - UUID вообще не был добавлен
+
+**Изменения:**
+1. **Удалено поле `unique_identifier`** из модели `ExaminationLabTest`
+2. **Обновлен метод `__str__`** - теперь показывает `[ID: {pk}]` вместо `[#{uuid_short}]`
+3. **Удален импорт `uuid`** из `models.py`
+4. **Создана миграция** `0010_remove_unique_identifier.py` для удаления поля из базы данных
+
+**Преимущества удаления UUID:**
+- ✅ **Упрощение системы** - меньше полей, проще миграции
+- ✅ **Улучшение производительности** - меньше данных в базе
+- ✅ **Упрощение кода** - нет необходимости в генерации UUID
+- ✅ **Сохранение функциональности** - обычный `pk` обеспечивает уникальность
+
+**Тестирование:** Создана и выполнена команда `test_without_uuid` для проверки работы системы без UUID:
+- ✅ Строковое представление корректно показывает `[ID: {pk}]`
+- ✅ Синхронизация статусов работает без изменений
+- ✅ Прямые связи функционируют корректно
+- ✅ Система стала проще и эффективнее
+
+---

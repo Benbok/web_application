@@ -578,6 +578,10 @@ class ExaminationLabTestCreateView(LoginRequiredMixin, CreateView):
         # Сохраняем значение lab_test из формы
         form.instance.lab_test = form.cleaned_data['lab_test']
         
+        # Сохраняем время выполнения в модель
+        if form.cleaned_data.get('first_time'):
+            form.instance.scheduled_time = form.cleaned_data['first_time']
+        
         # Сохраняем объект
         response = super().form_valid(form)
         
@@ -783,7 +787,7 @@ class ExaminationLabTestCancelView(LoginRequiredMixin, DetailView):
         # Получаем причину отмены из формы
         cancellation_reason = request.POST.get('cancellation_reason', '').strip()
         if not cancellation_reason:
-            cancellation_reason = "Отменено через веб-интерфейс"
+            cancellation_reason = "Отменено без указания причины"
         
         # Отменяем назначение
         try:
@@ -1125,7 +1129,7 @@ class ExaminationInstrumentalDeleteView(LoginRequiredMixin, DeleteView):
         # Отменяем назначение
         try:
             self.object.cancel(
-                reason="Отменено через веб-интерфейс",
+                reason="Отменено без указания причины",
                 cancelled_by=request.user
             )
             messages.success(request, _('Инструментальное исследование успешно отменено'))

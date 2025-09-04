@@ -272,23 +272,22 @@ def sync_instrumental_result_completion(sender, instance, created, **kwargs):
     когда данные результата заполнены
     """
     try:
-        # Обновляем статус только при изменении, а не при создании
-        if not created and instance.examination_instrumental:
+        # Обновляем статус при изменении или создании, если результат заполнен
+        if instance.examination_instrumental and instance.is_completed:
             # Используем прямую связь с ExaminationInstrumental
             examination = instance.examination_instrumental
             
-            if examination and instance.is_completed:
-                # Если данные заполнены, обновляем статус в examination_management
-                examination.status = 'completed'
-                examination.completed_at = timezone.now()
-                examination.completed_by = instance.author
-                examination.save()
-                
-                # Обновляем статус в clinical_scheduling
-                from .services import ExaminationStatusService
-                ExaminationStatusService.update_assignment_status(
-                    examination, 'completed', instance.author, 'Данные результата заполнены'
-                )
+            # Если данные заполнены, обновляем статус в examination_management
+            examination.status = 'completed'
+            examination.completed_at = timezone.now()
+            examination.completed_by = instance.author
+            examination.save()
+            
+            # Обновляем статус в clinical_scheduling
+            from .services import ExaminationStatusService
+            ExaminationStatusService.update_assignment_status(
+                examination, 'completed', instance.author, 'Данные результата заполнены'
+            )
                 
     except Exception as e:
         print(f"Ошибка при синхронизации статуса инструментального исследования: {e}")
@@ -301,26 +300,27 @@ def sync_lab_test_result_completion(sender, instance, created, **kwargs):
     когда данные результата заполнены
     """
     try:
-        # Обновляем статус только при изменении, а не при создании
-        if not created and instance.examination_lab_test:
+        # Обновляем статус при изменении или создании, если результат заполнен
+        if instance.examination_lab_test and instance.is_completed:
             # Используем прямую связь с ExaminationLabTest
             examination = instance.examination_lab_test
             
-            if instance.is_completed:
-                # Если данные заполнены, обновляем статус в examination_management
-                examination.status = 'completed'
-                examination.completed_at = timezone.now()
-                examination.completed_by = instance.author
-                examination.save()
-                
-                # Обновляем статус в clinical_scheduling
-                from .services import ExaminationStatusService
-                ExaminationStatusService.update_assignment_status(
-                    examination, 'completed', instance.author, 'Данные результата заполнены'
-                )
+            # Если данные заполнены, обновляем статус в examination_management
+            examination.status = 'completed'
+            examination.completed_at = timezone.now()
+            examination.completed_by = instance.author
+            examination.save()
+            
+            # Обновляем статус в clinical_scheduling
+            from .services import ExaminationStatusService
+            ExaminationStatusService.update_assignment_status(
+                examination, 'completed', instance.author, 'Данные результата заполнены'
+            )
                 
     except Exception as e:
         print(f"Ошибка при синхронизации статуса лабораторного исследования: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 # ============================================================================
@@ -358,14 +358,14 @@ def create_lab_test_result(sender, instance, created, **kwargs):
                         author = owner.get_user()
                 
                 # Создаем новый результат
-                LabTestResult.objects.create(
+                result = LabTestResult.objects.create(
                     patient=instance.examination_plan.get_patient(),
                     examination_plan=instance.examination_plan,
                     procedure_definition=instance.lab_test,
                     examination_lab_test=instance,  # Связываем с конкретным назначением
                     author=author
                 )
-                print(f"Создан LabTestResult для ExaminationLabTest {instance.pk}")
+                print(f"Создан LabTestResult {result.pk} для ExaminationLabTest {instance.pk}")
                 
         except Exception as e:
             print(f"Ошибка при создании LabTestResult: {e}")

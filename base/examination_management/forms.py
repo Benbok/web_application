@@ -54,10 +54,14 @@ class ExaminationLabTestForm(forms.ModelForm):
     
     class Meta:
         model = ExaminationLabTest
-        fields = ['lab_test', 'instructions']
+        fields = ['lab_test', 'instructions', 'scheduled_time']
         widgets = {
             'lab_test': forms.Select(attrs={'class': 'form-select'}),
             'instructions': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'scheduled_time': forms.TimeInput(attrs={
+                'type': 'time',
+                'class': 'form-control'
+            }),
         }
 
 
