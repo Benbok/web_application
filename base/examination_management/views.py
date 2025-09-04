@@ -573,6 +573,28 @@ class ExaminationLabTestCreateView(LoginRequiredMixin, CreateView):
         self.examination_plan = get_object_or_404(ExaminationPlan, pk=self.kwargs['plan_pk'])
         return super().dispatch(request, *args, **kwargs)
     
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.examination_plan = self.examination_plan
+        return form
+    
+    def form_invalid(self, form):
+        """
+        Обработка ошибок валидации формы с показом toaster уведомлений
+        """
+        # Добавляем сообщения об ошибках для отображения через toaster
+        for field_name, errors in form.errors.items():
+            for error in errors:
+                if field_name == '__all__':
+                    # Общие ошибки формы (например, дублирование или дата в прошлом)
+                    messages.error(self.request, f'Ошибка валидации: {error}')
+                else:
+                    # Ошибки конкретных полей
+                    field_label = form.fields[field_name].label if field_name in form.fields else field_name
+                    messages.error(self.request, f'{field_label}: {error}')
+        
+        return super().form_invalid(form)
+    
     def form_valid(self, form):
         form.instance.examination_plan = self.examination_plan
         # Сохраняем значение lab_test из формы
@@ -918,6 +940,28 @@ class ExaminationInstrumentalCreateView(LoginRequiredMixin, CreateView):
     def dispatch(self, request, *args, **kwargs):
         self.examination_plan = get_object_or_404(ExaminationPlan, pk=self.kwargs['plan_pk'])
         return super().dispatch(request, *args, **kwargs)
+    
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.examination_plan = self.examination_plan
+        return form
+    
+    def form_invalid(self, form):
+        """
+        Обработка ошибок валидации формы с показом toaster уведомлений
+        """
+        # Добавляем сообщения об ошибках для отображения через toaster
+        for field_name, errors in form.errors.items():
+            for error in errors:
+                if field_name == '__all__':
+                    # Общие ошибки формы (например, дублирование или дата в прошлом)
+                    messages.error(self.request, f'Ошибка валидации: {error}')
+                else:
+                    # Ошибки конкретных полей
+                    field_label = form.fields[field_name].label if field_name in form.fields else field_name
+                    messages.error(self.request, f'{field_label}: {error}')
+        
+        return super().form_invalid(form)
     
     def form_valid(self, form):
         form.instance.examination_plan = self.examination_plan

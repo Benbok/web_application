@@ -221,5 +221,60 @@
     // Запускаем установку даты при загрузке DOM
     document.addEventListener('DOMContentLoaded', setStartDate);
     window.addEventListener('load', setStartDate);
+    
+    // Обработка ошибок валидации формы
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        const errorElements = document.querySelectorAll('.invalid-feedback');
+        
+        // Проверяем, есть ли ошибки валидации
+        if (errorElements.length > 0) {
+            let errorMessages = [];
+            
+            // Собираем все сообщения об ошибках
+            errorElements.forEach(function(element) {
+                const errorText = element.textContent.trim();
+                if (errorText) {
+                    errorMessages.push(errorText);
+                }
+            });
+            
+            // Показываем toaster уведомления для каждой ошибки
+            errorMessages.forEach(function(message) {
+                toastr.error(message, 'Ошибка валидации', {
+                    timeOut: 8000,
+                    extendedTimeOut: 3000,
+                    closeButton: true,
+                    progressBar: true,
+                    positionClass: 'toast-top-right',
+                    preventDuplicates: true
+                });
+            });
+            
+            // Прокручиваем к первой ошибке
+            if (errorElements[0]) {
+                errorElements[0].scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                });
+            }
+        }
+        
+        // Обработка отправки формы для предотвращения повторной отправки
+        form.addEventListener('submit', function(e) {
+            const submitButton = form.querySelector('button[type="submit"]');
+            const originalText = submitButton.innerHTML;
+            
+            // Показываем индикатор загрузки
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Сохранение...';
+            submitButton.disabled = true;
+            
+            // Восстанавливаем кнопку через 10 секунд на случай ошибки
+            setTimeout(function() {
+                submitButton.innerHTML = originalText;
+                submitButton.disabled = false;
+            }, 10000);
+        });
+    });
 </script>
 {% endblock %} 

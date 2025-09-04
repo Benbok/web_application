@@ -49,6 +49,98 @@ def validate_and_adjust_times_per_day(times_per_day):
     return None, error
 
 
+def validate_duplicate_assignment(examination_plan, lab_test=None, instrumental_procedure=None, scheduled_time=None, start_date=None):
+    """
+    Проверяет, есть ли уже назначение на это же время в эту же дату
+    
+    Args:
+        examination_plan: План обследования
+        lab_test: Лабораторное исследование (для лабораторных)
+        instrumental_procedure: Инструментальное исследование (для инструментальных)
+        scheduled_time: Время выполнения
+        start_date: Дата начала (если есть расписание)
+        
+    Returns:
+        str: Сообщение об ошибке или None
+    """
+    if not scheduled_time:
+        return None
+    
+    # Определяем дату для проверки
+    check_date = start_date if start_date else examination_plan.created_at.date()
+    
+    # Проверяем лабораторные исследования
+    if lab_test:
+        existing_lab_tests = ExaminationLabTest.objects.filter(
+            examination_plan=examination_plan,
+            lab_test=lab_test,
+            scheduled_time=scheduled_time,
+            created_at__date=check_date
+        )
+        
+        if existing_lab_tests.exists():
+            return _(
+                f'Лабораторное исследование "{lab_test.name}" уже назначено на {scheduled_time.strftime("%H:%M")} '
+                f'в плане "{examination_plan.name}". Выберите другое время.'
+            )
+    
+    # Проверяем инструментальные исследования
+    if instrumental_procedure:
+        existing_instrumentals = ExaminationInstrumental.objects.filter(
+            examination_plan=examination_plan,
+            instrumental_procedure=instrumental_procedure,
+            scheduled_time=scheduled_time,
+            created_at__date=check_date
+        )
+        
+        if existing_instrumentals.exists():
+            return _(
+                f'Инструментальное исследование "{instrumental_procedure.name}" уже назначено на {scheduled_time.strftime("%H:%M")} '
+                f'в плане "{examination_plan.name}". Выберите другое время.'
+            )
+    
+    return None
+
+
+def validate_future_datetime(start_date=None, scheduled_time=None):
+    """
+    Проверяет, что дата и время назначения не в прошлом
+    
+    Args:
+        start_date: Дата начала назначения
+        scheduled_time: Время выполнения
+        
+    Returns:
+        str: Сообщение об ошибке или None
+    """
+    from django.utils import timezone
+    
+    now = timezone.now()
+    today = now.date()
+    current_time = now.time()
+    
+    # Проверяем дату
+    if start_date and start_date < today:
+        return _(
+            f'Нельзя назначить исследование на прошедшую дату ({start_date.strftime("%d.%m.%Y")}). '
+            f'Выберите дату не ранее сегодняшней ({today.strftime("%d.%m.%Y")}).'
+        )
+    
+    # Проверяем время (только если дата сегодня)
+    if start_date == today and scheduled_time:
+        # Добавляем небольшую погрешность (1 минута) для текущего времени
+        from datetime import timedelta
+        current_time_with_tolerance = (timezone.now() - timedelta(minutes=1)).time()
+        
+        if scheduled_time < current_time_with_tolerance:
+            return _(
+                f'Нельзя назначить исследование на прошедшее время ({scheduled_time.strftime("%H:%M")}). '
+                f'Выберите время не ранее текущего ({current_time.strftime("%H:%M")}).'
+            )
+    
+    return None
+
+
 class ExaminationLabTestForm(forms.ModelForm):
     """Форма для добавления лабораторного исследования в план обследования"""
     
@@ -123,6 +215,9 @@ class ExaminationLabTestWithScheduleForm(ExaminationLabTestForm):
         cleaned_data = super().clean()
         times_per_day = cleaned_data.get('times_per_day')
         duration_days = cleaned_data.get('duration_days')
+        first_time = cleaned_data.get('first_time')
+        start_date = cleaned_data.get('start_date')
+        lab_test = cleaned_data.get('lab_test')
         
         # Проверяем количество раз в день
         if times_per_day:
@@ -136,6 +231,25 @@ class ExaminationLabTestWithScheduleForm(ExaminationLabTestForm):
                 raise forms.ValidationError(
                     _('Слишком много записей в расписании. Уменьшите количество приемов в день или длительность курса.')
                 )
+        
+        # Проверяем дублирование назначений
+        if first_time and lab_test:
+            # Получаем план обследования из контекста формы
+            examination_plan = getattr(self, 'examination_plan', None)
+            if examination_plan:
+                error = validate_duplicate_assignment(
+                    examination_plan=examination_plan,
+                    lab_test=lab_test,
+                    scheduled_time=first_time,
+                    start_date=start_date
+                )
+                if error:
+                    raise forms.ValidationError(error)
+        
+        # Проверяем, что дата и время не в прошлом
+        error = validate_future_datetime(start_date=start_date, scheduled_time=first_time)
+        if error:
+            raise forms.ValidationError(error)
         
         return cleaned_data
 
@@ -214,6 +328,9 @@ class ExaminationInstrumentalWithScheduleForm(ExaminationInstrumentalForm):
         cleaned_data = super().clean()
         times_per_day = cleaned_data.get('times_per_day')
         duration_days = cleaned_data.get('duration_days')
+        first_time = cleaned_data.get('first_time')
+        start_date = cleaned_data.get('start_date')
+        instrumental_procedure = cleaned_data.get('instrumental_procedure')
         
         # Проверяем количество раз в день
         if times_per_day:
@@ -227,6 +344,25 @@ class ExaminationInstrumentalWithScheduleForm(ExaminationInstrumentalForm):
                 raise forms.ValidationError(
                     _('Слишком много записей в расписании. Уменьшите количество приемов в день или длительность курса.')
                 )
+        
+        # Проверяем дублирование назначений
+        if first_time and instrumental_procedure:
+            # Получаем план обследования из контекста формы
+            examination_plan = getattr(self, 'examination_plan', None)
+            if examination_plan:
+                error = validate_duplicate_assignment(
+                    examination_plan=examination_plan,
+                    instrumental_procedure=instrumental_procedure,
+                    scheduled_time=first_time,
+                    start_date=start_date
+                )
+                if error:
+                    raise forms.ValidationError(error)
+        
+        # Проверяем, что дата и время не в прошлом
+        error = validate_future_datetime(start_date=start_date, scheduled_time=first_time)
+        if error:
+            raise forms.ValidationError(error)
         
         return cleaned_data
 
