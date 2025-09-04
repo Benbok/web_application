@@ -20,7 +20,7 @@
                                 - Случай ID: {{ filters.encounter_id }}
                             {% endif %}
                         </h4>
-                        {% if return_url and return_url != request.path %}
+                        {% if return_url and return_url != request.path and return_url != request.build_absolute_uri %}
                             <a href="{{ return_url }}" class="btn btn-outline-secondary btn-sm">
                                 <i class="fas fa-arrow-left me-1"></i> Вернуться
                             </a>

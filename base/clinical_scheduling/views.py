@@ -18,15 +18,30 @@ from .forms import ScheduleSettingsForm
 
 def get_safe_return_url(request, default_url='clinical_scheduling:dashboard'):
     """Получить безопасный URL для возврата"""
-    next_url = request.GET.get('next') or request.META.get('HTTP_REFERER')
+    # Приоритет отдаем параметру next
+    next_url = request.GET.get('next')
     
-    # Проверяем безопасность URL
-    if next_url and url_has_allowed_host_and_scheme(
-        next_url, 
-        allowed_hosts={request.get_host()}, 
-        require_https=request.is_secure()
-    ):
-        return next_url
+    if next_url:
+        # Проверяем безопасность URL
+        if url_has_allowed_host_and_scheme(
+            next_url, 
+            allowed_hosts={request.get_host()}, 
+            require_https=request.is_secure()
+        ):
+            return next_url
+    
+    # Если нет параметра next, проверяем HTTP_REFERER
+    referer = request.META.get('HTTP_REFERER')
+    if referer:
+        # Проверяем безопасность URL
+        if url_has_allowed_host_and_scheme(
+            referer, 
+            allowed_hosts={request.get_host()}, 
+            require_https=request.is_secure()
+        ):
+            # Не возвращаемся на ту же страницу
+            if referer != request.build_absolute_uri():
+                return referer
     
     return reverse_lazy(default_url)
 
