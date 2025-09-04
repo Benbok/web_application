@@ -386,30 +386,7 @@ class ClinicalSchedulingService:
             scheduled_time=first_time
         )]
     
-    @staticmethod
-    def get_today_schedule(patient=None, department=None, user=None):
-        """Получает расписание на сегодня"""
-        today = timezone.now().date()
-        queryset = ScheduledAppointment.objects.filter(
-            scheduled_date=today
-        ).select_related('executed_by', 'rejected_by', 'patient', 'created_department')
-        
-        if patient:
-            queryset = queryset.filter(patient=patient)
-        
-        if department:
-            queryset = queryset.filter(created_department=department)
-        
-        # Фильтруем по правам доступа пользователя
-        if user and not user.is_superuser:
-            try:
-                user_department = user.department
-                # Показываем все назначения, но редактировать можно только из своего отделения
-                pass
-            except:
-                pass
-        
-        return queryset.order_by('scheduled_time')
+
     
     @staticmethod
     def get_overdue_appointments(patient=None, department=None, user=None):

@@ -201,15 +201,15 @@ class ScheduledAppointment(models.Model):
         
         # Проверяем тип назначения и получаем нужную информацию
         if hasattr(assignment, 'medication'):
-            # Это TreatmentMedication
+            # Это TreatmentMedication - показываем только название препарата
             return {
                 'type': 'treatment', 
-                'name': f"{assignment.medication.name} - {assignment.dosage} {assignment.frequency}", 
+                'name': assignment.medication.name, 
                 'patient': self.patient,
                 'department': self.created_department
             }
         elif hasattr(assignment, 'lab_test'):
-            # Это LabTestResult
+            # Это LabTestResult - показываем только название исследования
             return {
                 'type': 'lab_test', 
                 'name': assignment.lab_test.name if assignment.lab_test else 'Лабораторное исследование', 
@@ -217,10 +217,18 @@ class ScheduledAppointment(models.Model):
                 'department': self.created_department
             }
         elif hasattr(assignment, 'instrumental_procedure'):
-            # Это InstrumentalProcedureResult
+            # Это InstrumentalProcedureResult - показываем только название процедуры
             return {
                 'type': 'procedure', 
                 'name': assignment.instrumental_procedure.name if assignment.instrumental_procedure else 'Процедура', 
+                'patient': self.patient,
+                'department': self.created_department
+            }
+        elif hasattr(assignment, 'text'):
+            # Это рекомендация - показываем текст рекомендации
+            return {
+                'type': 'recommendation', 
+                'name': assignment.text, 
                 'patient': self.patient,
                 'department': self.created_department
             }

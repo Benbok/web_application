@@ -4463,3 +4463,101 @@ def get_assignment_info(self):
 - `base/clinical_scheduling/templates/clinical_scheduling/dashboard.html` - добавлен вызов `get_assignment_info()`
 
 ---
+
+## Запись #88: Упрощение отображения названий назначений в clinical_scheduling
+**Дата:** 2025-01-27  
+**Проблема:** Названия назначений отображались слишком длинно и неудобно для чтения  
+**Статус:** ✅ Исправлено  
+
+### Описание проблемы
+В `clinical_scheduling` названия назначений отображались в полном формате:
+- Лекарства: "Амикацин - 500 мг 2 раза в день"
+- Рекомендации: "Рекомендация: Соблюдать диету"
+
+Это было неудобно для быстрого просмотра и занимало много места в интерфейсе.
+
+### Решение
+Упростил отображение названий назначений в методе `get_assignment_info()` в `base/clinical_scheduling/models.py`:
+
+```python
+def get_assignment_info(self):
+    # ... получение объекта assignment ...
+    
+    if hasattr(assignment, 'medication'):
+        # Это TreatmentMedication - показываем только название препарата
+        return {
+            'type': 'treatment', 
+            'name': assignment.medication.name,  # Только "Амикацин"
+            'patient': self.patient,
+            'department': self.created_department
+        }
+    elif hasattr(assignment, 'text'):
+        # Это рекомендация - показываем текст рекомендации
+        return {
+            'type': 'recommendation', 
+            'name': assignment.text,  # Прямо содержимое рекомендации
+            'patient': self.patient,
+            'department': self.created_department
+        }
+    # ... остальные типы ...
+```
+
+### Изменения
+1. **Лекарства:** Теперь показывается только название препарата (например, "Амикацин" вместо "Амикацин - 500 мг 2 раза в день")
+2. **Рекомендации:** Добавлен новый тип `recommendation` с иконкой `fas fa-clipboard-list`
+3. **Рекомендации:** Отображается прямо содержимое рекомендации без префикса "Рекомендация:"
+4. **Иконки:** Добавлена зеленая иконка для рекомендаций
+
+### Результат
+- ✅ Названия назначений стали короче и удобнее для чтения
+- ✅ Лекарства показываются только по названию
+- ✅ Рекомендации отображаются прямо своим содержимым
+- ✅ Добавлена визуальная дифференциация для рекомендаций
+- ✅ Интерфейс стал более компактным
+
+### Файлы изменены
+- `base/clinical_scheduling/models.py` - упрощен метод `get_assignment_info()`
+- `base/clinical_scheduling/templates/clinical_scheduling/dashboard.html` - добавлена поддержка типа `recommendation`
+- `base/clinical_scheduling/templates/clinical_scheduling/today_schedule.html` - добавлена поддержка типа `recommendation`
+
+---
+
+## Запись #89: Удаление функционала "Расписание на сегодня"
+**Дата:** 2025-01-27  
+**Проблема:** Функционал "Расписание на сегодня" был избыточным, так как дашборд уже показывает все назначения с фильтрацией  
+**Статус:** ✅ Завершено  
+
+### Описание проблемы
+В `clinical_scheduling` существовал отдельный функционал "Расписание на сегодня" (`today_schedule`), который дублировал возможности основного дашборда. Дашборд уже предоставляет фильтрацию по датам и статусам, что делает отдельную страницу "Расписание на сегодня" избыточной.
+
+### Решение
+Полностью удалил функционал "Расписание на сегодня":
+
+1. **Удалил шаблон:** `base/clinical_scheduling/templates/clinical_scheduling/today_schedule.html`
+2. **Удалил view:** `today_schedule` из `base/clinical_scheduling/views.py`
+3. **Удалил URL:** `path('today/', views.today_schedule, name='today_schedule')` из `base/clinical_scheduling/urls.py`
+4. **Удалил метод сервиса:** `get_today_schedule` из `base/clinical_scheduling/services.py`
+5. **Удалил кнопку навигации:** из `base/clinical_scheduling/templates/clinical_scheduling/dashboard.html`
+
+### Изменения
+1. **Шаблон:** Удален файл `today_schedule.html` (343 строки кода)
+2. **View:** Удалена функция `today_schedule` (50+ строк кода)
+3. **URL:** Удален маршрут `today/`
+4. **Сервис:** Удален метод `get_today_schedule`
+5. **Навигация:** Убрана кнопка "Расписание на сегодня" из дашборда
+
+### Результат
+- ✅ Упрощена навигация - остался только основной дашборд
+- ✅ Уменьшен объем кода (удалено ~400 строк)
+- ✅ Устранено дублирование функционала
+- ✅ Дашборд остается полнофункциональным с фильтрацией по датам
+- ✅ Улучшена архитектура приложения
+
+### Файлы изменены
+- `base/clinical_scheduling/templates/clinical_scheduling/dashboard.html` - удалена кнопка навигации
+- `base/clinical_scheduling/templates/clinical_scheduling/today_schedule.html` - **УДАЛЕН**
+- `base/clinical_scheduling/views.py` - удалена функция `today_schedule`
+- `base/clinical_scheduling/urls.py` - удален URL маршрут
+- `base/clinical_scheduling/services.py` - удален метод `get_today_schedule`
+
+---
