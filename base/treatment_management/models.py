@@ -135,12 +135,11 @@ class BaseTreatmentPlan(models.Model):
         return plan, created
 
 
-from .mixins import SoftDeleteMixin
 from base.models import ArchivableModel
 from base.services import ArchiveManager
 
-class TreatmentPlan(ArchivableModel, BaseTreatmentPlan, SoftDeleteMixin):
-    """План лечения с поддержкой двух типов связей и мягкого удаления"""
+class TreatmentPlan(ArchivableModel, BaseTreatmentPlan):
+    """План лечения с поддержкой двух типов связей и архивирования"""
     
     class Meta:
         verbose_name = _("План лечения")
@@ -223,9 +222,9 @@ class TreatmentPlan(ArchivableModel, BaseTreatmentPlan, SoftDeleteMixin):
                 self.encounter.restore(user=user)
 
 
-class TreatmentMedication(ArchivableModel, SoftDeleteMixin):
+class TreatmentMedication(ArchivableModel):
     """
-    Лекарство в плане лечения с поддержкой мягкого удаления
+    Лекарство в плане лечения с поддержкой архивирования
     """
     
     treatment_plan = models.ForeignKey(
@@ -436,9 +435,9 @@ class TreatmentMedication(ArchivableModel, SoftDeleteMixin):
                 self.treatment_plan.restore(user=user)
 
 
-class TreatmentRecommendation(ArchivableModel, SoftDeleteMixin):
+class TreatmentRecommendation(ArchivableModel):
     """
-    Рекомендации в плане лечения с поддержкой мягкого удаления
+    Рекомендации в плане лечения с поддержкой архивирования
     """
     treatment_plan = models.ForeignKey(
         TreatmentPlan, 

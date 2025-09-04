@@ -4,17 +4,17 @@ from .models import ExaminationPlan, ExaminationLabTest, ExaminationInstrumental
 
 @admin.register(ExaminationPlan)
 class ExaminationPlanAdmin(admin.ModelAdmin):
-    list_display = ['name', 'encounter', 'priority', 'status', 'created_at']
-    list_filter = ['priority', 'status', 'created_at']
+    list_display = ['name', 'encounter', 'priority', 'is_archived', 'created_at']
+    list_filter = ['priority', 'is_archived', 'created_at']
     search_fields = ['name', 'description', 'encounter__patient__full_name']
     readonly_fields = ['created_at', 'updated_at']
     
     fieldsets = (
         ('Основная информация', {
-            'fields': ('name', 'description', 'priority', 'status')
+            'fields': ('name', 'description', 'priority')
         }),
-        ('Статус', {
-            'fields': ('cancelled_at', 'cancelled_by', 'cancellation_reason', 'paused_at', 'paused_by', 'pause_reason', 'completed_at', 'completed_by', 'completion_notes'),
+        ('Архивирование', {
+            'fields': ('is_archived', 'archived_at', 'archived_by', 'archive_reason'),
             'classes': ('collapse',)
         }),
         ('Связи', {

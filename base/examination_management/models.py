@@ -11,7 +11,9 @@ from django.db.models import Q
 from encounters.models import Encounter
 from lab_tests.models import LabTestDefinition
 from instrumental_procedures.models import InstrumentalProcedureDefinition
-from treatment_management.mixins import SoftDeleteMixin
+from base.models import ArchivableModel
+from base.services import ArchiveManager
+
 
 
 class BaseExaminationPlan(models.Model):
@@ -162,8 +164,8 @@ class BaseExaminationPlan(models.Model):
         return plan, created
 
 
-class ExaminationPlan(BaseExaminationPlan, SoftDeleteMixin):
-    """План обследования с поддержкой двух типов связей и мягкого удаления"""
+class ExaminationPlan(ArchivableModel, BaseExaminationPlan):
+    """План обследования с поддержкой двух типов связей и архивирования"""
     
     class Meta:
         verbose_name = _('План обследования')
@@ -306,6 +308,38 @@ class ExaminationPlan(BaseExaminationPlan, SoftDeleteMixin):
         elif self.owner:
             return self.owner.pk
         return None
+    
+    # Менеджеры для архивирования
+    objects = ArchiveManager()
+    all_objects = models.Manager()
+    
+    def _archive_related_records(self, user, reason):
+        """Архивирует связанные записи при архивировании ExaminationPlan"""
+        # Архивируем связанные лабораторные исследования
+        for lab_test in self.lab_tests.all():
+            if not lab_test.is_archived:
+                if hasattr(lab_test, 'archive'):
+                    lab_test.archive(user=user, reason=f"Архивирование связанного плана обследования: {reason}")
+        
+        # Архивируем связанные инструментальные исследования
+        for instrumental in self.instrumental_procedures.all():
+            if not instrumental.is_archived:
+                if hasattr(instrumental, 'archive'):
+                    instrumental.archive(user=user, reason=f"Архивирование связанного плана обследования: {reason}")
+
+    def _restore_related_records(self, user):
+        """Восстанавливает связанные записи при восстановлении ExaminationPlan"""
+        # Восстанавливаем связанные лабораторные исследования
+        for lab_test in self.lab_tests.all():
+            if lab_test.is_archived:
+                if hasattr(lab_test, 'restore'):
+                    lab_test.restore(user=user)
+        
+        # Восстанавливаем связанные инструментальные исследования
+        for instrumental in self.instrumental_procedures.all():
+            if instrumental.is_archived:
+                if hasattr(instrumental, 'restore'):
+                    instrumental.restore(user=user)
 
 
 from base.models import ArchivableModel
@@ -331,7 +365,7 @@ class ExaminationLabTest(ArchivableModel, models.Model):
     created_at = models.DateTimeField(_('Создано'), auto_now_add=True)
     updated_at = models.DateTimeField(_('Обновлено'), auto_now=True)
     
-    # Убираем поле is_active, так как теперь используем status из SoftDeleteMixin
+    # Используем стандартное архивирование через ArchivableModel
     
     class Meta:
         verbose_name = _('Лабораторное исследование в плане')
@@ -443,7 +477,7 @@ class ExaminationInstrumental(ArchivableModel, models.Model):
     created_at = models.DateTimeField(_('Создано'), auto_now_add=True)
     updated_at = models.DateTimeField(_('Обновлено'), auto_now=True)
     
-    # Убираем поле is_active, так как теперь используем status из SoftDeleteMixin
+    # Используем стандартное архивирование через ArchivableModel
     
     class Meta:
         verbose_name = _('Инструментальное исследование в плане')

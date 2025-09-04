@@ -33,7 +33,7 @@ def sync_examination_lab_test_status(sender, instance, created, **kwargs):
         return
     
     # Обновляем статус запланированных событий в зависимости от статуса исследования
-    # Используем status из SoftDeleteMixin
+    # Используем status из ArchivableModel
     if instance.status == 'cancelled':
         # Отменяем все будущие запланированные события
         future_appointments = scheduled_appointments.filter(
@@ -94,7 +94,7 @@ def sync_examination_instrumental_status(sender, instance, created, **kwargs):
         return
     
     # Обновляем статус запланированных событий в зависимости от статуса исследования
-    # Используем status из SoftDeleteMixin
+    # Используем status из ArchivableModel
     if instance.status == 'cancelled':
         future_appointments = scheduled_appointments.filter(
             scheduled_date__gte=timezone.now().date()

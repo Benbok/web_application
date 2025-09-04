@@ -3249,3 +3249,77 @@ if hasattr(form, 'cleaned_data') and 'warnings' in form.cleaned_data and form.cl
 - Корректная навигация после редактирования
 
 ---
+
+## Запись #71: Удаление SoftDeleteMixin и переход на стандартное архивирование
+
+**Дата:** 2024-12-19  
+**Проблема:** В проекте использовался кастомный `SoftDeleteMixin` для мягкого удаления записей, что создавало дублирование функциональности с универсальной системой архивирования `ArchivableModel`.
+
+**Диагноз:** Наличие двух систем для "мягкого удаления" (`SoftDeleteMixin` и `ArchivableModel`) создавало путаницу и нарушало принцип единообразия в проекте.
+
+**Решение:** 
+1. Удален `SoftDeleteMixin` из всех моделей
+2. Все модели теперь используют только `ArchivableModel` для архивирования
+3. Обновлены комментарии и документация
+4. Удален файл `mixins.py`
+
+**Изменения:**
+- `base/treatment_management/models.py`:
+  - Удален импорт `SoftDeleteMixin`
+  - `TreatmentPlan` теперь наследует только `ArchivableModel, BaseTreatmentPlan`
+  - `TreatmentMedication` теперь наследует только `ArchivableModel`
+  - `TreatmentRecommendation` теперь наследует только `ArchivableModel`
+  - Обновлены комментарии в docstring моделей
+- `base/examination_management/models.py`:
+  - Удален импорт `SoftDeleteMixin`
+  - `ExaminationPlan` теперь наследует `ArchivableModel, BaseExaminationPlan`
+  - Добавлены менеджеры архивирования (`objects = ArchiveManager()`, `all_objects = models.Manager()`)
+  - Добавлены методы `_archive_related_records` и `_restore_related_records`
+  - Обновлены комментарии
+- `base/examination_management/signals.py`:
+  - Обновлены комментарии: "Используем status из ArchivableModel" вместо "Используем status из SoftDeleteMixin"
+- `base/treatment_management/mixins.py`:
+  - Файл удален полностью
+
+**Результат:** 
+- Единообразная система архивирования во всем проекте
+- Упрощенная архитектура без дублирования функциональности
+- Стандартизированный подход к "мягкому удалению" через архивирование
+- Улучшенная читаемость кода и документации
+- Сохранена вся функциональность архивирования и восстановления
+
+---
+
+## Запись #72: Исправление ошибки в админке examination_management
+
+**Дата:** 2024-12-19  
+**Проблема:** После удаления `SoftDeleteMixin` возникла ошибка в админке `ExaminationPlanAdmin`: поле `status` больше не существует в модели `ExaminationPlan`. Также возникла ошибка `OperationalError: no such column: examination_management_examinationplan.is_archived` из-за отсутствия миграций.
+
+**Диагноз:** В админке `ExaminationPlanAdmin` использовались поля `status` в `list_display` и `list_filter`, которые были частью удаленного `SoftDeleteMixin`. После перехода на `ArchivableModel` нужно использовать поле `is_archived`. Кроме того, в базе данных отсутствовали поля архивирования, так как не были созданы и применены миграции.
+
+**Решение:** 
+1. Заменены все упоминания `status` на `is_archived` в админке
+2. Обновлены поля в `fieldsets` для соответствия новой структуре модели
+3. Убраны поля, которые больше не существуют
+4. Созданы и применены миграции для добавления полей архивирования
+
+**Изменения:**
+- `base/examination_management/admin.py`:
+  - `ExaminationPlanAdmin.list_display`: заменен `'status'` на `'is_archived'`
+  - `ExaminationPlanAdmin.list_filter`: заменен `'status'` на `'is_archived'`
+  - `ExaminationPlanAdmin.fieldsets`: обновлен раздел "Основная информация" (убрано поле `status`)
+  - `ExaminationPlanAdmin.fieldsets`: переименован раздел "Статус" в "Архивирование" и обновлены поля
+- Миграции:
+  - Создана миграция `examination_management.0004_remove_examinationplan_cancellation_reason_and_more.py`
+  - Удалены поля `status`, `cancelled_at`, `cancelled_by`, `cancellation_reason`, `paused_at`, `paused_by`, `pause_reason`, `completed_at`, `completed_by`, `completion_notes`
+  - Добавлены поля `is_archived`, `archived_at`, `archived_by`, `archive_reason`
+  - Создана миграция `treatment_management.0008_remove_treatmentmedication_cancellation_reason_and_more.py`
+  - Удалены аналогичные поля из всех моделей `treatment_management`
+
+**Результат:** 
+- Исправлена ошибка `SystemCheckError` в админке
+- Исправлена ошибка `OperationalError: no such column: examination_management_examinationplan.is_archived`
+- Корректное отображение статуса архивирования в списке планов обследования
+- Соответствие админки новой структуре моделей
+- Единообразие с админкой `treatment_management`
+- База данных обновлена и содержит все необходимые поля архивирования

@@ -464,3 +464,4 @@ document.addEventListener('DOMContentLoaded', function() {
 **Дата:** 02.09.2025  
 **Статус:** ✅ Завершено
 
+
