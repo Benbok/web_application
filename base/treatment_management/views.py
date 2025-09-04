@@ -338,9 +338,14 @@ class TreatmentPlanDeleteView(LoginRequiredMixin, OwnerContextMixin, DeleteView)
                 cancelled_by=request.user
             )
         
+        # Получаем причину отмены из формы
+        cancellation_reason = request.POST.get('cancellation_reason', '').strip()
+        if not cancellation_reason:
+            cancellation_reason = "Отменено без указания причины"
+        
         # Отменяем сам план лечения
         self.object.cancel(
-            reason="Отменено через веб-интерфейс",
+            reason=cancellation_reason,
             cancelled_by=request.user
         )
         
@@ -551,10 +556,15 @@ class TreatmentMedicationDeleteView(LoginRequiredMixin, DeleteView):
             messages.error(request, error_message)
             return redirect(self.get_success_url())
         
+        # Получаем причину отмены из формы
+        cancellation_reason = request.POST.get('cancellation_reason', '').strip()
+        if not cancellation_reason:
+            cancellation_reason = "Отменено без указания причины"
+        
         # Отменяем назначение
         try:
             self.object.cancel(
-                reason="Отменено через веб-интерфейс",
+                reason=cancellation_reason,
                 cancelled_by=request.user
             )
             messages.success(request, _('Назначение лекарства успешно отменено'))
@@ -1309,10 +1319,15 @@ class TreatmentRecommendationDeleteView(LoginRequiredMixin, DeleteView):
             messages.error(request, error_message)
             return redirect(self.get_success_url())
         
+        # Получаем причину отмены из формы
+        cancellation_reason = request.POST.get('cancellation_reason', '').strip()
+        if not cancellation_reason:
+            cancellation_reason = "Отменено без указания причины"
+        
         # Отменяем рекомендацию
         try:
             self.object.cancel(
-                reason="Отменено через веб-интерфейс",
+                reason=cancellation_reason,
                 cancelled_by=request.user
             )
             messages.success(request, _('Рекомендация успешно отменена'))

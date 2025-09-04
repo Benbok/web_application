@@ -504,9 +504,14 @@ class ExaminationPlanDeleteView(LoginRequiredMixin, DeleteView):
                 cancelled_by=request.user
             )
         
+        # Получаем причину отмены из формы
+        cancellation_reason = request.POST.get('cancellation_reason', '').strip()
+        if not cancellation_reason:
+            cancellation_reason = "Отменено без указания причины"
+        
         # Отменяем сам план обследования
         self.object.cancel(
-            reason="Отменено через веб-интерфейс",
+            reason=cancellation_reason,
             cancelled_by=request.user
         )
         
@@ -775,10 +780,15 @@ class ExaminationLabTestCancelView(LoginRequiredMixin, DetailView):
             messages.error(request, error_message)
             return redirect(self.get_success_url())
         
+        # Получаем причину отмены из формы
+        cancellation_reason = request.POST.get('cancellation_reason', '').strip()
+        if not cancellation_reason:
+            cancellation_reason = "Отменено через веб-интерфейс"
+        
         # Отменяем назначение
         try:
             self.object.cancel(
-                reason="Отменено через веб-интерфейс",
+                reason=cancellation_reason,
                 cancelled_by=request.user
             )
             messages.success(request, _('Лабораторное исследование успешно отменено'))
@@ -859,10 +869,15 @@ class ExaminationLabTestDeleteView(LoginRequiredMixin, DeleteView):
             messages.error(request, error_message)
             return redirect(self.get_success_url())
         
+        # Получаем причину отмены из формы
+        cancellation_reason = request.POST.get('cancellation_reason', '').strip()
+        if not cancellation_reason:
+            cancellation_reason = "Отменено без указания причины"
+        
         # Отменяем назначение
         try:
             self.object.cancel(
-                reason="Отменено через веб-интерфейс",
+                reason=cancellation_reason,
                 cancelled_by=request.user
             )
             messages.success(request, _('Лабораторное исследование успешно отменено'))
@@ -1191,10 +1206,15 @@ class ExaminationInstrumentalCancelView(LoginRequiredMixin, DetailView):
             messages.error(request, error_message)
             return redirect(self.get_success_url())
         
+        # Получаем причину отмены из формы
+        cancellation_reason = request.POST.get('cancellation_reason', '').strip()
+        if not cancellation_reason:
+            cancellation_reason = "Отменено без указания причины"
+        
         # Отменяем назначение
         try:
             self.object.cancel(
-                reason="Отменено через веб-интерфейс",
+                reason=cancellation_reason,
                 cancelled_by=request.user
             )
             messages.success(request, _('Инструментальное исследование успешно отменено'))

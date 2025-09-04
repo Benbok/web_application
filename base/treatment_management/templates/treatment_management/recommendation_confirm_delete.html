@@ -50,6 +50,21 @@
                         
                         <form method="post">
                             {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="cancellation_reason" class="form-label">
+                                    <i class="fas fa-comment"></i> {% trans "Причина отмены" %} <span class="text-muted">({% trans "необязательно" %})</span>
+                                </label>
+                                <textarea 
+                                    class="form-control" 
+                                    id="cancellation_reason" 
+                                    name="cancellation_reason" 
+                                    rows="3" 
+                                    placeholder="{% trans 'Укажите причину отмены рекомендации...' %}"
+                                ></textarea>
+                                <div class="form-text">
+                                    {% trans "Это поле поможет понять, почему была отменена рекомендация" %}
+                                </div>
+                            </div>
                             <div class="d-flex justify-content-between">
                                 <a href="{% url 'treatment_management:plan_detail' owner_model=owner_model owner_id=owner_id pk=treatment_plan.pk %}" 
                                    class="btn btn-secondary">

@@ -85,6 +85,18 @@ class ScheduledAppointment(models.Model):
         related_name='rejected_appointments'
     )
     
+    # Информация об отмене
+    cancellation_reason = models.TextField(_('Причина отмены'), blank=True)
+    cancellation_date = models.DateTimeField(_('Дата отмены'), null=True, blank=True)
+    canceled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        verbose_name=_('Отменил'), 
+        related_name='canceled_appointments'
+    )
+    
     # Информация о частичном выполнении
     partial_reason = models.TextField(_('Причина неполного выполнения'), blank=True)
     partial_amount = models.CharField(_('Выполненное количество'), max_length=100, blank=True)
@@ -160,6 +172,14 @@ class ScheduledAppointment(models.Model):
         self.rejection_reason = reason
         self.rejection_date = timezone.now()
         self.rejected_by = user
+        self.save()
+    
+    def mark_as_canceled(self, user, reason=''):
+        """Отмечает назначение как отмененное"""
+        self.execution_status = 'canceled'
+        self.cancellation_reason = reason
+        self.cancellation_date = timezone.now()
+        self.canceled_by = user
         self.save()
     
     def mark_as_skipped(self, user, reason=''):
