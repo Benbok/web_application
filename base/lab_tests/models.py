@@ -42,6 +42,15 @@ class LabTestResult(models.Model):
         blank=True
     )
     
+    examination_lab_test = models.ForeignKey(
+        'examination_management.ExaminationLabTest',
+        on_delete=models.CASCADE,
+        verbose_name="Назначение лабораторного исследования",
+        related_name='lab_test_results',
+        null=True,
+        blank=True
+    )
+    
     procedure_definition = models.ForeignKey(
         LabTestDefinition,
         on_delete=models.PROTECT,
@@ -87,6 +96,15 @@ class LabTestResult(models.Model):
     def __str__(self):
         return f"Результат {self.procedure_definition.name} для {self.patient} от {self.datetime_result.strftime('%d.%m.%Y')}"
     
+    def get_assignment_schedule_data(self):
+        """
+        Получает данные расписания из связанного назначения
+        """
+        if self.examination_lab_test:
+            from examination_management.services import ExaminationStatusService
+            return ExaminationStatusService.get_schedule_data(self.examination_lab_test)
+        return None
+
     def cancel(self, reason="", cancelled_by=None):
         """
         Отменяет результат исследования

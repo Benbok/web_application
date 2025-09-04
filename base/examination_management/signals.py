@@ -306,15 +306,11 @@ def sync_lab_test_result_completion(sender, instance, created, **kwargs):
     """
     try:
         # Обновляем статус только при изменении, а не при создании
-        if not created and instance.examination_plan:
-            # Ищем ExaminationLabTest для этого плана и типа исследования
-            from .models import ExaminationLabTest
-            examination = ExaminationLabTest.objects.filter(
-                examination_plan=instance.examination_plan,
-                lab_test=instance.procedure_definition
-            ).first()
+        if not created and instance.examination_lab_test:
+            # Используем прямую связь с ExaminationLabTest
+            examination = instance.examination_lab_test
             
-            if examination and instance.is_completed:
+            if instance.is_completed:
                 # Если данные заполнены, обновляем статус в examination_management
                 examination.status = 'completed'
                 examination.completed_at = timezone.now()
@@ -344,19 +340,34 @@ def create_lab_test_result(sender, instance, created, **kwargs):
         try:
             from lab_tests.models import LabTestResult
             
-            # Проверяем, есть ли уже результат для этого назначения
+            # Проверяем, есть ли уже результат для этого конкретного назначения
             existing_result = LabTestResult.objects.filter(
-                examination_plan=instance.examination_plan,
-                procedure_definition=instance.lab_test
+                examination_lab_test=instance
             ).first()
             
             if not existing_result:
+                # Получаем пользователя из владельца плана
+                owner = instance.examination_plan.get_owner()
+                author = None
+                
+                if owner:
+                    if hasattr(owner, 'doctor'):
+                        # Для Encounter используем поле doctor
+                        author = owner.doctor
+                    elif hasattr(owner, 'accepted_by'):
+                        # Для PatientDepartmentStatus используем поле accepted_by
+                        author = owner.accepted_by
+                    elif hasattr(owner, 'get_user'):
+                        # Fallback для других типов владельцев
+                        author = owner.get_user()
+                
                 # Создаем новый результат
                 LabTestResult.objects.create(
                     patient=instance.examination_plan.get_patient(),
                     examination_plan=instance.examination_plan,
                     procedure_definition=instance.lab_test,
-                    author=instance.examination_plan.get_owner().get_user() if hasattr(instance.examination_plan.get_owner(), 'get_user') else None
+                    examination_lab_test=instance,  # Связываем с конкретным назначением
+                    author=author
                 )
                 print(f"Создан LabTestResult для ExaminationLabTest {instance.pk}")
                 

@@ -53,6 +53,15 @@ class LabTestResultListView(LoginRequiredMixin, ListView):
         
         return queryset
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Добавляем данные расписания для каждого результата
+        for result in context['results']:
+            result.schedule_data = result.get_assignment_schedule_data()
+        
+        return context
+
 class LabTestResultCreateView(LoginRequiredMixin, View):
     def get(self, request):
         # Получаем список доступных тестов для создания результата

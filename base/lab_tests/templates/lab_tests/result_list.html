@@ -40,10 +40,22 @@
                             <small class="text-muted">{{ result.procedure_definition.name }}</small>
                         </div>
                         <div class="col-md-3 mb-2 mb-md-0">
-                            <small class="text-muted d-block">Дата результата: {{ result.datetime_result|date:"d.m.Y H:i" }}</small>
+                            {% if result.schedule_data %}
+                                <small class="text-muted d-block">Дата направления: {{ result.schedule_data.assigned_at|date:"d.m.Y" }}
+                                    {% if result.schedule_data.first_time %}
+                                        {{ result.schedule_data.first_time|time:"H:i" }}
+                                    {% endif %}
+                                </small>
+                            {% else %}
+                                <small class="text-muted d-block">Дата направления: {{ result.datetime_result|date:"d.m.Y H:i" }}</small>
+                            {% endif %}
                             <small class="text-muted d-block">Автор: 
                                 {% if result.author %}
-                                    {{ result.author.get_full_name|default:result.author.username }}
+                                    {% if result.author.doctor_profile %}
+                                        {{ result.author.doctor_profile.full_name }}
+                                    {% else %}
+                                        {{ result.author.get_full_name|default:result.author.username }}
+                                    {% endif %}
                                 {% else %}
                                     —
                                 {% endif %}

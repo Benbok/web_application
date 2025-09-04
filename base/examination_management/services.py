@@ -287,6 +287,7 @@ class ExaminationStatusService:
                 
                 return {
                     'assigned_at': first_appointment.scheduled_date,
+                    'first_time': first_appointment.scheduled_time,
                     'frequency': f'каждые {frequency_hours} часов',
                     'duration_days': total_appointments,
                     'times_per_day': times_per_day,
@@ -433,11 +434,9 @@ class ExaminationIntegrationService:
         try:
             from lab_tests.models import LabTestResult
             
-            # Проверяем, не существует ли уже результат для этого назначения
+            # Проверяем, не существует ли уже результат для этого конкретного назначения
             existing_result = LabTestResult.objects.filter(
-                patient=examination_lab_test.examination_plan.get_patient(),
-                procedure_definition=examination_lab_test.lab_test,
-                examination_plan=examination_lab_test.examination_plan
+                examination_lab_test=examination_lab_test
             ).first()
             
             if existing_result:
@@ -448,6 +447,7 @@ class ExaminationIntegrationService:
                 patient=examination_lab_test.examination_plan.get_patient(),
                 procedure_definition=examination_lab_test.lab_test,
                 examination_plan=examination_lab_test.examination_plan,
+                examination_lab_test=examination_lab_test,  # Связываем с конкретным назначением
                 author=user,
                 datetime_result=timezone.now(),
                 data={},  # Пустые данные, которые заполнит врач/лаборант
