@@ -216,10 +216,6 @@
                                             <i class="fas fa-clock me-1"></i>{{ schedule_data.first_time|time:"H:i" }}
                                         {% endif %}
                                     </small>
-                                {% else %}
-                                    <small class="text-muted">
-                                        <i class="fas fa-calendar me-1"></i>Добавлено: {{ lab_test.created_at|date:"d.m.Y H:i" }}
-                                    </small>
                                 {% endif %}
                             </div>
                             
@@ -283,6 +279,12 @@
                                 {% endif %}
                             </div>
                             
+                            {% comment %} Информация о добавлении {% endcomment %}
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar me-1"></i>Добавлено: {{ lab_test.created_at|date:"d.m.Y H:i" }}
+                                </small>
+                            </div>
 
                         </div>
                         <div class="card-footer bg-white p-2">
@@ -373,30 +375,21 @@
                                 <small class="text-muted">{{ instrumental.instructions|linebreaks }}</small>
                                 {% endif %}
                                 
-                                {% comment %} Данные из расписания {% endcomment %}
-                                {% if schedule_data %}
+                                {% comment %} Данные о назначении {% endcomment %}
                                 <div class="mt-1">
-                                    <div class="row">
-                                        <div class="col-6">
-                                            <small class="text-muted">
-                                                <i class="fas fa-calendar me-1"></i>Назначено: {{ schedule_data.assigned_at|date:"d.m.Y" }}
-                                            </small>
-                                        </div>
-                                        <div class="col-6">
-                                            <small class="text-muted">
-                                                <i class="fas fa-clock me-1"></i>Частота: {{ schedule_data.frequency }}
-                                            </small>
-                                        </div>
-                                    </div>
-                                    <div class="row mt-1">
-                                        <div class="col-6">
-                                            <small class="text-muted">
-                                                <i class="fas fa-calendar-day me-1"></i>Курс: {{ schedule_data.duration_days }} дн.
-                                            </small>
-                                        </div>
-                                    </div>
+                                    {% if schedule_data %}
+                                        <small class="text-muted">
+                                            <i class="fas fa-calendar me-1"></i>Назначено: {{ schedule_data.assigned_at|date:"d.m.Y" }}
+                                            {% if schedule_data.first_time %}
+                                                <i class="fas fa-clock me-1"></i>{{ schedule_data.first_time|time:"H:i" }}
+                                            {% endif %}
+                                        </small>
+                                    {% else %}
+                                        <small class="text-muted">
+                                            <i class="fas fa-calendar me-1"></i>Добавлено: {{ instrumental.created_at|date:"d.m.Y H:i" }}
+                                        </small>
+                                    {% endif %}
                                 </div>
-                                {% endif %}
                                 
                                 {% comment %} Информация о статусе {% endcomment %}
                                 {% if status_info.status == 'completed' %}
@@ -448,9 +441,7 @@
                                     </div>
                                 {% endif %}
                                 
-                                <small class="text-muted d-block mt-1">
-                                    <i class="fas fa-calendar me-1"></i>Добавлено: {{ instrumental.created_at|date:"d.m.Y H:i" }}
-                                </small>
+
                             </div>
                         </div>
                     </div>

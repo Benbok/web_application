@@ -26,6 +26,7 @@ class InstrumentalProcedureResultListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         queryset = super().get_queryset()
         query = self.request.GET.get('q')
+        status = self.request.GET.get('status')
         
         if query:
             # Нормализуем поисковый запрос
@@ -41,7 +42,25 @@ class InstrumentalProcedureResultListView(LoginRequiredMixin, ListView):
                 Q(patient__middle_name__icontains=query.capitalize())
             )
         
+        # Фильтрация по статусу
+        if status:
+            if status == 'completed':
+                queryset = queryset.filter(is_completed=True)
+            elif status == 'active':
+                queryset = queryset.filter(status='active')
+            elif status == 'cancelled':
+                queryset = queryset.filter(status='cancelled')
+        
         return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Добавляем данные расписания для каждого результата
+        for result in context['results']:
+            result.schedule_data = result.get_assignment_schedule_data()
+        
+        return context
 
 class InstrumentalProcedureResultCreateView(LoginRequiredMixin, View):
     def get(self, request):

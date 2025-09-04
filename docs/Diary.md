@@ -5009,3 +5009,289 @@ if owner:
 - `base/lab_tests/templates/lab_tests/result_list.html` - обновлена логика отображения автора
 
 ---
+
+## Запись #98: Исправление проблем в instrumental_procedures
+**Дата:** 2025-01-27  
+**Проблема:** В instrumental_procedures те же проблемы, что были в lab_tests: неправильное отображение даты, автора и проблемы с дублирующими записями  
+**Статус:** ✅ Завершено  
+
+### Описание проблемы
+В `instrumental_procedures` были те же проблемы, что и в `lab_tests`:
+1. **Отображение даты** - показывалась "Дата результата" вместо "Дата направления"
+2. **Отображение автора** - показывался username вместо ФИО доктора
+3. **Дублирующие записи** - одинаковые назначения не создавались из-за неправильной логики проверки
+
+### Решение
+Применены те же исправления, что и для `lab_tests`:
+
+#### **1. Добавлено поле `examination_instrumental` в модель:**
+```python
+examination_instrumental = models.ForeignKey(
+    'examination_management.ExaminationInstrumental',
+    on_delete=models.CASCADE,
+    verbose_name="Назначение инструментального исследования",
+    related_name='instrumental_procedure_results',
+    null=True,
+    blank=True
+)
+```
+
+#### **2. Добавлен метод `get_assignment_schedule_data()`:**
+```python
+def get_assignment_schedule_data(self):
+    """
+    Получает данные расписания из связанного назначения
+    """
+    if self.examination_instrumental:
+        from examination_management.services import ExaminationStatusService
+        return ExaminationStatusService.get_schedule_data(self.examination_instrumental)
+    return None
+```
+
+#### **3. Обновлено представление `InstrumentalProcedureResultListView`:**
+- Добавлен метод `get_context_data()` для передачи данных расписания
+
+#### **4. Обновлен шаблон `result_list.html`:**
+- Переименовано "Дата результата" → "Дата направления"
+- Добавлено отображение даты и времени из расписания
+- Добавлено отображение ФИО доктора из профиля
+
+#### **5. Исправлены сигналы:**
+- **Создание результатов** - исправлена логика получения автора и добавлено поле `examination_instrumental`
+- **Синхронизация** - обновлена для использования прямой связи
+
+### Изменения
+1. **Корректное отображение даты** - "Дата направления" с данными из расписания
+2. **Корректное отображение автора** - ФИО доктора из профиля
+3. **Исправлена проблема с дублированием** - теперь можно создавать одинаковые назначения
+4. **Улучшена синхронизация** - используется прямая связь между результатами и назначениями
+
+### Результат
+- ✅ Поле "Дата направления" показывает дату и время назначения из расписания
+- ✅ Поле "Автор" показывает ФИО доктора из профиля
+- ✅ Исправлена проблема с дублирующими записями
+- ✅ Улучшена синхронизация между приложениями
+- ✅ Сохранена обратная совместимость
+
+### Файлы изменены
+- `base/instrumental_procedures/models.py` - добавлено поле `examination_instrumental` и метод `get_assignment_schedule_data()`
+- `base/instrumental_procedures/views.py` - добавлен метод `get_context_data()` в `InstrumentalProcedureResultListView`
+- `base/instrumental_procedures/templates/instrumental_procedures/result_list.html` - обновлено отображение даты направления и автора
+- `base/examination_management/signals.py` - исправлены сигналы создания и синхронизации для `InstrumentalProcedureResult`
+- Создана и применена миграция `0006_instrumentalprocedureresult_examination_instrumental.py`
+
+---
+
+## Запись #99: Улучшение отображения инструментальных исследований в плане обследования
+**Дата:** 2025-01-27  
+**Проблема:** В плане обследования инструментальные исследования показывали "Добавлено:" вместо "Назначено:" и отображали лишние поля "Частота" и "Курс"  
+**Статус:** ✅ Завершено  
+
+### Описание проблемы
+В плане обследования (`examination/patientdepartmentstatus/plans/`) инструментальные исследования отображались некорректно:
+- Показывали "Добавлено:" вместо "Назначено:"
+- Отображали поля "Частота" и "Курс", которые не нужны для инструментальных исследований
+- Не показывали время выполнения из настроек расписания
+
+### Решение
+Обновлен шаблон `plan_detail.html` для улучшения отображения инструментальных исследований:
+
+#### **Изменения в отображении:**
+1. **"Назначено:" вместо "Добавлено:"** - теперь показывается дата начала из настроек расписания
+2. **Время выполнения** - добавлено отображение времени из поля `first_time`
+3. **Убраны лишние поля** - удалены поля "Частота" и "Курс"
+4. **Fallback логика** - если данных расписания нет, показывается "Добавлено:" с датой создания
+
+#### **Новый формат отображения:**
+```html
+{% if schedule_data %}
+    <small class="text-muted">
+        <i class="fas fa-calendar me-1"></i>Назначено: {{ schedule_data.assigned_at|date:"d.m.Y" }}
+        {% if schedule_data.first_time %}
+            <i class="fas fa-clock me-1"></i>{{ schedule_data.first_time|time:"H:i" }}
+        {% endif %}
+    </small>
+{% else %}
+    <small class="text-muted">
+        <i class="fas fa-calendar me-1"></i>Добавлено: {{ instrumental.created_at|date:"d.m.Y H:i" }}
+    </small>
+{% endif %}
+```
+
+### Изменения
+1. **Упрощенное отображение:** Убраны лишние поля "Частота" и "Курс"
+2. **Корректная терминология:** "Назначено:" вместо "Добавлено:" для назначений с расписанием
+3. **Время выполнения:** Добавлено отображение времени из настроек расписания (`scheduled_time`)
+4. **Улучшенная читаемость:** Более компактное и понятное отображение
+5. **Единообразие:** Теперь инструментальные исследования отображаются так же, как и лабораторные анализы
+
+### Результат
+- ✅ Инструментальные исследования теперь показывают "Назначено:" с датой и временем из настроек расписания
+- ✅ Убраны лишние поля "Частота" и "Курс"
+- ✅ Улучшена читаемость и понятность отображения
+- ✅ Сохранена fallback логика для случаев без расписания
+- ✅ Достигнуто единообразие отображения между лабораторными и инструментальными исследованиями
+
+### Файлы изменены
+- `base/examination_management/templates/examination_management/plan_detail.html` - обновлено отображение инструментальных исследований
+
+---
+
+## Запись #100: Добавление информации о добавлении лабораторных исследований
+**Дата:** 2025-01-27  
+**Проблема:** В плане обследования для лабораторных исследований не отображалась информация о том, когда исследование было добавлено в план  
+**Статус:** ✅ Завершено  
+
+### Описание проблемы
+В плане обследования (`examination/patientdepartmentstatus/plans/`) для лабораторных исследований:
+- Отображалась только информация "Назначено:" с данными из расписания
+- Не было информации о том, когда исследование было добавлено в план
+- Пользователи не могли видеть полную картину: когда добавлено и когда назначено
+
+### Решение
+Добавлен дополнительный блок отображения информации о добавлении лабораторных исследований:
+
+#### **Новый блок отображения:**
+```html
+{% comment %} Данные о добавлении {% endcomment %}
+<div class="mb-2">
+    <small class="text-muted">
+        <i class="fas fa-calendar me-1"></i>Добавлено: {{ lab_test.created_at|date:"d.m.Y H:i" }}
+    </small>
+</div>
+
+{% comment %} Данные о назначении {% endcomment %}
+<div class="mb-2">
+    {% if schedule_data %}
+        <small class="text-muted">
+            <i class="fas fa-calendar me-1"></i>Назначено: {{ schedule_data.assigned_at|date:"d.m.Y" }}
+            {% if schedule_data.first_time %}
+                <i class="fas fa-clock me-1"></i>{{ schedule_data.first_time|time:"H:i" }}
+            {% endif %}
+        </small>
+    {% endif %}
+</div>
+```
+
+### Изменения
+1. **Двойное отображение:** Теперь показывается и "Добавлено:" и "Назначено:"
+2. **Полная информация:** Пользователи видят когда исследование добавлено в план и когда назначено на выполнение
+3. **Улучшенная трассируемость:** Можно отследить весь жизненный цикл назначения
+4. **Сохранена совместимость:** Блок "Назначено:" отображается только при наличии данных расписания
+
+### Результат
+- ✅ Добавлена информация "Добавлено:" с датой и временем создания лабораторного исследования
+- ✅ Сохранен блок "Назначено:" с данными из расписания
+- ✅ Пользователи видят полную картину жизненного цикла назначения
+- ✅ Улучшена трассируемость и прозрачность процесса назначений
+- ✅ Сохранена обратная совместимость
+
+### Файлы изменены
+- `base/examination_management/templates/examination_management/plan_detail.html` - добавлен блок отображения информации о добавлении лабораторных исследований
+
+---
+
+## Запись #101: Исправление фильтра по статусу в instrumental_procedures
+**Дата:** 2025-01-27  
+**Проблема:** В приложении `instrumental_procedures` фильтр по статусу не работал корректно, в отличие от `lab_tests`  
+**Статус:** ✅ Завершено  
+
+### Описание проблемы
+В приложении `instrumental_procedures`:
+- Фильтр по статусу в шаблоне присутствовал, но не работал
+- В представлении `InstrumentalProcedureResultListView` отсутствовала логика фильтрации по статусу
+- Отображение статусов в шаблоне не соответствовало логике `lab_tests`
+- Кнопки действий не учитывали статус "Отменено"
+
+### Решение
+Исправлена логика фильтрации и отображения в `instrumental_procedures`:
+
+#### **1. Обновлено представление `InstrumentalProcedureResultListView`:**
+```python
+def get_queryset(self):
+    queryset = super().get_queryset()
+    query = self.request.GET.get('q')
+    status = self.request.GET.get('status')  # Добавлен параметр статуса
+    
+    if query:
+        # Поиск по пациенту и процедуре
+        query = query.strip().lower()
+        queryset = queryset.filter(
+            Q(patient__first_name__icontains=query) |
+            Q(patient__last_name__icontains=query) |
+            Q(patient__middle_name__icontains=query) |
+            Q(procedure_definition__name__icontains=query) |
+            Q(patient__first_name__icontains=query.capitalize()) |
+            Q(patient__last_name__icontains=query.capitalize()) |
+            Q(patient__middle_name__icontains=query.capitalize())
+        )
+    
+    # Фильтрация по статусу
+    if status:
+        if status == 'completed':
+            queryset = queryset.filter(is_completed=True)
+        elif status == 'active':
+            queryset = queryset.filter(status='active')
+        elif status == 'cancelled':
+            queryset = queryset.filter(status='cancelled')
+    
+    return queryset
+```
+
+#### **2. Исправлено отображение статусов в шаблоне:**
+```html
+{% if result.status == 'active' %}
+    {% if result.is_completed %}
+        <span class="badge bg-success">Заполнено</span>
+    {% else %}
+        <span class="badge bg-warning">Ожидает заполнения</span>
+    {% endif %}
+{% elif result.status == 'cancelled' %}
+    <span class="badge bg-secondary">Отменено</span>
+{% elif result.status == 'completed' %}
+    <span class="badge bg-success">Завершено</span>
+{% elif result.status == 'paused' %}
+    <span class="badge bg-warning">Приостановлено</span>
+{% else %}
+    <span class="badge bg-light text-dark">{{ result.get_status_display }}</span>
+{% endif %}
+```
+
+#### **3. Исправлена логика кнопок действий:**
+```html
+{% if result.status == 'cancelled' %}
+    <span class="btn btn-outline-secondary disabled">
+        <i class="fas fa-ban me-1"></i>Отменено
+    </span>
+{% elif result.is_completed %}
+    <a href="{% url 'instrumental_procedures:result_detail' result.pk %}" class="btn btn-outline-info">
+        <i class="fas fa-eye me-1"></i>Просмотреть
+    </a>
+    <a href="{% url 'instrumental_procedures:result_update' result.pk %}" class="btn btn-outline-warning">
+        <i class="fas fa-edit me-1"></i>Редактировать
+    </a>
+{% else %}
+    <a href="{% url 'instrumental_procedures:result_update' result.pk %}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i>Добавить данные
+    </a>
+{% endif %}
+```
+
+### Изменения
+1. **Добавлена фильтрация по статусу** - теперь работает так же, как в `lab_tests`
+2. **Исправлено отображение статусов** - корректное отображение всех статусов с соответствующими цветами
+3. **Исправлена логика кнопок** - отмененные записи показывают "Отменено" вместо кнопок действий
+4. **Унификация с lab_tests** - теперь оба приложения работают одинаково
+
+### Результат
+- ✅ Фильтр по статусу в `instrumental_procedures` теперь работает корректно
+- ✅ Отображение статусов соответствует логике `lab_tests`
+- ✅ Кнопки действий корректно обрабатывают статус "Отменено"
+- ✅ Достигнута унификация интерфейса между `lab_tests` и `instrumental_procedures`
+- ✅ Улучшена пользовательская логика работы с отмененными записями
+
+### Файлы изменены
+- `base/instrumental_procedures/views.py` - добавлена фильтрация по статусу в `InstrumentalProcedureResultListView`
+- `base/instrumental_procedures/templates/instrumental_procedures/result_list.html` - исправлено отображение статусов и логика кнопок
+
+---

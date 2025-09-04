@@ -44,6 +44,15 @@ class InstrumentalProcedureResult(models.Model):
         blank=True
     )
     
+    examination_instrumental = models.ForeignKey(
+        'examination_management.ExaminationInstrumental',
+        on_delete=models.CASCADE,
+        verbose_name="Назначение инструментального исследования",
+        related_name='instrumental_procedure_results',
+        null=True,
+        blank=True
+    )
+    
     procedure_definition = models.ForeignKey(
         InstrumentalProcedureDefinition,
         on_delete=models.PROTECT,
@@ -88,6 +97,15 @@ class InstrumentalProcedureResult(models.Model):
 
     def __str__(self):
         return f"Результат {self.procedure_definition.name} для {self.patient} от {self.datetime_result.strftime('%d.%m.%Y')}"
+    
+    def get_assignment_schedule_data(self):
+        """
+        Получает данные расписания из связанного назначения
+        """
+        if self.examination_instrumental:
+            from examination_management.services import ExaminationStatusService
+            return ExaminationStatusService.get_schedule_data(self.examination_instrumental)
+        return None
     
     def cancel(self, reason="", cancelled_by=None):
         """

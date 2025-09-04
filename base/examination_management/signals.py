@@ -273,13 +273,9 @@ def sync_instrumental_result_completion(sender, instance, created, **kwargs):
     """
     try:
         # Обновляем статус только при изменении, а не при создании
-        if not created and instance.examination_plan:
-            # Ищем ExaminationInstrumental для этого плана и типа исследования
-            from .models import ExaminationInstrumental
-            examination = ExaminationInstrumental.objects.filter(
-                examination_plan=instance.examination_plan,
-                instrumental_procedure=instance.procedure_definition
-            ).first()
+        if not created and instance.examination_instrumental:
+            # Используем прямую связь с ExaminationInstrumental
+            examination = instance.examination_instrumental
             
             if examination and instance.is_completed:
                 # Если данные заполнены, обновляем статус в examination_management
@@ -384,19 +380,34 @@ def create_instrumental_procedure_result(sender, instance, created, **kwargs):
         try:
             from instrumental_procedures.models import InstrumentalProcedureResult
             
-            # Проверяем, есть ли уже результат для этого назначения
+            # Проверяем, есть ли уже результат для этого конкретного назначения
             existing_result = InstrumentalProcedureResult.objects.filter(
-                examination_plan=instance.examination_plan,
-                procedure_definition=instance.instrumental_procedure
+                examination_instrumental=instance
             ).first()
             
             if not existing_result:
+                # Получаем пользователя из владельца плана
+                owner = instance.examination_plan.get_owner()
+                author = None
+                
+                if owner:
+                    if hasattr(owner, 'doctor'):
+                        # Для Encounter используем поле doctor
+                        author = owner.doctor
+                    elif hasattr(owner, 'accepted_by'):
+                        # Для PatientDepartmentStatus используем поле accepted_by
+                        author = owner.accepted_by
+                    elif hasattr(owner, 'get_user'):
+                        # Fallback для других типов владельцев
+                        author = owner.get_user()
+                
                 # Создаем новый результат
                 InstrumentalProcedureResult.objects.create(
                     patient=instance.examination_plan.get_patient(),
                     examination_plan=instance.examination_plan,
                     procedure_definition=instance.instrumental_procedure,
-                    author=instance.examination_plan.get_owner().get_user() if hasattr(instance.examination_plan.get_owner(), 'get_user') else None
+                    examination_instrumental=instance,  # Связываем с конкретным назначением
+                    author=author
                 )
                 print(f"Создан InstrumentalProcedureResult для ExaminationInstrumental {instance.pk}")
                 
