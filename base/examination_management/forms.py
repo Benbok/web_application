@@ -145,10 +145,14 @@ class ExaminationInstrumentalForm(forms.ModelForm):
     
     class Meta:
         model = ExaminationInstrumental
-        fields = ['instrumental_procedure', 'instructions']
+        fields = ['instrumental_procedure', 'instructions', 'scheduled_time']
         widgets = {
             'instrumental_procedure': forms.Select(attrs={'class': 'form-select'}),
             'instructions': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'scheduled_time': forms.TimeInput(attrs={
+                'type': 'time',
+                'class': 'form-control'
+            }),
         }
 
 

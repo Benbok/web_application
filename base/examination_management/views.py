@@ -921,8 +921,11 @@ class ExaminationInstrumentalCreateView(LoginRequiredMixin, CreateView):
     
     def form_valid(self, form):
         form.instance.examination_plan = self.examination_plan
-        # Сохраняем значение instrumental_procedure из формы
         form.instance.instrumental_procedure = form.cleaned_data['instrumental_procedure']
+        
+        # Сохраняем время выполнения в модель
+        if form.cleaned_data.get('first_time'):
+            form.instance.scheduled_time = form.cleaned_data['first_time']
         
         # Сохраняем объект
         response = super().form_valid(form)
