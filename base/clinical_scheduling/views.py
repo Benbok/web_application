@@ -42,6 +42,8 @@ def dashboard(request):
     # Базовый queryset
     queryset = ScheduledAppointment.objects.select_related(
         'patient', 'created_department', 'encounter', 'executed_by', 'rejected_by'
+    ).exclude(
+        execution_status='canceled'  # Исключаем отмененные назначения
     )
     
     # Проверяем, есть ли фильтр по дате

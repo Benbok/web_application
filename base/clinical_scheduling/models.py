@@ -200,14 +200,16 @@ class ScheduledAppointment(models.Model):
             }
         
         # Проверяем тип назначения и получаем нужную информацию
-        if hasattr(assignment, 'treatment_name'):
+        if hasattr(assignment, 'medication'):
+            # Это TreatmentMedication
             return {
                 'type': 'treatment', 
-                'name': assignment.treatment_name, 
+                'name': f"{assignment.medication.name} - {assignment.dosage} {assignment.frequency}", 
                 'patient': self.patient,
                 'department': self.created_department
             }
         elif hasattr(assignment, 'lab_test'):
+            # Это LabTestResult
             return {
                 'type': 'lab_test', 
                 'name': assignment.lab_test.name if assignment.lab_test else 'Лабораторное исследование', 
@@ -215,6 +217,7 @@ class ScheduledAppointment(models.Model):
                 'department': self.created_department
             }
         elif hasattr(assignment, 'instrumental_procedure'):
+            # Это InstrumentalProcedureResult
             return {
                 'type': 'procedure', 
                 'name': assignment.instrumental_procedure.name if assignment.instrumental_procedure else 'Процедура', 
@@ -222,6 +225,7 @@ class ScheduledAppointment(models.Model):
                 'department': self.created_department
             }
         else:
+            # Используем __str__ метод объекта
             return {
                 'type': 'unknown', 
                 'name': str(assignment), 

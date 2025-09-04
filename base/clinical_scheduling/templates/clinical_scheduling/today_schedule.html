@@ -111,7 +111,10 @@
                                         </thead>
                                         <tbody>
                                             {% for appointment in schedules %}
-                                            <tr class="appointment-row" data-status="{{ appointment.execution_status }}">
+                                            {% with assignment_info=appointment.get_assignment_info %}
+                                            <tr class="appointment-row 
+                                                {% if assignment_info.type == 'treatment' %}table-primary{% elif assignment_info.type == 'lab_test' %}table-info{% elif assignment_info.type == 'procedure' %}table-warning{% else %}table-secondary{% endif %}" 
+                                                data-status="{{ appointment.execution_status }}">
                                                 <td>
                                                     <strong>{{ appointment.scheduled_time|time:"H:i" }}</strong>
                                                 </td>
@@ -126,10 +129,18 @@
                                                 </td>
                                                 <td>
                                                     <div class="d-flex align-items-center">
-                                                        <i class="fas fa-stethoscope me-2 text-info"></i>
+                                                        {% if assignment_info.type == 'treatment' %}
+                                                            <i class="fas fa-pills me-2 text-primary"></i>
+                                                        {% elif assignment_info.type == 'lab_test' %}
+                                                            <i class="fas fa-flask me-2 text-info"></i>
+                                                        {% elif assignment_info.type == 'procedure' %}
+                                                            <i class="fas fa-stethoscope me-2 text-warning"></i>
+                                                        {% else %}
+                                                            <i class="fas fa-stethoscope me-2 text-secondary"></i>
+                                                        {% endif %}
                                                         <div>
                                                             <a href="{% url 'clinical_scheduling:appointment_detail' appointment.pk %}" class="text-decoration-none">
-                                                                {{ appointment.get_assignment_info.name|default:"Назначение" }}
+                                                                {{ assignment_info.name|default:"Назначение" }}
                                                             </a>
                                                             {% if appointment.notes %}
                                                                 <br><small class="text-muted">{{ appointment.notes }}</small>
@@ -148,7 +159,6 @@
                                                         {% elif appointment.execution_status == 'rejected' %}bg-danger
                                                         {% elif appointment.execution_status == 'skipped' %}bg-secondary
                                                         {% elif appointment.execution_status == 'partial' %}bg-info
-                                                        {% elif appointment.execution_status == 'canceled' %}bg-dark
                                                         {% else %}bg-warning{% endif %}">
                                                         {{ appointment.get_execution_status_display }}
                                                     </span>
@@ -187,6 +197,7 @@
                                                     </div>
                                                 </td>
                                             </tr>
+                                            {% endwith %}
                                             {% endfor %}
                                         </tbody>
                                     </table>
@@ -310,6 +321,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .badge {
     font-size: 0.875em;
+}
+
+/* Цветовое выделение по типу назначения */
+.table-primary {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+}
+
+.table-info {
+    background-color: rgba(13, 202, 240, 0.1) !important;
+}
+
+.table-warning {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+}
+
+.table-secondary {
+    background-color: rgba(108, 117, 125, 0.1) !important;
 }
 </style>
 {% endblock %} 

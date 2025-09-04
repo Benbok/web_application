@@ -242,7 +242,14 @@ class TreatmentMedication(ArchivableModel):
     )
     dosage = models.CharField(_('Доза'), max_length=100)
     frequency = models.CharField(_('Частота'), max_length=100)
-    route = models.CharField(_('Путь введения'), max_length=100)
+    route = models.ForeignKey(
+        'pharmacy.AdministrationMethod',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_('Путь введения'),
+        help_text=_('Выберите способ введения препарата')
+    )
     duration = models.CharField(_('Длительность'), max_length=100, blank=True)
     instructions = models.TextField(_('Особые указания'), blank=True)
     created_at = models.DateTimeField(_('Создано'), auto_now_add=True)

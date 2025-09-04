@@ -169,6 +169,7 @@
                                         </thead>
                                         <tbody>
                                             {% for appointment in appointments %}
+                                            {% with assignment_info=appointment.get_assignment_info %}
                                             <tr class="appointment-row" 
                                                 data-status="{% if appointment.execution_status == 'completed' %}completed{% elif appointment.execution_status == 'rejected' %}rejected{% elif appointment.execution_status == 'skipped' %}skipped{% elif appointment.execution_status == 'partial' %}partial{% elif appointment.is_overdue %}overdue{% else %}pending{% endif %}"
                                                 data-date="{{ appointment.scheduled_date|date:'Y-m-d' }}"
@@ -204,10 +205,21 @@
                                                     {% endif %}
                                                 </td>
                                                 <td>
-                                                    <a href="{% url 'clinical_scheduling:appointment_detail' appointment.pk %}" 
-                                                       class="text-decoration-none fw-semibold">
-                                                        {{ appointment.get_assignment_info.name }}
-                                                    </a>
+                                                    <div class="d-flex align-items-center">
+                                                        {% if assignment_info.type == 'treatment' %}
+                                                            <i class="fas fa-pills me-2 text-primary"></i>
+                                                        {% elif assignment_info.type == 'lab_test' %}
+                                                            <i class="fas fa-flask me-2 text-info"></i>
+                                                        {% elif assignment_info.type == 'procedure' %}
+                                                            <i class="fas fa-stethoscope me-2 text-warning"></i>
+                                                        {% else %}
+                                                            <i class="fas fa-stethoscope me-2 text-secondary"></i>
+                                                        {% endif %}
+                                                        <a href="{% url 'clinical_scheduling:appointment_detail' appointment.pk %}" 
+                                                           class="text-decoration-none fw-semibold">
+                                                            {{ assignment_info.name }}
+                                                        </a>
+                                                    </div>
                                                 </td>
                                                 <td>
                                                     <span class="badge 
@@ -242,9 +254,10 @@
                                                                 title="Отметить как выполненное">
                                                             <i class="fas fa-check"></i>
                                                         </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
+                                                                                                            </div>
+                                                    </td>
+                                                </tr>
+                                            {% endwith %}
                                             {% endfor %}
                                         </tbody>
                                     </table>

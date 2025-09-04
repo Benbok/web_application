@@ -191,9 +191,9 @@ class TreatmentMedicationForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': _('Например: 2 раза в день')
             }),
-            'route': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': _('Например: внутрь, внутримышечно')
+            'route': forms.Select(attrs={
+                'class': 'form-select',
+                'placeholder': _('Выберите способ введения')
             }),
             'duration': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -221,6 +221,17 @@ class TreatmentMedicationForm(forms.ModelForm):
             'duration': _('Укажите длительность курса лечения'),
             'instructions': _('Дополнительные указания по применению')
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Добавляем queryset для поля route
+        try:
+            from pharmacy.models import AdministrationMethod
+            self.fields['route'].queryset = AdministrationMethod.objects.all().order_by('name')
+        except ImportError:
+            # Если приложение pharmacy недоступно, оставляем пустой queryset
+            self.fields['route'].queryset = AdministrationMethod.objects.none()
     
     def clean(self):
         cleaned_data = super().clean()

@@ -431,7 +431,9 @@ class ClinicalSchedulingService:
     @staticmethod
     def get_patient_schedule(patient, start_date=None, end_date=None):
         """Получает расписание пациента за период"""
-        queryset = ScheduledAppointment.objects.filter(patient=patient)
+        queryset = ScheduledAppointment.objects.filter(patient=patient).exclude(
+            execution_status='canceled'  # Исключаем отмененные назначения
+        )
         
         if start_date:
             queryset = queryset.filter(scheduled_date__gte=start_date)

@@ -88,8 +88,7 @@ class PatientDepartmentHistoryView(LoginRequiredMixin, DetailView):
         # Теперь используем прямые связи для departments
         documents = patient_status.clinical_documents.all().select_related('document_type', 'author')
         treatment_plans = patient_status.treatment_plans.all().prefetch_related(
-            'medications__medication',
-            'medications__route'
+            'medications__medication'
         )
         examination_plans = patient_status.examination_plans.all().prefetch_related(
             'lab_tests__lab_test',
