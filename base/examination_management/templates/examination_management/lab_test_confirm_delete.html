@@ -28,28 +28,23 @@
                         <p>Вы собираетесь <strong>отменить</strong> лабораторное исследование:</p>
                         <ul class="mb-0">
                             <li><strong>Название:</strong> {{ object.get_lab_test_name }}</li>
-                            {% if object.notes %}<li><strong>Примечания:</strong> {{ object.notes }}</li>{% endif %}
+                            {% if object.instructions %}<li><strong>Примечания:</strong> {{ object.instructions }}</li>{% endif %}
                         </ul>
                     </div>
                     
                     {% if warning_message %}
                         <div class="mt-3">
                             <div class="alert alert-danger">
-                                <h6><i class="fas fa-exclamation-triangle"></i> Удаление невозможно!</h6>
+                                <h6><i class="fas fa-exclamation-triangle"></i> Отмена невозможна!</h6>
                                 <p class="mb-0">{{ warning_message }}</p>
                             </div>
                         </div>
                         
                         <div class="mt-3">
-                            {% if encounter %}
-                                <a href="{% url 'examination_management:examination_plan_detail' encounter_pk=encounter.pk pk=examination_plan.pk %}" class="btn btn-secondary">
-                                    <i class="fas fa-arrow-left"></i> Назад к плану
-                                </a>
-                            {% else %}
-                                <a href="{% url 'examination_management:plan_detail' owner_model=owner_model owner_id=owner_id pk=examination_plan.pk %}" class="btn btn-secondary">
-                                    <i class="fas fa-arrow-left"></i> Назад к плану
-                                </a>
-                            {% endif %}
+                            <a href="{% url 'examination_management:plan_detail' owner_model=owner_model owner_id=owner_id pk=examination_plan.pk %}" 
+                               class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Вернуться к плану
+                            </a>
                         </div>
                     {% else %}
                         <div class="mt-3">
@@ -57,17 +52,12 @@
                                 <h6><i class="fas fa-info-circle"></i> Что происходит при отмене:</h6>
                                 <ul class="mb-0">
                                     <li>Исследование помечается как "Отменено"</li>
-                                    <li>Сохраняется полная история исследования</li>
+                                    <li>Сохраняется полная история назначения</li>
                                     <li>Автоматически отменяются все запланированные события</li>
                                     <li>Запись остается в базе данных для аудита</li>
                                 </ul>
                             </div>
                         </div>
-                        
-                        <p class="text-muted">
-                            <i class="fas fa-info-circle"></i>
-                            <strong>Это действие можно отменить, возобновив исследование!</strong>
-                        </p>
                         
                         <form method="post">
                             {% csrf_token %}
@@ -75,16 +65,10 @@
                                 <button type="submit" class="btn btn-warning">
                                     <i class="fas fa-ban"></i> Отменить исследование
                                 </button>
-                                
-                                {% if encounter %}
-                                    <a href="{% url 'examination_management:examination_plan_detail' encounter_pk=encounter.pk pk=examination_plan.pk %}" class="btn btn-secondary">
-                                        <i class="fas fa-arrow-left"></i> Отмена
-                                    </a>
-                                {% else %}
-                                    <a href="{% url 'examination_management:plan_detail' owner_model=owner_model owner_id=owner_id pk=examination_plan.pk %}" class="btn btn-secondary">
-                                        <i class="fas fa-arrow-left"></i> Отмена
-                                    </a>
-                                {% endif %}
+                                <a href="{% url 'examination_management:plan_detail' owner_model=owner_model owner_id=owner_id pk=examination_plan.pk %}" 
+                                   class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Отмена
+                                </a>
                             </div>
                         </form>
                     {% endif %}

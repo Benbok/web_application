@@ -9,6 +9,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.views import View
+from django.core.exceptions import ValidationError
 
 from .models import ExaminationPlan, ExaminationLabTest, ExaminationInstrumental
 from .forms import ExaminationPlanForm, ExaminationLabTestForm, ExaminationInstrumentalForm, ExaminationLabTestWithScheduleForm, ExaminationInstrumentalWithScheduleForm
@@ -719,9 +720,9 @@ class ExaminationLabTestUpdateView(LoginRequiredMixin, UpdateView):
         return None
 
 
-class ExaminationLabTestDeleteView(LoginRequiredMixin, DeleteView):
+class ExaminationLabTestCancelView(LoginRequiredMixin, DetailView):
     """
-    Удаление лабораторного исследования из плана обследования (мягкое удаление)
+    Отмена лабораторного исследования без физического удаления
     """
     model = ExaminationLabTest
     template_name = 'examination_management/lab_test_confirm_delete.html'
@@ -747,22 +748,99 @@ class ExaminationLabTestDeleteView(LoginRequiredMixin, DeleteView):
         
         context['title'] = _('Отменить лабораторное исследование')
         
-        # Проверяем возможность удаления
-        context['can_be_deleted'] = self.object.can_be_deleted()
-        
-        # Дополнительная проверка статуса
-        if hasattr(self.object, 'status') and self.object.status == 'completed':
-            context['warning_message'] = _('Удаление невозможно - исследование выполнено. Удалите результат в разделе лабораторных исследований.')
-            context['can_be_deleted'] = False
-        elif not context['can_be_deleted']:
-            context['warning_message'] = _('Удаление невозможно - есть подписанное заключение. Удалите заключение в разделе лабораторных исследований.')
+        # Проверяем возможность отмены
+        can_cancel, error_message = self.object.can_be_cancelled()
+        context['can_be_cancelled'] = can_cancel
+        context['warning_message'] = error_message
         
         return context
     
     def get_patient_from_owner(self, owner):
+        """Получает пациента из владельца"""
+        if hasattr(owner, 'patient'):
+            return owner.patient
+        elif hasattr(owner, 'get_patient'):
+            return owner.get_patient()
+        return None
+    
+    def post(self, request, *args, **kwargs):
         """
-        Получает пациента из владельца
+        Обрабатываем POST-запрос для отмены назначения
         """
+        self.object = self.get_object()
+        
+        # Проверяем возможность отмены
+        can_cancel, error_message = self.object.can_be_cancelled()
+        if not can_cancel:
+            messages.error(request, error_message)
+            return redirect(self.get_success_url())
+        
+        # Отменяем назначение
+        try:
+            self.object.cancel(
+                reason="Отменено через веб-интерфейс",
+                cancelled_by=request.user
+            )
+            messages.success(request, _('Лабораторное исследование успешно отменено'))
+        except ValidationError as e:
+            messages.error(request, str(e))
+        except Exception as e:
+            messages.error(request, _('Ошибка при отмене исследования: {}').format(str(e)))
+        
+        return redirect(self.get_success_url())
+    
+    def get_success_url(self):
+        # Определяем владельца плана обследования
+        owner = self.object.examination_plan.get_owner()
+        if owner:
+            return reverse('examination_management:plan_detail',
+                          kwargs={
+                              'owner_model': owner._meta.model_name,
+                              'owner_id': owner.id,
+                              'pk': self.object.examination_plan.pk
+                          })
+        else:
+            # Fallback - возвращаемся к списку планов
+            return reverse('examination_management:plan_list')
+
+
+class ExaminationLabTestDeleteView(LoginRequiredMixin, DeleteView):
+    """
+    Отмена лабораторного исследования из плана обследования
+    """
+    model = ExaminationLabTest
+    template_name = 'examination_management/lab_test_confirm_delete.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['examination_plan'] = self.object.examination_plan
+        
+        # Получаем владельца и пациента
+        owner = self.object.examination_plan.get_owner()
+        if owner:
+            context['owner'] = owner
+            context['patient'] = self.get_patient_from_owner(owner)
+            context['owner_model'] = owner._meta.model_name
+            context['owner_id'] = owner.id
+            
+            # Если владелец - это Encounter, добавляем его в контекст
+            if isinstance(owner, Encounter):
+                context['encounter'] = owner
+        else:
+            context['encounter'] = None
+            context['patient'] = None
+        
+        context['title'] = _('Отменить лабораторное исследование')
+        
+        # Проверяем возможность отмены
+        can_cancel, error_message = self.object.can_be_cancelled()
+        context['can_be_cancelled'] = can_cancel
+        context['warning_message'] = error_message
+        
+        return context
+    
+    def get_patient_from_owner(self, owner):
+        """Получает пациента из владельца"""
         if hasattr(owner, 'patient'):
             return owner.patient
         elif hasattr(owner, 'get_patient'):
@@ -771,51 +849,43 @@ class ExaminationLabTestDeleteView(LoginRequiredMixin, DeleteView):
     
     def delete(self, request, *args, **kwargs):
         """
-        Переопределяем метод delete для использования soft delete
+        Переопределяем метод delete для отмены назначения
         """
         self.object = self.get_object()
         
-        # Дополнительная защита: проверяем статус
-        if hasattr(self.object, 'status') and self.object.status == 'completed':
-            messages.error(request, _('Удаление невозможно - исследование выполнено. Удалите результат в разделе лабораторных исследований.'))
+        # Проверяем возможность отмены
+        can_cancel, error_message = self.object.can_be_cancelled()
+        if not can_cancel:
+            messages.error(request, error_message)
             return redirect(self.get_success_url())
         
-        # Проверяем, можно ли удалить назначение
-        if not self.object.can_be_deleted():
-            messages.error(request, _('Удаление невозможно - есть подписанное заключение. Удалите заключение в разделе лабораторных исследований.'))
-            return redirect(self.get_success_url())
+        # Отменяем назначение
+        try:
+            self.object.cancel(
+                reason="Отменено через веб-интерфейс",
+                cancelled_by=request.user
+            )
+            messages.success(request, _('Лабораторное исследование успешно отменено'))
+        except ValidationError as e:
+            messages.error(request, str(e))
+        except Exception as e:
+            messages.error(request, _('Ошибка при отмене исследования: {}').format(str(e)))
         
-        # Используем soft delete вместо физического удаления
-        self.object.cancel(
-            reason="Отменено через веб-интерфейс",
-            cancelled_by=request.user
-        )
-        
-        messages.success(request, _('Лабораторное исследование успешно отменено'))
         return redirect(self.get_success_url())
     
     def get_success_url(self):
         # Определяем владельца плана обследования
         owner = self.object.examination_plan.get_owner()
-        
         if owner:
-            if isinstance(owner, Encounter):
-                return reverse('examination_management:examination_plan_detail',
-                              kwargs={
-                                  'encounter_pk': owner.id,
-                                  'pk': self.object.examination_plan.pk
-                              })
-            else:
-                return reverse('examination_management:plan_detail',
-                              kwargs={
-                                  'owner_model': owner._meta.model_name,
-                                  'owner_id': owner.id,
-                                  'pk': self.object.examination_plan.pk
-                              })
+            return reverse('examination_management:plan_detail',
+                          kwargs={
+                              'owner_model': owner._meta.model_name,
+                              'owner_id': owner.id,
+                              'pk': self.object.examination_plan.pk
+                          })
         else:
             # Fallback - возвращаемся к списку планов
-            return reverse('examination_management:examination_plan_list',
-                          kwargs={'encounter_pk': 1})  # Временное решение
+            return reverse('examination_management:plan_list')
 
 
 class ExaminationInstrumentalCreateView(LoginRequiredMixin, CreateView):
@@ -984,7 +1054,7 @@ class ExaminationInstrumentalUpdateView(LoginRequiredMixin, UpdateView):
 
 class ExaminationInstrumentalDeleteView(LoginRequiredMixin, DeleteView):
     """
-    Удаление инструментального исследования из плана обследования (мягкое удаление)
+    Отмена инструментального исследования из плана обследования
     """
     model = ExaminationInstrumental
     template_name = 'examination_management/instrumental_confirm_delete.html'
@@ -1010,22 +1080,15 @@ class ExaminationInstrumentalDeleteView(LoginRequiredMixin, DeleteView):
         
         context['title'] = _('Отменить инструментальное исследование')
         
-        # Проверяем возможность удаления
-        context['can_be_deleted'] = self.object.can_be_deleted()
-        
-        # Дополнительная проверка статуса
-        if hasattr(self.object, 'status') and self.object.status == 'completed':
-            context['warning_message'] = _('Удаление невозможно - исследование выполнено. Удалите результат в разделе инструментальных исследований.')
-            context['can_be_deleted'] = False
-        elif not context['can_be_deleted']:
-            context['warning_message'] = _('Удаление невозможно - есть подписанное заключение. Удалите заключение в разделе инструментальных исследований.')
+        # Проверяем возможность отмены
+        can_cancel, error_message = self.object.can_be_cancelled()
+        context['can_be_cancelled'] = can_cancel
+        context['warning_message'] = error_message
         
         return context
     
     def get_patient_from_owner(self, owner):
-        """
-        Получает пациента из владельца
-        """
+        """Получает пациента из владельца"""
         if hasattr(owner, 'patient'):
             return owner.patient
         elif hasattr(owner, 'get_patient'):
@@ -1034,51 +1097,127 @@ class ExaminationInstrumentalDeleteView(LoginRequiredMixin, DeleteView):
     
     def delete(self, request, *args, **kwargs):
         """
-        Переопределяем метод delete для использования soft delete
+        Переопределяем метод delete для отмены назначения
         """
         self.object = self.get_object()
         
-        # Дополнительная защита: проверяем статус
-        if hasattr(self.object, 'status') and self.object.status == 'completed':
-            messages.error(request, _('Удаление невозможно - исследование выполнено. Удалите результат в разделе инструментальных исследований.'))
+        # Проверяем возможность отмены
+        can_cancel, error_message = self.object.can_be_cancelled()
+        if not can_cancel:
+            messages.error(request, error_message)
             return redirect(self.get_success_url())
         
-        # Проверяем, можно ли удалить назначение
-        if not self.object.can_be_deleted():
-            messages.error(request, _('Удаление невозможно - есть подписанное заключение. Удалите заключение в разделе инструментальных исследований.'))
-            return redirect(self.get_success_url())
+        # Отменяем назначение
+        try:
+            self.object.cancel(
+                reason="Отменено через веб-интерфейс",
+                cancelled_by=request.user
+            )
+            messages.success(request, _('Инструментальное исследование успешно отменено'))
+        except ValidationError as e:
+            messages.error(request, str(e))
+        except Exception as e:
+            messages.error(request, _('Ошибка при отмене исследования: {}').format(str(e)))
         
-        # Используем soft delete вместо физического удаления
-        self.object.cancel(
-            reason="Отменено через веб-интерфейс",
-            cancelled_by=request.user
-        )
-        
-        messages.success(request, _('Инструментальное исследование успешно отменено'))
         return redirect(self.get_success_url())
     
     def get_success_url(self):
         # Определяем владельца плана обследования
         owner = self.object.examination_plan.get_owner()
-        
         if owner:
-            if isinstance(owner, Encounter):
-                return reverse('examination_management:examination_plan_detail',
-                              kwargs={
-                                  'encounter_pk': owner.id,
-                                  'pk': self.object.examination_plan.pk
-                              })
-            else:
-                return reverse('examination_management:plan_detail',
-                              kwargs={
-                                  'owner_model': owner._meta.model_name,
-                                  'owner_id': owner.id,
-                                  'pk': self.object.examination_plan.pk
-                              })
+            return reverse('examination_management:plan_detail',
+                          kwargs={
+                              'owner_model': owner._meta.model_name,
+                              'owner_id': owner.id,
+                              'pk': self.object.examination_plan.pk
+                          })
         else:
             # Fallback - возвращаемся к списку планов
-            return reverse('examination_management:examination_plan_list',
-                          kwargs={'encounter_pk': 1})  # Временное решение
+            return reverse('examination_management:plan_list')
+
+
+class ExaminationInstrumentalCancelView(LoginRequiredMixin, DetailView):
+    """
+    Отмена инструментального исследования без физического удаления
+    """
+    model = ExaminationInstrumental
+    template_name = 'examination_management/instrumental_confirm_delete.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['examination_plan'] = self.object.examination_plan
+        
+        # Получаем владельца и пациента
+        owner = self.object.examination_plan.get_owner()
+        if owner:
+            context['owner'] = owner
+            context['patient'] = self.get_patient_from_owner(owner)
+            context['owner_model'] = owner._meta.model_name
+            context['owner_id'] = owner.id
+            
+            # Если владелец - это Encounter, добавляем его в контекст
+            if isinstance(owner, Encounter):
+                context['encounter'] = owner
+        else:
+            context['encounter'] = None
+            context['patient'] = None
+        
+        context['title'] = _('Отменить инструментальное исследование')
+        
+        # Проверяем возможность отмены
+        can_cancel, error_message = self.object.can_be_cancelled()
+        context['can_be_cancelled'] = can_cancel
+        context['warning_message'] = error_message
+        
+        return context
+    
+    def get_patient_from_owner(self, owner):
+        """Получает пациента из владельца"""
+        if hasattr(owner, 'patient'):
+            return owner.patient
+        elif hasattr(owner, 'get_patient'):
+            return owner.get_patient()
+        return None
+    
+    def post(self, request, *args, **kwargs):
+        """
+        Обрабатываем POST-запрос для отмены назначения
+        """
+        self.object = self.get_object()
+        
+        # Проверяем возможность отмены
+        can_cancel, error_message = self.object.can_be_cancelled()
+        if not can_cancel:
+            messages.error(request, error_message)
+            return redirect(self.get_success_url())
+        
+        # Отменяем назначение
+        try:
+            self.object.cancel(
+                reason="Отменено через веб-интерфейс",
+                cancelled_by=request.user
+            )
+            messages.success(request, _('Инструментальное исследование успешно отменено'))
+        except ValidationError as e:
+            messages.error(request, str(e))
+        except Exception as e:
+            messages.error(request, _('Ошибка при отмене исследования: {}').format(str(e)))
+        
+        return redirect(self.get_success_url())
+    
+    def get_success_url(self):
+        # Определяем владельца плана обследования
+        owner = self.object.examination_plan.get_owner()
+        if owner:
+            return reverse('examination_management:plan_detail',
+                          kwargs={
+                              'owner_model': owner._meta.model_name,
+                              'owner_id': owner.id,
+                              'pk': self.object.examination_plan.pk
+                          })
+        else:
+            # Fallback - возвращаемся к списку планов
+            return reverse('examination_management:plan_list')
 
 
 # ============================================================================

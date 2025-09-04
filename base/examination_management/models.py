@@ -365,6 +365,30 @@ class ExaminationLabTest(ArchivableModel, models.Model):
     created_at = models.DateTimeField(_('Создано'), auto_now_add=True)
     updated_at = models.DateTimeField(_('Обновлено'), auto_now=True)
     
+    # Статус назначения
+    STATUS_CHOICES = [
+        ('active', _('Активно')),
+        ('cancelled', _('Отменено')),
+        ('completed', _('Завершено')),
+        ('paused', _('Приостановлено')),
+    ]
+    status = models.CharField(
+        _('Статус'),
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='active'
+    )
+    cancelled_at = models.DateTimeField(_('Отменено'), null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_('Отменено пользователем'),
+        related_name='cancelled_lab_tests'
+    )
+    cancellation_reason = models.TextField(_('Причина отмены'), blank=True)
+    
     # Используем стандартное архивирование через ArchivableModel
     
     class Meta:
@@ -384,8 +408,7 @@ class ExaminationLabTest(ArchivableModel, models.Model):
     
     def get_scheduled_datetime(self):
         """
-        Получить дату и время назначения из расписания
-        Возвращает datetime или None, если расписание не найдено
+        Возвращает дату и время начала расписания
         """
         try:
             from clinical_scheduling.models import ScheduledAppointment
@@ -395,66 +418,137 @@ class ExaminationLabTest(ArchivableModel, models.Model):
             appointment = ScheduledAppointment.objects.filter(
                 content_type=content_type,
                 object_id=self.pk
-            ).order_by('scheduled_date', 'scheduled_time').first()
+            ).order_by('-scheduled_date', 'scheduled_time').first()
             
-            if appointment and appointment.scheduled_date:
+            if appointment:
                 from django.utils import timezone
-                # Комбинируем дату и время
-                if appointment.scheduled_time:
-                    return timezone.make_aware(
-                        timezone.datetime.combine(appointment.scheduled_date, appointment.scheduled_time)
-                    )
-                else:
-                    # Если время не указано, используем 00:00
-                    return timezone.make_aware(
-                        timezone.datetime.combine(appointment.scheduled_date, timezone.now().time().replace(hour=0, minute=0))
-                    )
+                return timezone.make_aware(
+                    timezone.datetime.combine(appointment.scheduled_date, appointment.scheduled_time or timezone.now().time())
+                )
             
             return None
             
         except Exception:
             return None
     
-    # Менеджеры для архивирования
-    objects = ArchiveManager()
-    all_objects = models.Manager()
-    
-    def _archive_related_records(self, user, reason):
-        """Архивирует связанные записи при архивировании ExaminationLabTest"""
-        # Архивируем связанный план обследования
-        if self.examination_plan and not self.examination_plan.is_archived:
-            if hasattr(self.examination_plan, 'archive'):
-                self.examination_plan.archive(user=user, reason=f"Архивирование связанного лабораторного исследования: {reason}")
-
-    def _restore_related_records(self, user):
-        """Восстанавливает связанные записи при восстановлении ExaminationLabTest"""
-        # Восстанавливаем связанный план обследования
-        if self.examination_plan and self.examination_plan.is_archived:
-            if hasattr(self.examination_plan, 'restore'):
-                self.examination_plan.restore(user=user)
-    
-    def can_be_deleted(self):
+    def can_be_cancelled(self):
         """
-        Проверяет, можно ли удалить назначение лабораторного исследования.
-        Удаление невозможно, если есть подписанное заключение.
+        Проверяет, можно ли отменить назначение
+        Нельзя отменить, если есть подписанное заключение
         """
-        from document_signatures.services import SignatureService
-        
-        # Ищем результат исследования
         try:
-            result = self.lab_test.lab_test_results.filter(
-                examination_plan=self.examination_plan
+            from lab_tests.models import LabTestResult
+            from document_signatures.models import DocumentSignature
+            from django.contrib.contenttypes.models import ContentType
+            
+            # Проверяем, есть ли заполненный результат
+            result = LabTestResult.objects.filter(
+                examination_plan=self.examination_plan,
+                procedure_definition=self.lab_test,
+                is_completed=True
             ).first()
             
-            if result and result.is_completed:
-                # Проверяем статус подписи
-                signature_status = SignatureService.get_document_signature_status(result)
-                return signature_status['status'] != 'all_signed'
+            if result:
+                # Проверяем, есть ли подпись
+                signature = DocumentSignature.objects.filter(
+                    content_type=ContentType.objects.get_for_model(LabTestResult),
+                    object_id=result.pk,
+                    is_signed=True
+                ).first()
+                
+                if signature:
+                    return False, "Есть подписанное заключение. Сначала удалите заключение в разделе лабораторных исследований."
             
-            return True
+            return True, None
+            
         except Exception:
-            # В случае ошибки разрешаем удаление
-            return True
+            return True, None
+    
+    def cancel(self, reason="", cancelled_by=None):
+        """
+        Отменяет назначение, архивирует его и синхронизирует с lab_tests
+        """
+        from django.utils import timezone
+        
+        can_cancel, error_message = self.can_be_cancelled()
+        if not can_cancel:
+            raise ValidationError(error_message)
+        
+        # Устанавливаем статус отмены
+        self.status = 'cancelled'
+        self.cancelled_at = timezone.now()
+        self.cancelled_by = cancelled_by
+        self.cancellation_reason = reason
+        
+        # Архивируем запись
+        self.is_archived = True
+        self.archived_at = timezone.now()
+        self.archived_by = cancelled_by
+        self.archive_reason = f"Отменено: {reason}"
+        
+        self.save(update_fields=[
+            'status', 'cancelled_at', 'cancelled_by', 'cancellation_reason',
+            'is_archived', 'archived_at', 'archived_by', 'archive_reason'
+        ])
+        
+        # Синхронизируем с clinical_scheduling
+        self._sync_with_clinical_scheduling()
+        
+        # Синхронизируем с lab_tests
+        self._sync_with_lab_tests()
+    
+    def _sync_with_lab_tests(self):
+        """
+        Синхронизирует отмену с lab_tests
+        """
+        try:
+            from lab_tests.models import LabTestResult
+            
+            # Находим соответствующий результат лабораторного исследования
+            lab_test_result = LabTestResult.objects.filter(
+                examination_plan=self.examination_plan,
+                procedure_definition=self.lab_test
+            ).first()
+            
+            if lab_test_result and lab_test_result.status != 'cancelled':
+                # Отменяем результат исследования
+                lab_test_result.cancel(
+                    reason=f"Отменено назначение в плане обследования: {self.cancellation_reason}",
+                    cancelled_by=self.cancelled_by
+                )
+                print(f"Отменен LabTestResult {lab_test_result.pk} для ExaminationLabTest {self.pk}")
+                
+        except Exception as e:
+            print(f"Ошибка синхронизации с lab_tests: {e}")
+    
+    def _sync_with_clinical_scheduling(self):
+        """
+        Синхронизирует статус с clinical_scheduling
+        """
+        try:
+            from clinical_scheduling.models import ScheduledAppointment
+            from django.contrib.contenttypes.models import ContentType
+            
+            content_type = ContentType.objects.get_for_model(self)
+            appointments = ScheduledAppointment.objects.filter(
+                content_type=content_type,
+                object_id=self.pk
+            )
+            
+            for appointment in appointments:
+                if self.status == 'cancelled':
+                    appointment.execution_status = 'canceled'
+                elif self.status == 'completed':
+                    appointment.execution_status = 'completed'
+                elif self.status == 'paused':
+                    appointment.execution_status = 'skipped'
+                elif self.status == 'active':
+                    appointment.execution_status = 'scheduled'
+                
+                appointment.save(update_fields=['execution_status'])
+                
+        except Exception as e:
+            print(f"Ошибка синхронизации с clinical_scheduling: {e}")
 
 
 class ExaminationInstrumental(ArchivableModel, models.Model):
@@ -477,6 +571,30 @@ class ExaminationInstrumental(ArchivableModel, models.Model):
     created_at = models.DateTimeField(_('Создано'), auto_now_add=True)
     updated_at = models.DateTimeField(_('Обновлено'), auto_now=True)
     
+    # Статус назначения
+    STATUS_CHOICES = [
+        ('active', _('Активно')),
+        ('cancelled', _('Отменено')),
+        ('completed', _('Завершено')),
+        ('paused', _('Приостановлено')),
+    ]
+    status = models.CharField(
+        _('Статус'),
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='active'
+    )
+    cancelled_at = models.DateTimeField(_('Отменено'), null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_('Отменено пользователем'),
+        related_name='cancelled_instrumentals'
+    )
+    cancellation_reason = models.TextField(_('Причина отмены'), blank=True)
+    
     # Используем стандартное архивирование через ArchivableModel
     
     class Meta:
@@ -496,8 +614,7 @@ class ExaminationInstrumental(ArchivableModel, models.Model):
     
     def get_scheduled_datetime(self):
         """
-        Получить дату и время назначения из расписания
-        Возвращает datetime или None, если расписание не найдено
+        Возвращает дату и время начала расписания
         """
         try:
             from clinical_scheduling.models import ScheduledAppointment
@@ -507,66 +624,137 @@ class ExaminationInstrumental(ArchivableModel, models.Model):
             appointment = ScheduledAppointment.objects.filter(
                 content_type=content_type,
                 object_id=self.pk
-            ).order_by('scheduled_date', 'scheduled_time').first()
+            ).order_by('-scheduled_date', 'scheduled_time').first()
             
-            if appointment and appointment.scheduled_date:
+            if appointment:
                 from django.utils import timezone
-                # Комбинируем дату и время
-                if appointment.scheduled_time:
-                    return timezone.make_aware(
-                        timezone.datetime.combine(appointment.scheduled_date, appointment.scheduled_time)
-                    )
-                else:
-                    # Если время не указано, используем 00:00
-                    return timezone.make_aware(
-                        timezone.datetime.combine(appointment.scheduled_date, timezone.now().time().replace(hour=0, minute=0))
-                    )
+                return timezone.make_aware(
+                    timezone.datetime.combine(appointment.scheduled_date, appointment.scheduled_time or timezone.now().time())
+                )
             
             return None
             
         except Exception:
             return None
     
-    # Менеджеры для архивирования
-    objects = ArchiveManager()
-    all_objects = models.Manager()
-    
-    def _archive_related_records(self, user, reason):
-        """Архивирует связанные записи при архивировании ExaminationInstrumental"""
-        # Архивируем связанный план обследования
-        if self.examination_plan and not self.examination_plan.is_archived:
-            if hasattr(self.examination_plan, 'archive'):
-                self.examination_plan.archive(user=user, reason=f"Архивирование связанного инструментального исследования: {reason}")
-
-    def _restore_related_records(self, user):
-        """Восстанавливает связанные записи при восстановлении ExaminationInstrumental"""
-        # Восстанавливаем связанный план обследования
-        if self.examination_plan and self.examination_plan.is_archived:
-            if hasattr(self.examination_plan, 'restore'):
-                self.examination_plan.restore(user=user)
-    
-    def can_be_deleted(self):
+    def can_be_cancelled(self):
         """
-        Проверяет, можно ли удалить назначение инструментального исследования.
-        Удаление невозможно, если есть подписанное заключение.
+        Проверяет, можно ли отменить назначение
+        Нельзя отменить, если есть подписанное заключение
         """
-        from document_signatures.services import SignatureService
-        
-        # Ищем результат исследования
         try:
-            result = self.instrumental_procedure.instrumental_procedure_results.filter(
-                examination_plan=self.examination_plan
+            from instrumental_procedures.models import InstrumentalProcedureResult
+            from document_signatures.models import DocumentSignature
+            from django.contrib.contenttypes.models import ContentType
+            
+            # Проверяем, есть ли заполненный результат
+            result = InstrumentalProcedureResult.objects.filter(
+                examination_plan=self.examination_plan,
+                procedure_definition=self.instrumental_procedure,
+                is_completed=True
             ).first()
             
-            if result and result.is_completed:
-                # Проверяем статус подписи
-                signature_status = SignatureService.get_document_signature_status(result)
-                return signature_status['status'] != 'all_signed'
+            if result:
+                # Проверяем, есть ли подпись
+                signature = DocumentSignature.objects.filter(
+                    content_type=ContentType.objects.get_for_model(InstrumentalProcedureResult),
+                    object_id=result.pk,
+                    is_signed=True
+                ).first()
+                
+                if signature:
+                    return False, "Есть подписанное заключение. Сначала удалите заключение в разделе инструментальных исследований."
             
-            return True
+            return True, None
+            
         except Exception:
-            # В случае ошибки разрешаем удаление
-            return True
+            return True, None
+    
+    def cancel(self, reason="", cancelled_by=None):
+        """
+        Отменяет назначение, архивирует его и синхронизирует с instrumental_procedures
+        """
+        from django.utils import timezone
+        
+        can_cancel, error_message = self.can_be_cancelled()
+        if not can_cancel:
+            raise ValidationError(error_message)
+        
+        # Устанавливаем статус отмены
+        self.status = 'cancelled'
+        self.cancelled_at = timezone.now()
+        self.cancelled_by = cancelled_by
+        self.cancellation_reason = reason
+        
+        # Архивируем запись
+        self.is_archived = True
+        self.archived_at = timezone.now()
+        self.archived_by = cancelled_by
+        self.archive_reason = f"Отменено: {reason}"
+        
+        self.save(update_fields=[
+            'status', 'cancelled_at', 'cancelled_by', 'cancellation_reason',
+            'is_archived', 'archived_at', 'archived_by', 'archive_reason'
+        ])
+        
+        # Синхронизируем с clinical_scheduling
+        self._sync_with_clinical_scheduling()
+        
+        # Синхронизируем с instrumental_procedures
+        self._sync_with_instrumental_procedures()
+    
+    def _sync_with_instrumental_procedures(self):
+        """
+        Синхронизирует отмену с instrumental_procedures
+        """
+        try:
+            from instrumental_procedures.models import InstrumentalProcedureResult
+            
+            # Находим соответствующий результат инструментального исследования
+            instrumental_result = InstrumentalProcedureResult.objects.filter(
+                examination_plan=self.examination_plan,
+                procedure_definition=self.instrumental_procedure
+            ).first()
+            
+            if instrumental_result and instrumental_result.status != 'cancelled':
+                # Отменяем результат исследования
+                instrumental_result.cancel(
+                    reason=f"Отменено назначение в плане обследования: {self.cancellation_reason}",
+                    cancelled_by=self.cancelled_by
+                )
+                print(f"Отменен InstrumentalProcedureResult {instrumental_result.pk} для ExaminationInstrumental {self.pk}")
+                
+        except Exception as e:
+            print(f"Ошибка синхронизации с instrumental_procedures: {e}")
+    
+    def _sync_with_clinical_scheduling(self):
+        """
+        Синхронизирует статус с clinical_scheduling
+        """
+        try:
+            from clinical_scheduling.models import ScheduledAppointment
+            from django.contrib.contenttypes.models import ContentType
+            
+            content_type = ContentType.objects.get_for_model(self)
+            appointments = ScheduledAppointment.objects.filter(
+                content_type=content_type,
+                object_id=self.pk
+            )
+            
+            for appointment in appointments:
+                if self.status == 'cancelled':
+                    appointment.execution_status = 'canceled'
+                elif self.status == 'completed':
+                    appointment.execution_status = 'completed'
+                elif self.status == 'paused':
+                    appointment.execution_status = 'skipped'
+                elif self.status == 'active':
+                    appointment.execution_status = 'scheduled'
+                
+                appointment.save(update_fields=['execution_status'])
+                
+        except Exception as e:
+            print(f"Ошибка синхронизации с clinical_scheduling: {e}")
 
 # ============================================================================
 # СИГНАЛЫ УДАЛЕНЫ - больше не нужны, так как treatment_assignments удалено

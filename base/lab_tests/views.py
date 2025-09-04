@@ -26,6 +26,7 @@ class LabTestResultListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         queryset = super().get_queryset()
         query = self.request.GET.get('q')
+        status = self.request.GET.get('status')
         
         if query:
             # Нормализуем поисковый запрос
@@ -40,6 +41,15 @@ class LabTestResultListView(LoginRequiredMixin, ListView):
                 Q(patient__last_name__icontains=query.capitalize()) |
                 Q(patient__middle_name__icontains=query.capitalize())
             )
+        
+        # Фильтрация по статусу
+        if status:
+            if status == 'completed':
+                queryset = queryset.filter(is_completed=True)
+            elif status == 'active':
+                queryset = queryset.filter(status='active')
+            elif status == 'cancelled':
+                queryset = queryset.filter(status='cancelled')
         
         return queryset
 

@@ -10,6 +10,7 @@ from django.urls import reverse, reverse_lazy
 from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import gettext_lazy as _
 from django.utils.decorators import method_decorator
+from django.core.exceptions import ValidationError
 
 from .models import TreatmentPlan, TreatmentMedication, TreatmentRecommendation
 from .forms import TreatmentPlanForm, TreatmentMedicationForm, TreatmentMedicationWithScheduleForm, QuickAddMedicationForm, TreatmentRecommendationForm
@@ -509,7 +510,7 @@ class TreatmentMedicationUpdateView(LoginRequiredMixin, UpdateView):
 
 class TreatmentMedicationDeleteView(LoginRequiredMixin, DeleteView):
     """
-    Удаление лекарства из плана лечения (мягкое удаление)
+    Отмена назначения лекарства из плана лечения
     """
     model = TreatmentMedication
     template_name = 'treatment_management/medication_confirm_delete.html'
@@ -530,21 +531,38 @@ class TreatmentMedicationDeleteView(LoginRequiredMixin, DeleteView):
         context['owner'] = owner
         context['owner_model'] = owner._meta.model_name if owner is not None else 'unknown'
         context['title'] = _('Отменить назначение лекарства')
+        
+        # Проверяем возможность отмены
+        can_cancel, error_message = self.object.can_be_cancelled()
+        context['can_be_cancelled'] = can_cancel
+        context['warning_message'] = error_message
+        
         return context
     
     def delete(self, request, *args, **kwargs):
         """
-        Переопределяем метод delete для использования soft delete
+        Переопределяем метод delete для отмены назначения
         """
         self.object = self.get_object()
         
-        # Используем soft delete вместо физического удаления
-        self.object.cancel(
-            reason="Отменено через веб-интерфейс",
-            cancelled_by=request.user
-        )
+        # Проверяем возможность отмены
+        can_cancel, error_message = self.object.can_be_cancelled()
+        if not can_cancel:
+            messages.error(request, error_message)
+            return redirect(self.get_success_url())
         
-        messages.success(request, _('Назначение лекарства успешно отменено'))
+        # Отменяем назначение
+        try:
+            self.object.cancel(
+                reason="Отменено через веб-интерфейс",
+                cancelled_by=request.user
+            )
+            messages.success(request, _('Назначение лекарства успешно отменено'))
+        except ValidationError as e:
+            messages.error(request, str(e))
+        except Exception as e:
+            messages.error(request, _('Ошибка при отмене назначения: {}').format(str(e)))
+        
         return redirect(self.get_success_url())
     
     def get_success_url(self):
@@ -1241,7 +1259,7 @@ class TreatmentRecommendationUpdateView(LoginRequiredMixin, UpdateView):
 
 class TreatmentRecommendationDeleteView(LoginRequiredMixin, DeleteView):
     """
-    Удаление рекомендации из плана лечения (мягкое удаление)
+    Отмена рекомендации из плана лечения
     """
     model = TreatmentRecommendation
     template_name = 'treatment_management/recommendation_confirm_delete.html'
@@ -1263,74 +1281,47 @@ class TreatmentRecommendationDeleteView(LoginRequiredMixin, DeleteView):
         context['owner'] = owner
         
         # Убеждаемся, что у нас есть валидный владелец
-        if owner is not None:
+        if owner:
             context['owner_model'] = owner._meta.model_name
             context['owner_id'] = owner.id
         else:
-            # Fallback - используем encounter если есть
-            if hasattr(self.object.treatment_plan, 'encounter') and self.object.treatment_plan.encounter:
-                context['owner'] = self.object.treatment_plan.encounter
-                context['owner_model'] = 'encounter'
-                # Проверяем, что encounter.id действительно существует и не пустой
-                encounter_id = getattr(self.object.treatment_plan.encounter, 'id', None)
-                if encounter_id is not None and encounter_id != '':
-                    context['owner_id'] = encounter_id
-                else:
-                    # Если encounter.id пустой, используем pk
-                    context['owner_id'] = self.object.treatment_plan.encounter.pk
-            else:
-                context['owner_model'] = 'unknown'
-                context['owner_id'] = 0
-        
-        # Получаем пациента
-        if context['owner'] is not None:
-            if hasattr(context['owner'], 'patient'):
-                context['patient'] = context['owner'].patient
-            elif hasattr(context['owner'], 'get_patient'):
-                context['patient'] = context['owner'].get_patient()
-            else:
-                context['patient'] = None
-        else:
-            context['patient'] = None
-        
-        # Добавляем encounter для обратной совместимости
-        if hasattr(self.object.treatment_plan, 'encounter') and self.object.treatment_plan.encounter:
-            context['encounter'] = self.object.treatment_plan.encounter
+            context['owner_model'] = 'unknown'
+            context['owner_id'] = 0
         
         context['title'] = _('Отменить рекомендацию')
+        
+        # Проверяем возможность отмены
+        can_cancel, error_message = self.object.can_be_cancelled()
+        context['can_be_cancelled'] = can_cancel
+        context['warning_message'] = error_message
+        
         return context
     
     def delete(self, request, *args, **kwargs):
         """
-        Переопределяем метод delete для использования soft delete
+        Переопределяем метод delete для отмены рекомендации
         """
         self.object = self.get_object()
         
-        # Удаляем связанные ScheduledAppointment
+        # Проверяем возможность отмены
+        can_cancel, error_message = self.object.can_be_cancelled()
+        if not can_cancel:
+            messages.error(request, error_message)
+            return redirect(self.get_success_url())
+        
+        # Отменяем рекомендацию
         try:
-            self.remove_scheduled_appointments()
+            self.object.cancel(
+                reason="Отменено через веб-интерфейс",
+                cancelled_by=request.user
+            )
+            messages.success(request, _('Рекомендация успешно отменена'))
+        except ValidationError as e:
+            messages.error(request, str(e))
         except Exception as e:
-            messages.warning(request, _('Не удалось удалить расписание: {}').format(str(e)))
+            messages.error(request, _('Ошибка при отмене рекомендации: {}').format(str(e)))
         
-        # Используем soft delete вместо физического удаления
-        self.object.cancel(
-            reason="Отменено через веб-интерфейс",
-            cancelled_by=request.user
-        )
-        
-        messages.success(request, _('Рекомендация успешно отменена'))
         return redirect(self.get_success_url())
-    
-    def remove_scheduled_appointments(self):
-        """Удаляет существующие запланированные события для рекомендации"""
-        from clinical_scheduling.models import ScheduledAppointment
-        from django.contrib.contenttypes.models import ContentType
-        
-        content_type = ContentType.objects.get_for_model(self.object)
-        ScheduledAppointment.objects.filter(
-            content_type=content_type,
-            object_id=self.object.id
-        ).delete()
     
     def get_success_url(self):
         owner = self.resolve_owner_from_plan(self.object.treatment_plan)

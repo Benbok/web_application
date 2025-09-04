@@ -30,84 +30,91 @@
                 <h6 class="mb-3">
                     <i class="fas fa-pills me-2"></i>Назначения ({{ object.medications.count }})
                 </h6>
-                <div class="list-group list-group-flush">
-                    {% for medication in object.medications.all %}
-                        <div class="list-group-item">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div class="flex-grow-1">
-                                    <h6 class="mb-1">
-                                        {% if medication.medication %}
-                                            {{ medication.medication.name }}
-                                        {% else %}
-                                            {{ medication.custom_medication }}
-                                        {% endif %}
-                                    </h6>
-                                    <div class="row text-muted small">
-                                        {% if medication.dosage %}
-                                            <div class="col-md-3">
-                                                <i class="fas fa-calculator me-1"></i>Доза: {{ medication.dosage }}
-                                            </div>
-                                        {% endif %}
-                                        <div class="col-md-3">
-                                            <i class="fas fa-clock me-1"></i>Частота: 
-                                            {% if medication.get_schedule_frequency_display %}
-                                                {{ medication.get_schedule_frequency_display }}
-                                            {% elif medication.frequency %}
-                                                {{ medication.frequency }}
-                                            {% else %}
-                                                Не указана
-                                            {% endif %}
-                                        </div>
-                                        {% if medication.route %}
-                                            <div class="col-md-3">
-                                                <i class="fas fa-route me-1"></i>Путь: {{ medication.route }}
-                                            </div>
-                                        {% endif %}
-                                        <div class="col-md-3">
-                                            <i class="fas fa-calendar-alt me-1"></i>Курс: 
-                                            {% if medication.get_schedule_duration_display %}
-                                                {{ medication.get_schedule_duration_display }}
-                                            {% elif medication.duration %}
-                                                {{ medication.duration }}
-                                            {% else %}
-                                                Не указан
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                    <div class="row text-muted small mt-2">
-                                        <div class="col-md-6">
-                                            <i class="fas fa-calendar-plus me-1"></i>Назначено: 
-                                            {% if medication.get_schedule_start_datetime %}
-                                                {{ medication.get_schedule_start_datetime|date:'d.m.Y H:i' }}
-                                            {% else %}
-                                                {{ medication.created_at|date:'d.m.Y H:i' }}
-                                            {% endif %}
-                                        </div>
-                                        {% if medication.completed_at %}
-                                            <div class="col-md-6">
-                                                <i class="fas fa-calendar-check me-1"></i>Завершено: {{ medication.completed_at|date:'d.m.Y H:i' }}
-                                            </div>
-                                        {% endif %}
-                                    </div>
-
-                                </div>
-                                <div class="ms-3">
-                                    <div class="btn-group-vertical btn-group-sm">
-                                        <a href="{% url 'treatment_management:medication_update' pk=medication.pk %}" 
-                                           class="btn btn-outline-primary btn-sm">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <a href="{% url 'treatment_management:medication_delete' pk=medication.pk %}" 
-                                           class="btn btn-outline-danger btn-sm"
-                                           onclick="return confirm('Удалить назначение?')">
-                                            <i class="fas fa-trash"></i>
-                                        </a>
-                                    </div>
-                                </div>
+                {% for medication in object.medications.all %}
+                    <div class="card mb-2 {% if medication.status == 'cancelled' %}border-secondary bg-light{% endif %}">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">
+                                <strong class="text-success">{{ medication.get_medication_name }}</strong>
+                                {% if medication.status == 'cancelled' %}
+                                    <span class="badge bg-secondary ms-2">Отменено</span>
+                                {% endif %}
+                            </h6>
+                            <div class="btn-group" role="group">
+                                {% if medication.status != 'cancelled' %}
+                                    <a href="{% url 'treatment_management:medication_update' pk=medication.pk %}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'treatment_management:medication_delete' pk=medication.pk %}" 
+                                       class="btn btn-sm btn-outline-warning">
+                                        <i class="fas fa-ban"></i>
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted small">Отменено {{ medication.cancelled_at|date:"d.m.Y H:i" }}</span>
+                                {% endif %}
                             </div>
                         </div>
-                    {% endfor %}
-                </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <small class="text-muted">
+                                        <i class="fas fa-pills me-1"></i>Доза: {{ medication.dosage }}
+                                    </small>
+                                </div>
+                                <div class="col-md-3">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>Частота: {{ medication.get_schedule_frequency_display }}
+                                    </small>
+                                </div>
+                                <div class="col-md-3">
+                                    <small class="text-muted">
+                                        <i class="fas fa-route me-1"></i>Путь: {{ medication.route }}
+                                    </small>
+                                </div>
+                                <div class="col-md-3">
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar me-1"></i>Курс: {{ medication.get_schedule_duration_display }}
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-md-6">
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar-plus me-1"></i>Назначено: 
+                                        {% if medication.get_schedule_start_datetime %}
+                                            {{ medication.get_schedule_start_datetime|date:'d.m.Y H:i' }}
+                                        {% else %}
+                                            {{ medication.created_at|date:'d.m.Y H:i' }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>Статус: 
+                                        {% if medication.status == 'active' %}
+                                            <span class="text-success">Активно</span>
+                                        {% elif medication.status == 'cancelled' %}
+                                            <span class="text-secondary">Отменено</span>
+                                        {% elif medication.status == 'completed' %}
+                                            <span class="text-primary">Завершено</span>
+                                        {% elif medication.status == 'paused' %}
+                                            <span class="text-warning">Приостановлено</span>
+                                        {% else %}
+                                            <span class="text-muted">Неизвестно</span>
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                            {% if medication.status == 'cancelled' and medication.cancellation_reason %}
+                                <div class="mt-2">
+                                    <small class="text-danger">
+                                        <i class="fas fa-ban me-1"></i>Причина отмены: {{ medication.cancellation_reason }}
+                                    </small>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
             {% else %}
                 <div class="text-center text-muted py-4">
                     <i class="fas fa-pills fa-2x mb-3"></i>
@@ -120,47 +127,74 @@
                 <h6 class="mb-3 mt-4">
                     <i class="fas fa-clipboard-list me-2"></i>Рекомендации ({{ object.recommendations.count }})
                 </h6>
-                <div class="list-group list-group-flush">
-                    {% for recommendation in object.recommendations.all %}
-                        <div class="list-group-item">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div class="flex-grow-1">
-                                    <div class="mb-2">
-                                        {{ recommendation.text|linebreaksbr }}
-                                    </div>
-                                    <div class="row text-muted small">
-                                        <div class="col-md-6">
-                                            <i class="fas fa-calendar-plus me-1"></i>Назначено: 
-                                            {% if recommendation.get_schedule_start_datetime %}
-                                                {{ recommendation.get_schedule_start_datetime|date:'d.m.Y H:i' }}
-                                            {% else %}
-                                                {{ recommendation.created_at|date:'d.m.Y H:i' }}
-                                            {% endif %}
-                                        </div>
-                                        {% if recommendation.completed_at %}
-                                            <div class="col-md-6">
-                                                <i class="fas fa-calendar-check me-1"></i>Завершено: {{ recommendation.completed_at|date:'d.m.Y H:i' }}
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                <div class="ms-3">
-                                    <div class="btn-group-vertical btn-group-sm">
-                                        <a href="{% url 'treatment_management:recommendation_update' pk=recommendation.pk %}" 
-                                           class="btn btn-outline-primary btn-sm">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <a href="{% url 'treatment_management:recommendation_delete' pk=recommendation.pk %}" 
-                                           class="btn btn-outline-danger btn-sm"
-                                           onclick="return confirm('Удалить рекомендацию?')">
-                                            <i class="fas fa-trash"></i>
-                                        </a>
-                                    </div>
-                                </div>
+                {% for recommendation in object.recommendations.all %}
+                    <div class="card mb-2 {% if recommendation.status == 'cancelled' %}border-secondary bg-light{% endif %}">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">
+                                <strong class="text-info">Рекомендация</strong>
+                                {% if recommendation.status == 'cancelled' %}
+                                    <span class="badge bg-secondary ms-2">Отменено</span>
+                                {% endif %}
+                            </h6>
+                            <div class="btn-group" role="group">
+                                {% if recommendation.status != 'cancelled' %}
+                                    <a href="{% url 'treatment_management:recommendation_update' pk=recommendation.pk %}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'treatment_management:recommendation_delete' pk=recommendation.pk %}" 
+                                       class="btn btn-sm btn-outline-warning">
+                                        <i class="fas fa-ban"></i>
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted small">Отменено {{ recommendation.cancelled_at|date:"d.m.Y H:i" }}</span>
+                                {% endif %}
                             </div>
                         </div>
-                    {% endfor %}
-                </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar-plus me-1"></i>Назначено: 
+                                        {% if recommendation.get_schedule_start_datetime %}
+                                            {{ recommendation.get_schedule_start_datetime|date:'d.m.Y H:i' }}
+                                        {% else %}
+                                            {{ recommendation.created_at|date:'d.m.Y H:i' }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>Статус: 
+                                        {% if recommendation.status == 'active' %}
+                                            <span class="text-success">Активно</span>
+                                        {% elif recommendation.status == 'cancelled' %}
+                                            <span class="text-secondary">Отменено</span>
+                                        {% elif recommendation.status == 'completed' %}
+                                            <span class="text-primary">Завершено</span>
+                                        {% elif recommendation.status == 'paused' %}
+                                            <span class="text-warning">Приостановлено</span>
+                                        {% else %}
+                                            <span class="text-muted">Неизвестно</span>
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-sticky-note me-1"></i>{{ recommendation.text }}
+                                </small>
+                            </div>
+                            {% if recommendation.status == 'cancelled' and recommendation.cancellation_reason %}
+                                <div class="mt-2">
+                                    <small class="text-danger">
+                                        <i class="fas fa-ban me-1"></i>Причина отмены: {{ recommendation.cancellation_reason }}
+                                    </small>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
             {% else %}
                 <div class="text-center text-muted py-4">
                     <i class="fas fa-clipboard-list fa-2x mb-3"></i>

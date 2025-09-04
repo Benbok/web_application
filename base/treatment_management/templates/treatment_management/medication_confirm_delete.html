@@ -19,51 +19,58 @@
                         
                         <div class="card mt-3">
                             <div class="card-body">
-                                <h6>Информация о лекарстве:</h6>
-                                <ul class="list-unstyled">
-                                    <li><strong>Препарат:</strong> {{ object.get_medication_name }}</li>
-                                    <li><strong>Дозировка:</strong> {{ object.dosage }}</li>
-                                    <li><strong>Частота:</strong> {{ object.frequency }}</li>
-                                    <li><strong>Способ:</strong> {{ object.get_route_display_name }}</li>
-                                    {% if object.duration %}
-                                        <li><strong>Длительность:</strong> {{ object.duration }}</li>
-                                    {% endif %}
-                                    {% if object.instructions %}
-                                        <li><strong>Особые указания:</strong> {{ object.instructions }}</li>
-                                    {% endif %}
-                                </ul>
-                            </div>
-                        </div>
-                        
-                        <div class="mt-3">
-                            <div class="alert alert-success">
-                                <h6><i class="fas fa-info-circle"></i> Что происходит при отмене:</h6>
+                                <h6><i class="fas fa-pills"></i> Детали назначения:</h6>
                                 <ul class="mb-0">
-                                    <li>Назначение помечается как "Отменено"</li>
-                                    <li>Сохраняется полная история назначения</li>
-                                    <li>Автоматически отменяются все запланированные события</li>
-                                    <li>Запись остается в базе данных для аудита</li>
+                                    <li><strong>Препарат:</strong> {{ object.get_medication_name }}</li>
+                                    <li><strong>Доза:</strong> {{ object.dosage }}</li>
+                                    <li><strong>Частота:</strong> {{ object.frequency }}</li>
+                                    <li><strong>Путь введения:</strong> {{ object.route }}</li>
+                                    {% if object.duration %}<li><strong>Длительность:</strong> {{ object.duration }}</li>{% endif %}
                                 </ul>
                             </div>
                         </div>
                         
-                        <p class="mt-3 mb-0">
-                            <strong>Это действие можно отменить, возобновив назначение!</strong>
-                        </p>
+                        {% if warning_message %}
+                            <div class="mt-3">
+                                <div class="alert alert-danger">
+                                    <h6><i class="fas fa-exclamation-triangle"></i> Отмена невозможна!</h6>
+                                    <p class="mb-0">{{ warning_message }}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <a href="{% url 'treatment_management:plan_detail' owner_model=owner_model owner_id=owner.id pk=treatment_plan.pk %}" 
+                                   class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left"></i> Вернуться к плану
+                                </a>
+                            </div>
+                        {% else %}
+                            <div class="mt-3">
+                                <div class="alert alert-success">
+                                    <h6><i class="fas fa-info-circle"></i> Что происходит при отмене:</h6>
+                                    <ul class="mb-0">
+                                        <li>Назначение помечается как "Отменено"</li>
+                                        <li>Сохраняется полная история назначения</li>
+                                        <li>Автоматически отменяются все запланированные события</li>
+                                        <li>Запись остается в базе данных для аудита</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            <form method="post">
+                                {% csrf_token %}
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-warning">
+                                        <i class="fas fa-ban"></i> Отменить назначение
+                                    </button>
+                                    <a href="{% url 'treatment_management:plan_detail' owner_model=owner_model owner_id=owner.id pk=treatment_plan.pk %}" 
+                                       class="btn btn-secondary">
+                                        <i class="fas fa-times"></i> Отмена
+                                    </a>
+                                </div>
+                            </form>
+                        {% endif %}
                     </div>
-                    
-                    <form method="post">
-                        {% csrf_token %}
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-warning">
-                                <i class="fas fa-ban"></i> Отменить назначение
-                            </button>
-                            <a href="{% url 'treatment_management:plan_detail' owner_model=owner_model owner_id=owner.id pk=treatment_plan.pk %}" 
-                               class="btn btn-secondary">
-                                <i class="fas fa-times"></i> Отмена
-                            </a>
-                        </div>
-                    </form>
                 </div>
             </div>
         </div>

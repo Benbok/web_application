@@ -110,6 +110,19 @@ class ExaminationStatusService:
             dict: Информация о статусе
         """
         try:
+            # 0. Проверяем статус отмены в самом назначении
+            if hasattr(assignment, 'status') and assignment.status == 'cancelled':
+                return {
+                    'status': 'cancelled',
+                    'status_display': 'Отменено',
+                    'completed_by': assignment.cancelled_by,
+                    'end_date': assignment.cancelled_at,
+                    'rejection_reason': assignment.cancellation_reason,
+                    'assignment_id': None,
+                    'has_results': False,
+                    'reason': 'Назначение отменено'
+                }
+            
             # 1. Проверяем, есть ли результат
             result = ExaminationStatusService._get_result(assignment)
             

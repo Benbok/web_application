@@ -78,13 +78,17 @@ def sync_examination_instrumental_status(sender, instance, created, **kwargs):
     """
     Синхронизирует статус инструментального исследования с запланированными событиями
     
-    Аналогично ExaminationLabTest, но для инструментальных исследований
+    Когда статус ExaminationInstrumental изменяется, автоматически обновляются
+    соответствующие ScheduledAppointment в clinical_scheduling
     """
     if created:
+        # Новое исследование - ничего не синхронизируем
         return
     
+    # Получаем ContentType для ExaminationInstrumental
     content_type = ContentType.objects.get_for_model(ExaminationInstrumental)
     
+    # Находим все запланированные события для этого исследования
     scheduled_appointments = ScheduledAppointment.objects.filter(
         content_type=content_type,
         object_id=instance.pk
@@ -94,8 +98,8 @@ def sync_examination_instrumental_status(sender, instance, created, **kwargs):
         return
     
     # Обновляем статус запланированных событий в зависимости от статуса исследования
-    # Используем status из ArchivableModel
     if instance.status == 'cancelled':
+        # Отменяем все будущие запланированные события
         future_appointments = scheduled_appointments.filter(
             scheduled_date__gte=timezone.now().date()
         )
@@ -105,15 +109,17 @@ def sync_examination_instrumental_status(sender, instance, created, **kwargs):
             appointment.save(update_fields=['execution_status'])
             
     elif instance.status == 'paused':
+        # Приостанавливаем все будущие запланированные события
         future_appointments = scheduled_appointments.filter(
             scheduled_date__gte=timezone.now().date()
         )
         
         for appointment in future_appointments:
-            appointment.execution_status = 'skipped'
+            appointment.execution_status = 'skipped'  # Пропускаем на время приостановки
             appointment.save(update_fields=['execution_status'])
             
     elif instance.status == 'active':
+        # Возобновляем приостановленные события
         paused_appointments = scheduled_appointments.filter(
             execution_status='skipped'
         )
@@ -123,6 +129,7 @@ def sync_examination_instrumental_status(sender, instance, created, **kwargs):
             appointment.save(update_fields=['execution_status'])
             
     elif instance.status == 'completed':
+        # Помечаем все события как завершенные
         for appointment in scheduled_appointments:
             if appointment.execution_status == 'scheduled':
                 appointment.execution_status = 'completed'
@@ -130,87 +137,134 @@ def sync_examination_instrumental_status(sender, instance, created, **kwargs):
                 appointment.save(update_fields=['execution_status', 'executed_at'])
 
 
+# ============================================================================
+# СИГНАЛЫ ДЛЯ ОЧИСТКИ ЗАПИСЕЙ В CLINICAL_SCHEDULING ПРИ ФИЗИЧЕСКОМ УДАЛЕНИИ
+# ============================================================================
+
 @receiver(post_delete, sender=ExaminationLabTest)
 def cleanup_examination_lab_test_appointments(sender, instance, **kwargs):
     """
-    Очищает запланированные события при физическом удалении исследования
+    Очищает запланированные события при физическом удалении лабораторного исследования
     
     ВНИМАНИЕ: Физическое удаление исследований не рекомендуется в медицинской системе!
     Используйте мягкое удаление (отмену) вместо этого.
     """
-    content_type = ContentType.objects.get_for_model(ExaminationLabTest)
-    
-    # Находим и удаляем все связанные запланированные события
-    ScheduledAppointment.objects.filter(
-        content_type=content_type,
-        object_id=instance.pk
-    ).delete()
+    try:
+        content_type = ContentType.objects.get_for_model(ExaminationLabTest)
+        
+        # Находим и удаляем все связанные запланированные события
+        deleted_count = ScheduledAppointment.objects.filter(
+            content_type=content_type,
+            object_id=instance.pk
+        ).delete()[0]
+        
+        if deleted_count > 0:
+            print(f"Удалено {deleted_count} записей в clinical_scheduling для ExaminationLabTest {instance.pk}")
+            
+    except Exception as e:
+        print(f"Ошибка при очистке записей clinical_scheduling для ExaminationLabTest {instance.pk}: {e}")
 
 
 @receiver(post_delete, sender=ExaminationInstrumental)
 def cleanup_examination_instrumental_appointments(sender, instance, **kwargs):
     """
     Очищает запланированные события при физическом удалении инструментального исследования
-    """
-    content_type = ContentType.objects.get_for_model(ExaminationInstrumental)
     
-    ScheduledAppointment.objects.filter(
-        content_type=content_type,
-        object_id=instance.pk
-    ).delete()
+    ВНИМАНИЕ: Физическое удаление исследований не рекомендуется в медицинской системе!
+    Используйте мягкое удаление (отмену) вместо этого.
+    """
+    try:
+        content_type = ContentType.objects.get_for_model(ExaminationInstrumental)
+        
+        # Находим и удаляем все связанные запланированные события
+        deleted_count = ScheduledAppointment.objects.filter(
+            content_type=content_type,
+            object_id=instance.pk
+        ).delete()[0]
+        
+        if deleted_count > 0:
+            print(f"Удалено {deleted_count} записей в clinical_scheduling для ExaminationInstrumental {instance.pk}")
+            
+    except Exception as e:
+        print(f"Ошибка при очистке записей clinical_scheduling для ExaminationInstrumental {instance.pk}: {e}")
 
+
+# ============================================================================
+# СИГНАЛЫ ДЛЯ СИНХРОНИЗАЦИИ ОТМЕНЫ С LAB_TESTS И INSTRUMENTAL_PROCEDURES
+# ============================================================================
 
 @receiver(post_save, sender=ExaminationLabTest)
-def create_lab_test_result_on_save(sender, instance, created, **kwargs):
+def sync_lab_test_cancellation(sender, instance, created, **kwargs):
     """
-    Автоматически создает запись результата в lab_tests при создании ExaminationLabTest
+    Синхронизирует отмену лабораторного исследования с lab_tests
+    
+    Когда ExaminationLabTest отменяется, автоматически отменяется
+    соответствующий LabTestResult в lab_tests
     """
     if created:
+        # Новое исследование - ничего не синхронизируем
+        return
+    
+    if instance.status == 'cancelled':
         try:
-            # Получаем пользователя из examination_plan.created_by или используем системного пользователя
-            user = instance.examination_plan.created_by
-            if not user:
-                # Если нет пользователя, создаем системного
-                from django.contrib.auth import get_user_model
-                User = get_user_model()
-                user, _ = User.objects.get_or_create(
-                    username='system_integration',
-                    defaults={'is_active': False}
+            from lab_tests.models import LabTestResult
+            
+            # Находим соответствующий результат лабораторного исследования
+            lab_test_result = LabTestResult.objects.filter(
+                examination_plan=instance.examination_plan,
+                procedure_definition=instance.lab_test
+            ).first()
+            
+            if lab_test_result and lab_test_result.status != 'cancelled':
+                # Отменяем результат исследования
+                lab_test_result.cancel(
+                    reason=f"Отменено назначение в плане обследования: {instance.cancellation_reason}",
+                    cancelled_by=instance.cancelled_by
                 )
-            
-            # Создаем результат через сервис интеграции
-            ExaminationIntegrationService.create_lab_test_result(instance, user)
-            
+                print(f"Отменен LabTestResult {lab_test_result.pk} для ExaminationLabTest {instance.pk}")
+                
         except Exception as e:
-            print(f"Ошибка при автоматическом создании результата лабораторного исследования: {e}")
+            print(f"Ошибка при синхронизации отмены с lab_tests: {e}")
 
 
 @receiver(post_save, sender=ExaminationInstrumental)
-def create_instrumental_procedure_result_on_save(sender, instance, created, **kwargs):
+def sync_instrumental_cancellation(sender, instance, created, **kwargs):
     """
-    Автоматически создает запись результата в instrumental_procedures при создании ExaminationInstrumental
+    Синхронизирует отмену инструментального исследования с instrumental_procedures
+    
+    Когда ExaminationInstrumental отменяется, автоматически отменяется
+    соответствующий InstrumentalProcedureResult в instrumental_procedures
     """
     if created:
+        # Новое исследование - ничего не синхронизируем
+        return
+    
+    if instance.status == 'cancelled':
         try:
-            # Получаем пользователя из examination_plan.created_by или используем системного пользователя
-            user = instance.examination_plan.created_by
-            if not user:
-                # Если нет пользователя, создаем системного
-                from django.contrib.auth import get_user_model
-                User = get_user_model()
-                user, _ = User.objects.get_or_create(
-                    username='system_integration',
-                    defaults={'is_active': False}
+            from instrumental_procedures.models import InstrumentalProcedureResult
+            
+            # Находим соответствующий результат инструментального исследования
+            instrumental_result = InstrumentalProcedureResult.objects.filter(
+                examination_plan=instance.examination_plan,
+                procedure_definition=instance.instrumental_procedure
+            ).first()
+            
+            if instrumental_result and instrumental_result.status != 'cancelled':
+                # Отменяем результат исследования
+                instrumental_result.cancel(
+                    reason=f"Отменено назначение в плане обследования: {instance.cancellation_reason}",
+                    cancelled_by=instance.cancelled_by
                 )
-            
-            # Создаем результат через сервис интеграции
-            ExaminationIntegrationService.create_instrumental_procedure_result(instance, user)
-            
+                print(f"Отменен InstrumentalProcedureResult {instrumental_result.pk} для ExaminationInstrumental {instance.pk}")
+                
         except Exception as e:
-            print(f"Ошибка при автоматическом создании результата инструментального исследования: {e}")
+            print(f"Ошибка при синхронизации отмены с instrumental_procedures: {e}")
 
 
-# Сигналы для синхронизации статусов при заполнении данных
+# ============================================================================
+# СУЩЕСТВУЮЩИЕ СИГНАЛЫ ДЛЯ СИНХРОНИЗАЦИИ ЗАВЕРШЕНИЯ
+# ============================================================================
+
 @receiver(post_save, sender='instrumental_procedures.InstrumentalProcedureResult')
 def sync_instrumental_result_completion(sender, instance, created, **kwargs):
     """
@@ -220,7 +274,7 @@ def sync_instrumental_result_completion(sender, instance, created, **kwargs):
     try:
         # Обновляем статус только при изменении, а не при создании
         if not created and instance.examination_plan:
-            # Ищем ExaminationInstrumental для этого плана и типа процедуры
+            # Ищем ExaminationInstrumental для этого плана и типа исследования
             from .models import ExaminationInstrumental
             examination = ExaminationInstrumental.objects.filter(
                 examination_plan=instance.examination_plan,
@@ -274,4 +328,66 @@ def sync_lab_test_result_completion(sender, instance, created, **kwargs):
                 )
                 
     except Exception as e:
-        print(f"Ошибка при синхронизации статуса лабораторного исследования: {e}") 
+        print(f"Ошибка при синхронизации статуса лабораторного исследования: {e}")
+
+
+# ============================================================================
+# СИГНАЛЫ ДЛЯ СОЗДАНИЯ РЕЗУЛЬТАТОВ ПРИ СОЗДАНИИ НАЗНАЧЕНИЙ
+# ============================================================================
+
+@receiver(post_save, sender=ExaminationLabTest)
+def create_lab_test_result(sender, instance, created, **kwargs):
+    """
+    Создает запись результата лабораторного исследования при создании назначения
+    """
+    if created:
+        try:
+            from lab_tests.models import LabTestResult
+            
+            # Проверяем, есть ли уже результат для этого назначения
+            existing_result = LabTestResult.objects.filter(
+                examination_plan=instance.examination_plan,
+                procedure_definition=instance.lab_test
+            ).first()
+            
+            if not existing_result:
+                # Создаем новый результат
+                LabTestResult.objects.create(
+                    patient=instance.examination_plan.get_patient(),
+                    examination_plan=instance.examination_plan,
+                    procedure_definition=instance.lab_test,
+                    author=instance.examination_plan.get_owner().get_user() if hasattr(instance.examination_plan.get_owner(), 'get_user') else None
+                )
+                print(f"Создан LabTestResult для ExaminationLabTest {instance.pk}")
+                
+        except Exception as e:
+            print(f"Ошибка при создании LabTestResult: {e}")
+
+
+@receiver(post_save, sender=ExaminationInstrumental)
+def create_instrumental_procedure_result(sender, instance, created, **kwargs):
+    """
+    Создает запись результата инструментального исследования при создании назначения
+    """
+    if created:
+        try:
+            from instrumental_procedures.models import InstrumentalProcedureResult
+            
+            # Проверяем, есть ли уже результат для этого назначения
+            existing_result = InstrumentalProcedureResult.objects.filter(
+                examination_plan=instance.examination_plan,
+                procedure_definition=instance.instrumental_procedure
+            ).first()
+            
+            if not existing_result:
+                # Создаем новый результат
+                InstrumentalProcedureResult.objects.create(
+                    patient=instance.examination_plan.get_patient(),
+                    examination_plan=instance.examination_plan,
+                    procedure_definition=instance.instrumental_procedure,
+                    author=instance.examination_plan.get_owner().get_user() if hasattr(instance.examination_plan.get_owner(), 'get_user') else None
+                )
+                print(f"Создан InstrumentalProcedureResult для ExaminationInstrumental {instance.pk}")
+                
+        except Exception as e:
+            print(f"Ошибка при создании InstrumentalProcedureResult: {e}") 

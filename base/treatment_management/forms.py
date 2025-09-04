@@ -175,17 +175,13 @@ class TreatmentMedicationForm(forms.ModelForm):
     class Meta:
         model = TreatmentMedication
         fields = [
-            'medication', 'custom_medication', 'dosage', 'frequency', 
+            'medication', 'dosage', 'frequency', 
             'route', 'duration', 'instructions'
         ]
         widgets = {
             'medication': MedicationSelect2Widget(attrs={
                 'class': 'form-select',
                 'data-placeholder': _('Выберите препарат из справочника')
-            }),
-            'custom_medication': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': _('Введите название препарата')
             }),
             'dosage': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -195,8 +191,9 @@ class TreatmentMedicationForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': _('Например: 2 раза в день')
             }),
-            'route': forms.Select(attrs={
-                'class': 'form-select'
+            'route': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': _('Например: внутрь, внутримышечно')
             }),
             'duration': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -210,7 +207,6 @@ class TreatmentMedicationForm(forms.ModelForm):
         }
         labels = {
             'medication': _('Препарат из справочника'),
-            'custom_medication': _('Собственный препарат'),
             'dosage': _('Дозировка'),
             'frequency': _('Частота приема'),
             'route': _('Способ введения'),
@@ -218,11 +214,10 @@ class TreatmentMedicationForm(forms.ModelForm):
             'instructions': _('Особые указания')
         }
         help_texts = {
-            'medication': _('Выберите препарат из справочника или оставьте пустым для ввода собственного'),
-            'custom_medication': _('Введите название препарата, если его нет в справочнике'),
+            'medication': _('Выберите препарат из справочника'),
             'dosage': _('Укажите дозировку препарата'),
             'frequency': _('Укажите частоту приема'),
-            'route': _('Выберите способ введения препарата'),
+            'route': _('Укажите способ введения препарата'),
             'duration': _('Укажите длительность курса лечения'),
             'instructions': _('Дополнительные указания по применению')
         }
@@ -230,17 +225,11 @@ class TreatmentMedicationForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         medication = cleaned_data.get('medication')
-        custom_medication = cleaned_data.get('custom_medication')
         
-        # Проверка, что указан либо препарат из справочника, либо собственный
-        if not medication and not custom_medication:
+        # Проверка, что указан препарат из справочника
+        if not medication:
             raise forms.ValidationError(
-                _("Необходимо указать либо препарат из справочника, либо собственный препарат")
-            )
-        
-        if medication and custom_medication:
-            raise forms.ValidationError(
-                _("Нельзя указывать одновременно препарат из справочника и собственный препарат")
+                _("Необходимо указать препарат из справочника")
             )
         
         return cleaned_data

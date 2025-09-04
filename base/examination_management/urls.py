@@ -74,6 +74,10 @@ urlpatterns = [
          views.ExaminationLabTestUpdateView.as_view(), 
          name='lab_test_update'),
     
+    path('lab-tests/<int:pk>/cancel/', 
+         views.ExaminationLabTestCancelView.as_view(), 
+         name='lab_test_cancel'),
+    
     path('lab-tests/<int:pk>/delete/', 
          views.ExaminationLabTestDeleteView.as_view(), 
          name='lab_test_delete'),
@@ -104,6 +108,10 @@ urlpatterns = [
     path('instrumental/<int:pk>/edit/', 
          views.ExaminationInstrumentalUpdateView.as_view(), 
          name='instrumental_update'),
+    
+    path('instrumental/<int:pk>/cancel/', 
+         views.ExaminationInstrumentalCancelView.as_view(), 
+         name='instrumental_cancel'),
     
     path('instrumental/<int:pk>/delete/', 
          views.ExaminationInstrumentalDeleteView.as_view(), 

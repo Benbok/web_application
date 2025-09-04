@@ -6,6 +6,8 @@ from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.db.models import Q
 from pharmacy.models import Medication
+from base.models import ArchivableModel
+from base.services import ArchiveManager
 
 
 class BaseTreatmentPlan(models.Model):
@@ -224,92 +226,67 @@ class TreatmentPlan(ArchivableModel, BaseTreatmentPlan):
 
 class TreatmentMedication(ArchivableModel):
     """
-    Лекарство в плане лечения с поддержкой архивирования
+    Назначение лекарства в плане лечения с поддержкой архивирования
     """
-    
     treatment_plan = models.ForeignKey(
         TreatmentPlan, 
         on_delete=models.CASCADE, 
-        related_name='medications',
-        verbose_name=_("План лечения")
+        verbose_name=_('План лечения'),
+        related_name='medications'
     )
-    
-    # Препарат из справочника или собственный
     medication = models.ForeignKey(
         Medication, 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True,
-        verbose_name=_("Препарат из справочника")
+        on_delete=models.CASCADE, 
+        verbose_name=_('Лекарство'),
+        related_name='treatment_medications'
     )
-    custom_medication = models.CharField(
-        _("Собственный препарат"), 
-        max_length=200, 
-        blank=True,
-        help_text=_("Введите название препарата, если его нет в справочнике")
-    )
+    dosage = models.CharField(_('Доза'), max_length=100)
+    frequency = models.CharField(_('Частота'), max_length=100)
+    route = models.CharField(_('Путь введения'), max_length=100)
+    duration = models.CharField(_('Длительность'), max_length=100, blank=True)
+    instructions = models.TextField(_('Особые указания'), blank=True)
+    created_at = models.DateTimeField(_('Создано'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('Обновлено'), auto_now=True)
     
-    # Параметры назначения
-    dosage = models.CharField(_("Дозировка"), max_length=100)
-    frequency = models.CharField(_("Частота приема"), max_length=100)
-    route = models.ForeignKey(
-        'pharmacy.AdministrationMethod',
+    # Статус назначения
+    STATUS_CHOICES = [
+        ('active', _('Активно')),
+        ('cancelled', _('Отменено')),
+        ('completed', _('Завершено')),
+        ('paused', _('Приостановлено')),
+    ]
+    status = models.CharField(
+        _('Статус'),
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='active'
+    )
+    cancelled_at = models.DateTimeField(_('Отменено'), null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        verbose_name=_("Способ введения"),
-        help_text=_("Выберите способ введения препарата")
+        verbose_name=_('Отменено пользователем'),
+        related_name='cancelled_medications'
     )
-    duration = models.CharField(_("Длительность"), max_length=100, blank=True)
-    instructions = models.TextField(_("Особые указания"), blank=True)
+    cancellation_reason = models.TextField(_('Причина отмены'), blank=True)
     
-    # Метаданные
-    created_at = models.DateTimeField(_("Дата создания"), auto_now_add=True)
-    updated_at = models.DateTimeField(_("Дата обновления"), auto_now=True)
+    # Менеджеры для архивирования
+    objects = ArchiveManager()
+    all_objects = models.Manager()
     
     class Meta:
-        verbose_name = _("Лекарство в плане лечения")
-        verbose_name_plural = _("Лекарства в планах лечения")
+        verbose_name = _('Назначение лекарства')
+        verbose_name_plural = _('Назначения лекарств')
         ordering = ['-created_at']
     
     def __str__(self):
-        medication_name = self.get_medication_name()
-        return f"{medication_name} - {self.dosage} {self.frequency}"
-    
-    def clean(self):
-        """Проверка, что указан либо препарат из справочника, либо собственный"""
-        if not self.medication and not self.custom_medication:
-            raise ValidationError(
-                _("Необходимо указать либо препарат из справочника, либо собственный препарат")
-            )
-        if self.medication and self.custom_medication:
-            raise ValidationError(
-                _("Нельзя указывать одновременно препарат из справочника и собственный препарат")
-            )
+        return f"{self.medication.name} - {self.dosage} {self.frequency}"
     
     def get_medication_name(self):
-        """Возвращает название препарата"""
-        if self.medication:
-            return self.medication.name
-        return self.custom_medication
-    
-    def get_route_display_name(self):
-        """Возвращает читаемое название способа введения"""
-        if self.route:
-            return self.route.name
-        return _("Не указан")
-    
-    def get_external_info_url(self):
-        """Возвращает ссылку на внешнюю информацию о препарате"""
-        if self.medication and self.medication.external_info_url:
-            return self.medication.external_info_url
-        return None
-    
-    def get_medication_form(self):
-        """Возвращает лекарственную форму препарата"""
-        if self.medication and hasattr(self.medication, 'medication_form'):
-            return self.medication.medication_form
-        return None
+        """Получить название лекарства"""
+        return self.medication.name
     
     def get_schedule_frequency_display(self):
         """
@@ -331,7 +308,7 @@ class TreatmentMedication(ArchivableModel):
                 from django.db.models import Count
                 daily_counts = appointments.values('scheduled_date').annotate(
                     count=Count('id')
-                ).order_by('scheduled_date')
+                ).order_by('-scheduled_date')
                 
                 if daily_counts.exists():
                     # Находим режим (наиболее частое значение)
@@ -416,65 +393,112 @@ class TreatmentMedication(ArchivableModel):
         except Exception:
             return None
     
-    # Менеджеры для архивирования
-    objects = ArchiveManager()
-    all_objects = models.Manager()
+    def can_be_cancelled(self):
+        """
+        Проверяет, можно ли отменить назначение
+        Нельзя отменить, если есть подписанное заключение
+        """
+        # Для лекарств пока нет системы подписей, поэтому всегда можно отменить
+        return True, None
     
-    def _archive_related_records(self, user, reason):
-        """Архивирует связанные записи при архивировании TreatmentMedication"""
-        # Архивируем связанный план лечения
-        if self.treatment_plan and not self.treatment_plan.is_archived:
-            if hasattr(self.treatment_plan, 'archive'):
-                self.treatment_plan.archive(user=user, reason=f"Архивирование связанного лекарства: {reason}")
-
-    def _restore_related_records(self, user):
-        """Восстанавливает связанные записи при восстановлении TreatmentMedication"""
-        # Восстанавливаем связанный план лечения
-        if self.treatment_plan and self.treatment_plan.is_archived:
-            if hasattr(self.treatment_plan, 'restore'):
-                self.treatment_plan.restore(user=user)
+    def cancel(self, reason="", cancelled_by=None):
+        """
+        Отменяет назначение
+        """
+        from django.utils import timezone
+        
+        can_cancel, error_message = self.can_be_cancelled()
+        if not can_cancel:
+            raise ValidationError(error_message)
+        
+        self.status = 'cancelled'
+        self.cancelled_at = timezone.now()
+        self.cancelled_by = cancelled_by
+        self.cancellation_reason = reason
+        self.save(update_fields=['status', 'cancelled_at', 'cancelled_by', 'cancellation_reason'])
+        
+        # Синхронизируем с clinical_scheduling
+        self._sync_with_clinical_scheduling()
+    
+    def _sync_with_clinical_scheduling(self):
+        """
+        Синхронизирует статус с clinical_scheduling
+        """
+        try:
+            from clinical_scheduling.models import ScheduledAppointment
+            from django.contrib.contenttypes.models import ContentType
+            
+            content_type = ContentType.objects.get_for_model(self)
+            appointments = ScheduledAppointment.objects.filter(
+                content_type=content_type,
+                object_id=self.pk
+            )
+            
+            for appointment in appointments:
+                if self.status == 'cancelled':
+                    appointment.execution_status = 'canceled'
+                elif self.status == 'completed':
+                    appointment.execution_status = 'completed'
+                elif self.status == 'paused':
+                    appointment.execution_status = 'skipped'
+                elif self.status == 'active':
+                    appointment.execution_status = 'scheduled'
+                
+                appointment.save(update_fields=['execution_status'])
+                
+        except Exception as e:
+            print(f"Ошибка синхронизации с clinical_scheduling: {e}")
 
 
 class TreatmentRecommendation(ArchivableModel):
     """
-    Рекомендации в плане лечения с поддержкой архивирования
+    Рекомендация в плане лечения с поддержкой архивирования
     """
     treatment_plan = models.ForeignKey(
         TreatmentPlan, 
         on_delete=models.CASCADE, 
-        related_name='recommendations',
-        verbose_name=_("План лечения")
+        verbose_name=_('План лечения'),
+        related_name='recommendations'
     )
+    text = models.TextField(_('Текст рекомендации'))
+    created_at = models.DateTimeField(_('Создано'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('Обновлено'), auto_now=True)
     
-    text = models.TextField(_("Текст рекомендации"), help_text=_("Введите рекомендацию"))
-    created_at = models.DateTimeField(_("Дата создания"), auto_now_add=True)
-    updated_at = models.DateTimeField(_("Дата обновления"), auto_now=True)
-    
-    class Meta:
-        verbose_name = _("Рекомендация в плане лечения")
-        verbose_name_plural = _("Рекомендации в планах лечения")
-        ordering = ['-created_at']
-    
-    def __str__(self):
-        return f"{self.text[:50]}..." if len(self.text) > 50 else self.text
+    # Статус назначения
+    STATUS_CHOICES = [
+        ('active', _('Активно')),
+        ('cancelled', _('Отменено')),
+        ('completed', _('Завершено')),
+        ('paused', _('Приостановлено')),
+    ]
+    status = models.CharField(
+        _('Статус'),
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='active'
+    )
+    cancelled_at = models.DateTimeField(_('Отменено'), null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_('Отменено пользователем'),
+        related_name='cancelled_recommendations'
+    )
+    cancellation_reason = models.TextField(_('Причина отмены'), blank=True)
     
     # Менеджеры для архивирования
     objects = ArchiveManager()
     all_objects = models.Manager()
     
-    def _archive_related_records(self, user, reason):
-        """Архивирует связанные записи при архивировании TreatmentRecommendation"""
-        # Архивируем связанный план лечения
-        if self.treatment_plan and not self.treatment_plan.is_archived:
-            if hasattr(self.treatment_plan, 'archive'):
-                self.treatment_plan.archive(user=user, reason=f"Архивирование связанной рекомендации: {reason}")
-
-    def _restore_related_records(self, user):
-        """Восстанавливает связанные записи при восстановлении TreatmentRecommendation"""
-        # Восстанавливаем связанный план лечения
-        if self.treatment_plan and self.treatment_plan.is_archived:
-            if hasattr(self.treatment_plan, 'restore'):
-                self.treatment_plan.restore(user=user)
+    class Meta:
+        verbose_name = _('Рекомендация')
+        verbose_name_plural = _('Рекомендации')
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Рекомендация: {self.text[:50]}..."
     
     def get_schedule_start_datetime(self):
         """
@@ -500,3 +524,59 @@ class TreatmentRecommendation(ArchivableModel):
             
         except Exception:
             return None
+    
+    def can_be_cancelled(self):
+        """
+        Проверяет, можно ли отменить назначение
+        Нельзя отменить, если есть подписанное заключение
+        """
+        # Для рекомендаций пока нет системы подписей, поэтому всегда можно отменить
+        return True, None
+    
+    def cancel(self, reason="", cancelled_by=None):
+        """
+        Отменяет назначение
+        """
+        from django.utils import timezone
+        
+        can_cancel, error_message = self.can_be_cancelled()
+        if not can_cancel:
+            raise ValidationError(error_message)
+        
+        self.status = 'cancelled'
+        self.cancelled_at = timezone.now()
+        self.cancelled_by = cancelled_by
+        self.cancellation_reason = reason
+        self.save(update_fields=['status', 'cancelled_at', 'cancelled_by', 'cancellation_reason'])
+        
+        # Синхронизируем с clinical_scheduling
+        self._sync_with_clinical_scheduling()
+    
+    def _sync_with_clinical_scheduling(self):
+        """
+        Синхронизирует статус с clinical_scheduling
+        """
+        try:
+            from clinical_scheduling.models import ScheduledAppointment
+            from django.contrib.contenttypes.models import ContentType
+            
+            content_type = ContentType.objects.get_for_model(self)
+            appointments = ScheduledAppointment.objects.filter(
+                content_type=content_type,
+                object_id=self.pk
+            )
+            
+            for appointment in appointments:
+                if self.status == 'cancelled':
+                    appointment.execution_status = 'canceled'
+                elif self.status == 'completed':
+                    appointment.execution_status = 'completed'
+                elif self.status == 'paused':
+                    appointment.execution_status = 'skipped'
+                elif self.status == 'active':
+                    appointment.execution_status = 'scheduled'
+                
+                appointment.save(update_fields=['execution_status'])
+                
+        except Exception as e:
+            print(f"Ошибка синхронизации с clinical_scheduling: {e}")

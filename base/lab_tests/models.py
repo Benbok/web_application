@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 class LabTestDefinition(models.Model):
     name = models.CharField("Название лабораторного исследования", max_length=255, unique=True)
@@ -54,6 +55,30 @@ class LabTestResult(models.Model):
     created_at = models.DateTimeField("Создан", auto_now_add=True)
     updated_at = models.DateTimeField("Обновлён", auto_now=True)
 
+    # Статус назначения для синхронизации с examination_management
+    STATUS_CHOICES = [
+        ('active', _('Активно')),
+        ('cancelled', _('Отменено')),
+        ('completed', _('Завершено')),
+        ('paused', _('Приостановлено')),
+    ]
+    status = models.CharField(
+        _('Статус'),
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='active'
+    )
+    cancelled_at = models.DateTimeField(_('Отменено'), null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_('Отменено пользователем'),
+        related_name='cancelled_lab_test_results'
+    )
+    cancellation_reason = models.TextField(_('Причина отмены'), blank=True)
+
     class Meta:
         verbose_name = "Результат лабораторного исследования"
         verbose_name_plural = "Результаты лабораторных исследований"
@@ -61,3 +86,15 @@ class LabTestResult(models.Model):
 
     def __str__(self):
         return f"Результат {self.procedure_definition.name} для {self.patient} от {self.datetime_result.strftime('%d.%m.%Y')}"
+    
+    def cancel(self, reason="", cancelled_by=None):
+        """
+        Отменяет результат исследования
+        """
+        from django.utils import timezone
+        
+        self.status = 'cancelled'
+        self.cancelled_at = timezone.now()
+        self.cancelled_by = cancelled_by
+        self.cancellation_reason = reason
+        self.save(update_fields=['status', 'cancelled_at', 'cancelled_by', 'cancellation_reason'])

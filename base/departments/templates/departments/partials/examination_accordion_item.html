@@ -30,58 +30,76 @@
                 <h6 class="mb-3">
                     <i class="fas fa-flask me-2"></i>Лабораторные исследования ({{ object.lab_tests.count }})
                 </h6>
-                <div class="list-group list-group-flush">
-                    {% for lab_test in object.lab_tests.all %}
-                        <div class="list-group-item">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div class="flex-grow-1">
-                                    <h6 class="mb-1">
-                                        {% if lab_test.lab_test %}
-                                            {{ lab_test.lab_test.name }}
-                                        {% else %}
-                                            {{ lab_test.custom_name }}
-                                        {% endif %}
-                                    </h6>
-                                    <div class="row text-muted small">
-                                        <div class="col-md-6">
-                                            <i class="fas fa-calendar-plus me-1"></i>Назначено: 
-                                            {% if lab_test.get_scheduled_datetime %}
-                                                {{ lab_test.get_scheduled_datetime|date:'d.m.Y H:i' }}
-                                            {% else %}
-                                                {{ lab_test.created_at|date:'d.m.Y H:i' }}
-                                            {% endif %}
-                                        </div>
-                                        {% if lab_test.instructions %}
-                                            <div class="col-md-6">
-                                                <i class="fas fa-info-circle me-1"></i>{{ lab_test.instructions }}
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                    {% if lab_test.results.all %}
-                                        <div class="mt-2">
-                                            <small class="text-success">
-                                                <i class="fas fa-check-circle me-1"></i>Результаты получены
-                                            </small>
-                                        </div>
-                                    {% endif %}
-                                </div>
-                                <div class="ms-3">
-                                    <div class="btn-group-vertical btn-group-sm">
-                                        <a href="{% url 'examination_management:lab_test_update' pk=lab_test.pk %}" 
-                                           class="btn btn-outline-primary btn-sm">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <a href="{% url 'examination_management:lab_test_delete' pk=lab_test.pk %}" 
-                                           class="btn btn-outline-danger btn-sm"
-                                           onclick="return confirm('Удалить лабораторное исследование?')">
-                                            <i class="fas fa-trash"></i>
-                                        </a>
-                                    </div>
-                                </div>
+                {% for examination_lab_test in object.lab_tests.all %}
+                    <div class="card mb-2 {% if examination_lab_test.status == 'cancelled' %}border-secondary bg-light{% endif %}">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">
+                                <strong class="text-primary">{{ examination_lab_test.get_lab_test_name }}</strong>
+                                {% if examination_lab_test.status == 'cancelled' %}
+                                    <span class="badge bg-secondary ms-2">Отменено</span>
+                                {% endif %}
+                            </h6>
+                            <div class="btn-group" role="group">
+                                {% if examination_lab_test.status != 'cancelled' %}
+                                    <a href="{% url 'examination_management:lab_test_update' pk=examination_lab_test.pk %}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'examination_management:lab_test_delete' pk=examination_lab_test.pk %}" 
+                                       class="btn btn-sm btn-outline-warning">
+                                        <i class="fas fa-ban"></i>
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted small">Отменено {{ examination_lab_test.cancelled_at|date:"d.m.Y H:i" }}</span>
+                                {% endif %}
                             </div>
                         </div>
-                    {% endfor %}
-                </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar-plus me-1"></i>Назначено: 
+                                        {% if examination_lab_test.get_scheduled_datetime %}
+                                            {{ examination_lab_test.get_scheduled_datetime|date:'d.m.Y H:i' }}
+                                        {% else %}
+                                            {{ examination_lab_test.created_at|date:'d.m.Y H:i' }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>Статус: 
+                                        {% if examination_lab_test.status == 'active' %}
+                                            <span class="text-success">Активно</span>
+                                        {% elif examination_lab_test.status == 'cancelled' %}
+                                            <span class="text-secondary">Отменено</span>
+                                        {% elif examination_lab_test.status == 'completed' %}
+                                            <span class="text-primary">Завершено</span>
+                                        {% elif examination_lab_test.status == 'paused' %}
+                                            <span class="text-warning">Приостановлено</span>
+                                        {% else %}
+                                            <span class="text-muted">Неизвестно</span>
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                            {% if examination_lab_test.instructions %}
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-sticky-note me-1"></i>{{ examination_lab_test.instructions }}
+                                    </small>
+                                </div>
+                            {% endif %}
+                            {% if examination_lab_test.status == 'cancelled' and examination_lab_test.cancellation_reason %}
+                                <div class="mt-2">
+                                    <small class="text-danger">
+                                        <i class="fas fa-ban me-1"></i>Причина отмены: {{ examination_lab_test.cancellation_reason }}
+                                    </small>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
             {% else %}
                 <div class="text-center text-muted py-4">
                     <i class="fas fa-flask fa-2x mb-3"></i>
@@ -94,58 +112,76 @@
                 <h6 class="mb-3 mt-4">
                     <i class="fas fa-stethoscope me-2"></i>Инструментальные исследования ({{ object.instrumental_procedures.count }})
                 </h6>
-                <div class="list-group list-group-flush">
-                    {% for instrumental in object.instrumental_procedures.all %}
-                        <div class="list-group-item">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div class="flex-grow-1">
-                                    <h6 class="mb-1">
-                                        {% if instrumental.instrumental_procedure %}
-                                            {{ instrumental.instrumental_procedure.name }}
-                                        {% else %}
-                                            {{ instrumental.custom_name }}
-                                        {% endif %}
-                                    </h6>
-                                    <div class="row text-muted small">
-                                        <div class="col-md-6">
-                                            <i class="fas fa-calendar-plus me-1"></i>Назначено: 
-                                            {% if instrumental.get_scheduled_datetime %}
-                                                {{ instrumental.get_scheduled_datetime|date:'d.m.Y H:i' }}
-                                            {% else %}
-                                                {{ instrumental.created_at|date:'d.m.Y H:i' }}
-                                            {% endif %}
-                                        </div>
-                                        {% if instrumental.instructions %}
-                                            <div class="col-md-6">
-                                                <i class="fas fa-info-circle me-1"></i>{{ instrumental.instructions }}
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                    {% if instrumental.results.all %}
-                                        <div class="mt-2">
-                                            <small class="text-success">
-                                                <i class="fas fa-check-circle me-1"></i>Результаты получены
-                                            </small>
-                                        </div>
-                                    {% endif %}
-                                </div>
-                                <div class="ms-3">
-                                    <div class="btn-group-vertical btn-group-sm">
-                                        <a href="{% url 'examination_management:instrumental_update' pk=instrumental.pk %}" 
-                                           class="btn btn-outline-primary btn-sm">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <a href="{% url 'examination_management:instrumental_delete' pk=instrumental.pk %}" 
-                                           class="btn btn-outline-danger btn-sm"
-                                           onclick="return confirm('Удалить инструментальное исследование?')">
-                                            <i class="fas fa-trash"></i>
-                                        </a>
-                                    </div>
-                                </div>
+                {% for examination_instrumental in object.instrumental_procedures.all %}
+                    <div class="card mb-2 {% if examination_instrumental.status == 'cancelled' %}border-secondary bg-light{% endif %}">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">
+                                <strong class="text-info">{{ examination_instrumental.get_procedure_name }}</strong>
+                                {% if examination_instrumental.status == 'cancelled' %}
+                                    <span class="badge bg-secondary ms-2">Отменено</span>
+                                {% endif %}
+                            </h6>
+                            <div class="btn-group" role="group">
+                                {% if examination_instrumental.status != 'cancelled' %}
+                                    <a href="{% url 'examination_management:instrumental_update' pk=examination_instrumental.pk %}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'examination_management:instrumental_delete' pk=examination_instrumental.pk %}" 
+                                       class="btn btn-sm btn-outline-warning">
+                                        <i class="fas fa-ban"></i>
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted small">Отменено {{ examination_instrumental.cancelled_at|date:"d.m.Y H:i" }}</span>
+                                {% endif %}
                             </div>
                         </div>
-                    {% endfor %}
-                </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar-plus me-1"></i>Назначено: 
+                                        {% if examination_instrumental.get_scheduled_datetime %}
+                                            {{ examination_instrumental.get_scheduled_datetime|date:'d.m.Y H:i' }}
+                                        {% else %}
+                                            {{ examination_instrumental.created_at|date:'d.m.Y H:i' }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>Статус: 
+                                        {% if examination_instrumental.status == 'active' %}
+                                            <span class="text-success">Активно</span>
+                                        {% elif examination_instrumental.status == 'cancelled' %}
+                                            <span class="text-secondary">Отменено</span>
+                                        {% elif examination_instrumental.status == 'completed' %}
+                                            <span class="text-primary">Завершено</span>
+                                        {% elif examination_instrumental.status == 'paused' %}
+                                            <span class="text-warning">Приостановлено</span>
+                                        {% else %}
+                                            <span class="text-muted">Неизвестно</span>
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                            {% if examination_instrumental.instructions %}
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-sticky-note me-1"></i>{{ examination_instrumental.instructions }}
+                                    </small>
+                                </div>
+                            {% endif %}
+                            {% if examination_instrumental.status == 'cancelled' and examination_instrumental.cancellation_reason %}
+                                <div class="mt-2">
+                                    <small class="text-danger">
+                                        <i class="fas fa-ban me-1"></i>Причина отмены: {{ examination_instrumental.cancellation_reason }}
+                                    </small>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
             {% else %}
                 <div class="text-center text-muted py-4">
                     <i class="fas fa-stethoscope fa-2x mb-3"></i>

@@ -159,10 +159,19 @@
                                    class="btn btn-outline-primary btn-sm">
                                     <i class="fas fa-edit me-1"></i> Редактировать
                                 </a>
-                                <a href="{% url 'treatment_management:medication_delete' pk=medication.pk %}" 
-                                   class="btn btn-outline-danger btn-sm">
-                                    <i class="fas fa-trash me-1"></i> Удалить
-                                </a>
+                                {% with can_cancel=medication.can_be_cancelled %}
+                                {% if can_cancel.0 %}
+                                    <a href="{% url 'treatment_management:medication_delete' pk=medication.pk %}" 
+                                       class="btn btn-outline-warning btn-sm">
+                                        <i class="fas fa-ban me-1"></i> Отменить
+                                    </a>
+                                {% else %}
+                                    <span class="btn btn-outline-secondary btn-sm disabled" 
+                                          title="{{ can_cancel.1 }}">
+                                        <i class="fas fa-ban me-1"></i> Отменить
+                                    </span>
+                                {% endif %}
+                                {% endwith %}
                             </div>
                         </div>
                     </div>
@@ -211,10 +220,19 @@
                            class="btn btn-outline-primary btn-sm">
                             <i class="fas fa-edit"></i>
                         </a>
-                        <a href="{% url 'treatment_management:recommendation_delete' pk=recommendation.pk %}" 
-                           class="btn btn-outline-danger btn-sm">
-                            <i class="fas fa-trash"></i>
-                        </a>
+                                                 {% with can_cancel=recommendation.can_be_cancelled %}
+                        {% if can_cancel.0 %}
+                            <a href="{% url 'treatment_management:recommendation_delete' pk=recommendation.pk %}" 
+                               class="btn btn-outline-warning btn-sm">
+                                <i class="fas fa-ban"></i>
+                            </a>
+                        {% else %}
+                            <span class="btn btn-outline-secondary btn-sm disabled" 
+                                  title="{{ can_cancel.1 }}">
+                                <i class="fas fa-ban"></i>
+                            </span>
+                        {% endif %}
+                        {% endwith %}
                     </div>
                 </li>
                 {% endfor %}
